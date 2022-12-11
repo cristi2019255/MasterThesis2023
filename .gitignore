@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# h5 models
+*.h5
+
+# data folder
+data/
