@@ -12,53 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
-import matplotlib.pyplot as plt
-
 import os
-import random
-from tqdm import tqdm # for progress bar
-
 # Libraries for TensorFlow
-from tensorflow.keras.preprocessing import image
 from keras.callbacks import ModelCheckpoint
-from tensorflow import keras
-
-# Library for Transfer Learning
-from keras.applications.vgg16 import preprocess_input
-from utils.Logger import Logger
 
 from utils.transformer import transform_mnist_to_tf_dataset
 from utils.reader import import_mnist_dataset, load_mnist_preprocessed
 from models.VGG16 import build_model, build_custom_model, compile_model
-from models.tools import freeze_layers, load_model, plot, plot_history, save_history, save_model
-from keras.utils.image_utils import img_to_array, array_to_img
+from models.tools import freeze_layers, load_model, plot, plot_history, predict, save_history, save_model
 
 EPOCHS = 16
 BATCH_SIZE = 128
 MODELS_FOLDER = os.path.join("models", "model")
 SAMPLES_LIMIT = 5000
 
-def predict(X_test, Y_test, model):
-    # TODO: update this function to work better
-    console = Logger(name="VGG-16 model predictor")
-    plt.figure(figsize=(20,10))
-    
-    x = X_test[:15]
-    y = Y_test[:15]
-    predictions=model.predict(x)
-    for i in range(15):
-        plt.subplot(3,5,i+1)
-        plt.axis('off')     
-        plt.imshow(x[i])
-        pred = predictions[i]
-        output=np.argmax(pred)
-        console.success(f"Predicted probabilities are: {pred}")
-        console.success(f"Predicted digit is: {output}")
-        plt.title(f"Predicted: {output} ({pred[output]*100:.2f}%) \n Actual: {np.argmax(y[i])}")    
-        
-    plt.show()
-    
+
 def train(X_train, Y_train, X_test, Y_test):
     model = build_custom_model()
     model = freeze_layers(model, layers_to_freeze=2)
@@ -103,6 +71,7 @@ def main():
     
     predict(X_test, Y_test, model)
     
+
 
 if __name__ == '__main__':
     main()

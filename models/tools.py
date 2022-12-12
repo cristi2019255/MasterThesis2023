@@ -104,3 +104,26 @@ def plot_history(model_name, show=True):
     
     if show:
         plt.show()
+        
+    
+
+def predict(X_test, Y_test, model):
+    # TODO: update this function to work better
+    console = Logger(name="Model predictor")
+    plt.figure(figsize=(20,10))
+    
+    x = X_test[:15]
+    y = Y_test[:15]
+    predictions=model.predict(x)
+    for i in range(15):
+        plt.subplot(3,5,i+1)
+        plt.axis('off')     
+        plt.imshow(x[i])
+        pred = predictions[i]
+        output=np.argmax(pred)
+        console.success(f"Predicted probabilities are: {pred}")
+        console.success(f"Predicted digit is: {output}")
+        plt.title(f"Predicted: {output} ({pred[output]*100:.2f}%) \n Actual: {np.argmax(y[i])}")    
+        
+    plt.show()
+    
