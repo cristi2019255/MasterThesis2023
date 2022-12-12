@@ -20,16 +20,17 @@ from tensorflow.keras.utils import to_categorical
 def transform_mnist_to_tf_dataset(X_train, Y_train, X_test, Y_test):
     console = Logger(name="MNIST dataset transformer")
     
-    # Convert the images into 3 channels as MNIST images are Black and White so have 1 channel
-    X_train = np.dstack([X_train] * 3)
-    X_test = np.dstack([X_test] * 3)
-    console.log(f"Transformed image data to 3 channels: {X_train.shape}")
     
-    # reshape data to fit the model
-    X_train = X_train.reshape(X_train.shape[0], 28, 28, 3)
-    X_test = X_test.reshape(X_test.shape[0], 28, 28, 3)
+    # reshape data
+    X_train = X_train.reshape(X_train.shape[0], 28, 28, 1)
+    X_test = X_test.reshape(X_test.shape[0], 28, 28, 1)
     console.log(f"Reshaped to 28x28 representation {X_train.shape}")
 
+    # Convert the images into 3 channels as MNIST images are Black and White so have 1 channel
+    X_train = np.array([np.dstack((img, img, img)) for img in X_train])
+    X_test = np.array([np.dstack((img, img, img)) for img in X_test])
+    console.log(f"Transformed image data to 3 channels: {X_train.shape}")
+    
     
     # Resize the images 48*48 as required by VGG16
     X_train = np.asarray([img_to_array(array_to_img(img, scale=False).resize((48,48))) for img in X_train])
