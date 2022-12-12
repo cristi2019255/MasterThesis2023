@@ -16,6 +16,9 @@ import numpy as np
 from utils.Logger import Logger
 from keras.utils.image_utils import img_to_array, array_to_img
 from tensorflow.keras.utils import to_categorical
+import os
+
+MNIST_DATA_FOLDER = os.path.join(os.getcwd(), "data", "MNIST")
 
 def transform_mnist_to_tf_dataset(X_train, Y_train, X_test, Y_test):
     console = Logger(name="MNIST dataset transformer")
@@ -53,13 +56,13 @@ def transform_mnist_to_tf_dataset(X_train, Y_train, X_test, Y_test):
     console.log("MNIST dataset transformed")
     
     # Save the transformed dataset
-    with open("data/mnist_X_train.npy", "wb") as f:
+    with open(os.path.join(MNIST_DATA_FOLDER, "mnist_X_train.npy"), "wb") as f:
         np.save(f, X_train)
-    with open("data/mnist_X_test.npy", "wb") as f:
+    with open(os.path.join(MNIST_DATA_FOLDER,"mnist_X_test.npy"), "wb") as f:
         np.save(f, X_test)
-    with open("data/mnist_Y_train.npy", "wb") as f:
+    with open(os.path.join(MNIST_DATA_FOLDER, "mnist_Y_train.npy"), "wb") as f:
         np.save(f, Y_train)
-    with open("data/mnist_Y_test.npy", "wb") as f:
+    with open(os.path.join(MNIST_DATA_FOLDER, "mnist_Y_test.npy"), "wb") as f:
         np.save(f, Y_test)
     
     return (X_train, Y_train), (X_test, Y_test)

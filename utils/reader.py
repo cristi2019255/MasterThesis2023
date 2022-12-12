@@ -15,6 +15,9 @@
 import numpy as np
 from utils.Logger import Logger
 from keras.datasets import mnist
+import os
+
+MNIST_DATA_FOLDER = os.path.join(os.getcwd(), "data", "MNIST")
 
 def import_mnist_dataset():
     console = Logger(name="MNIST dataset importer")
@@ -26,12 +29,12 @@ def import_mnist_dataset():
 
 def load_mnist_preprocessed():
     # Load the preprocessed dataset
-    with open("data/mnist_X_train.npy", "rb") as f:
+    with open(os.path.join(MNIST_DATA_FOLDER, "mnist_X_train.npy"), "rb") as f:
         X_train = np.load(f)
-    with open("data/mnist_X_test.npy", "rb") as f:
+    with open(os.path.join(MNIST_DATA_FOLDER, "mnist_X_test.npy"), "rb") as f:
         X_test = np.load(f)
-    with open("data/mnist_Y_train.npy", "rb") as f:
+    with open(os.path.join(MNIST_DATA_FOLDER, "mnist_Y_train.npy"), "rb") as f:
         Y_train = np.load(f)
-    with open("data/mnist_Y_test.npy", "rb") as f:
+    with open(os.path.join(MNIST_DATA_FOLDER, "mnist_Y_test.npy"), "rb") as f:
         Y_test = np.load(f)
     return (X_train, Y_train), (X_test, Y_test)

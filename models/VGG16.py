@@ -49,10 +49,13 @@ def build_custom_model(input_shape=(48,48,3), include_top=False, output_shape=10
     
     return model
 
-def compile_model(model, loss = 'categorical_crossentropy', optimizer = 'adam', metrics = ['accuracy']):
+def compile_model(model, loss = 'categorical_crossentropy', optimizer = 'adam', metrics = ['accuracy'], summary=True):
     console = Logger(name="VGG-16 model compiler")
     # Compiling Model
     model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
     console.success("Model compilation completed.")
-    print_model_summary(model, console)
+    
+    if summary:
+        print_model_summary(model, console)
+    
     return model
