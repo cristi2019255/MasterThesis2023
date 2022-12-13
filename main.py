@@ -12,10 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # uncomment to disable GPU, run on CPU only 
+import tensorflow as tf 
+from keras import backend as K
+
 import numpy as np
 from utils.transformer import transform_mnist_to_tf_dataset
 from utils.reader import import_mnist_dataset, load_mnist_preprocessed
-from models.VGG16 import load_convolution_corpus
+from models.VGG16 import load_convolution_corpus, train
 from models.tools import load_model, predict
 from utils.tsneTools import load_tsne_embedding, plot_tsne_embedding
 
@@ -37,8 +42,8 @@ def main():
     #(X_train, Y_train), (X_test, Y_test) = transform_mnist_to_tf_dataset(X_train, Y_train, X_test, Y_test)
     
     
-    model = load_model("MNIST")
-    #model, history = train(X_train, Y_train, X_test, Y_test)
+    # model = load_model("MNIST")
+    model, history = train(X_train, Y_train, X_test, Y_test)
     
     predict(X_test, Y_test, model)
     
@@ -49,4 +54,6 @@ def main():
     plot_tsne_embedding(labels, model.name)
     
 if __name__ == '__main__':
+    # TODO: check GPU errors
     main()
+        

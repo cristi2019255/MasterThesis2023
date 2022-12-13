@@ -36,12 +36,12 @@ def freeze_layers(model, layers_to_freeze=1):
     
     return model
 
-def print_model_summary(model, console = None):
+def print_model_summary(model: tf.keras.models.Model, console = None):
     if console is None:
         console = Logger(name="VGG-16 model summary printer")
     
     console.log("Summary of the model.\n")
-    model.summary() 
+    model.summary(show_trainable=True) 
 
 def plot(model):
     dir = os.path.join(MODELS_FOLDER, model.name)

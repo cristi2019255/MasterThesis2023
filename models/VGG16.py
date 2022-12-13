@@ -18,13 +18,13 @@ from models.tools import freeze_layers, print_model_summary
 from tensorflow.keras.applications import VGG16
 from tensorflow.keras import models, layers
 from utils.Logger import Logger
-from keras.models import Model
+from tensorflow.keras.models import Model
 from models.tools import freeze_layers, load_model, plot, plot_history, predict, save_history, save_model
-from keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ModelCheckpoint
 
 
 EPOCHS = 16
-BATCH_SIZE = 128
+BATCH_SIZE = 100
 MODELS_FOLDER = os.path.join("models", "model")
 
 def build_model(model_name = "MNIST"):
@@ -77,7 +77,7 @@ def train(X_train, Y_train, X_test, Y_test, epochs=EPOCHS, batch_size=BATCH_SIZE
     plot(model)
     
     filepath = os.path.join(MODELS_FOLDER, model.name, f"{model.name}.h5")
-    checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=1)
+    checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', save_freq=1)
     
     # Fit the Model
     history = model.fit(X_train,
