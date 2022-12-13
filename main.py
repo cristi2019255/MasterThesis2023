@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import os
+
+from utils.opf import opf
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # uncomment to disable GPU, run on CPU only 
 import tensorflow as tf 
 from keras import backend as K
@@ -23,6 +25,7 @@ from utils.reader import import_mnist_dataset, load_mnist_preprocessed
 from models.VGG16 import load_convolution_corpus, train
 from models.tools import load_model, predict
 from utils.tsneTools import load_tsne_embedding, plot_tsne_embedding
+from tensorflow.keras.utils import to_categorical
 
 SAMPLES_LIMIT = 5000
 
@@ -42,16 +45,22 @@ def main():
     #(X_train, Y_train), (X_test, Y_test) = transform_mnist_to_tf_dataset(X_train, Y_train, X_test, Y_test)
     
     
-    # model = load_model("MNIST")
-    model, history = train(X_train, Y_train, X_test, Y_test)
+    model = load_model("MNIST")
+    # model, history = train(X_train, Y_train, X_test, Y_test)
     
-    predict(X_test, Y_test, model)
+    #predict(X_test, Y_test, model)
     
     # corpus = get_convolution_corpus(X_train, model)
     # corpus = load_convolution_corpus(model.name)
     labels = np.array([np.argmax(y) for y in Y_train])
-    load_tsne_embedding(model.name)
-    plot_tsne_embedding(labels, model.name)
+    #plot_tsne_embedding(labels, model.name)
+    X = load_tsne_embedding(model.name)
+    Y = labels
+    Y = opf(X, Y)
+    print(Y.shape)
+    Y_train = to_categorical(Y)
+    model, history = train(X_train, Y_train, X_test, Y_test)
+    
     
 if __name__ == '__main__':
     # TODO: check GPU errors
