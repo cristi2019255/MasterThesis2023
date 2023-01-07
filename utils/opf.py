@@ -18,6 +18,12 @@ import opfython.stream.splitter as s
 from opfython.models import SemiSupervisedOPF
 import numpy as np
 
+# opf stands for Optimal Path Forest
+# With OPF we can train a classifier on a small subset of the data and then use it to predict the labels of the rest of the data
+# This is useful when we have a lot of unlabeled data and we want to use it to train a classifier
+# The OPF algorithm works as follows:
+# 1. We split the data into training and unlabeled data
+# 2. Based on the training data labels we create a graph and then for each unlabeled data point we find the closest labeled data point and assign the label of the closest labeled data point to the unlabeled data point
 def opf(X_train, Y_train):
     # Splitting data into training and validation sets
     #X_train, X_unlabeled, Y_train, Y_unlabeled = s.split(
