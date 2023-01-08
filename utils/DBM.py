@@ -60,7 +60,9 @@ class DBM:
                               show_autoencoder_predictions=True,
                               resolution=DBM_DEFAULT_RESOLUTION, 
                               show_mapping=True, 
-                              save_file_path=os.path.join("results", "MNIST", "2D_boundary_mapping.png")):
+                              save_file_path=os.path.join("results", "MNIST", "2D_boundary_mapping.png"),
+                              class_name_mapper = lambda x: str(x)
+                              ):
         
         # first train the autoencoder if it is not already trained
         if self.autoencoder is None:
@@ -107,11 +109,11 @@ class DBM:
         img = predicted_labels.reshape((resolution, resolution))
         #self.console.log("2D boundary mapping: \n", img)
 
-        self._build_2D_image(encoded_training_data, encoded_testing_data, img, show_mapping, save_file_path)
+        self._build_2D_image(encoded_training_data, encoded_testing_data, img, show_mapping, save_file_path, class_name_mapper)
     
         return img
 
-    def _build_2D_image(self, encoded_training_data, encoded_testing_data, img, show_mapping, save_file_path):
+    def _build_2D_image(self, encoded_training_data, encoded_testing_data, img, show_mapping, save_file_path, class_name_mapper = lambda x: str(x)):
         color_img = np.zeros((img.shape[0], img.shape[1], 3))
     
         for [i,j] in encoded_training_data:
@@ -156,7 +158,7 @@ class DBM:
             elif value==-2:
                 label = "Original test data"
             else:
-                label = f"Value region: {value}"
+                label = f"Value region: {class_name_mapper(value)}"
 
             patches.append(mpatches.Patch(color=color, label=label))
         

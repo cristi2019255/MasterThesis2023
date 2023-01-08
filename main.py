@@ -76,6 +76,21 @@ def main():
     model, history = train(X_train, Y_train, X_test, Y_test)
     
 
+def class_name_mapper(x):
+    mapper = {
+        0: 'zero',
+        1: 'one',
+        2: 'two',
+        3: 'three',
+        4: 'four',
+        5: 'five',
+        6: 'six',
+        7: 'seven',
+        8: 'eight',
+        9: 'nine'
+    }
+    return mapper[x]
+
 def main_dbm():
     # import MNIST dataset
     (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
@@ -106,7 +121,9 @@ def main_dbm():
     dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test, 
                               train_epochs=10, 
                               train_batch_size=128,
-                              resolution=256)
+                              resolution=256,
+                              class_name_mapper=class_name_mapper,
+                              )
 
 if __name__ == '__main__':
     main_dbm()
