@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import os
-from utils.DBM import DBM
 from utils.opf import opf
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # uncomment to disable GPU, run on CPU only 
 import tensorflow as tf 
@@ -59,41 +58,6 @@ def main():
     Y_train = to_categorical(Y)
     model, history = train(X_train, Y_train, X_test, Y_test)
     
-
-def main_dbm():
-    # import MNIST dataset
-    (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
-    
-    # load preprocessed dataset
-    #(X_train, Y_train), (X_test, Y_test) = load_mnist_preprocessed()
-    
-    # limiting to first 1000 samples for testing
-    X_train = X_train[:int(0.7 * SAMPLES_LIMIT)]
-    Y_train = Y_train[:int(0.7 * SAMPLES_LIMIT)]
-    X_test = X_test[:int(0.3 * SAMPLES_LIMIT)]
-    Y_test = Y_test[:int(0.3 * SAMPLES_LIMIT)]
-    
-    
-    X_train = X_train.astype('float32')
-    X_test = X_test.astype('float32')
-    X_train /= 255
-    X_test /= 255
-    
-    
-    num_classes = np.unique(Y_train).shape[0]
-    classifier = tf.keras.models.Sequential([
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(num_classes, activation=tf.nn.softmax)
-    ])
-    
-    dbm = DBM(classifier)
-    dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test, 
-                              train_epochs=10, 
-                              train_batch_size=128,
-                              resolution=256,
-                              class_name_mapper=lambda x: "Digit " + str(x),
-                              )
-
 if __name__ == '__main__':
-    main_dbm()
+    main()
         
