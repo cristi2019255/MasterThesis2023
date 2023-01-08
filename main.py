@@ -14,11 +14,9 @@
 
 import os
 from utils.DBM import DBM
-
 from utils.opf import opf
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # uncomment to disable GPU, run on CPU only 
 import tensorflow as tf 
-
 import numpy as np
 from utils.transformer import transform_mnist_to_tf_dataset
 from utils.reader import import_mnist_dataset, load_mnist_preprocessed
@@ -27,21 +25,7 @@ from models.tools import load_model, predict
 from utils.tsneTools import load_tsne_embedding, plot_tsne_embedding
 from tensorflow.keras.utils import to_categorical
 
-
 SAMPLES_LIMIT = 5000
-
-def d(X_train, Y_train, X_test, Y_test):
-    # DBM - decision boundary mapping
-    # Input: X_train, Y_train, X_test, Y_test - MNIST dataset
-    # Output: A 2D image (resolution x resolution) where each pixel represents a class 
-    
-    # Steps: 
-    # 1. Train an autoencoder on the training data (this will be used to reduce the dimensionality of the data) nD -> 2D
-    # 2. For each pixel in the 2D image, predict the class of the pixel using the trained autoencoder, the decoder part
-    # 3. Generate the 2D image
-    # 4. Plot the 2D image
-    # 5. Enjoy!
-    pass
     
 def main():
     # import MNIST dataset
@@ -76,21 +60,6 @@ def main():
     model, history = train(X_train, Y_train, X_test, Y_test)
     
 
-def class_name_mapper(x):
-    mapper = {
-        0: 'zero',
-        1: 'one',
-        2: 'two',
-        3: 'three',
-        4: 'four',
-        5: 'five',
-        6: 'six',
-        7: 'seven',
-        8: 'eight',
-        9: 'nine'
-    }
-    return mapper[x]
-
 def main_dbm():
     # import MNIST dataset
     (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
@@ -122,7 +91,7 @@ def main_dbm():
                               train_epochs=10, 
                               train_batch_size=128,
                               resolution=256,
-                              class_name_mapper=class_name_mapper,
+                              class_name_mapper=lambda x: "Digit " + str(x),
                               )
 
 if __name__ == '__main__':
