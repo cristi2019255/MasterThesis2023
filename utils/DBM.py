@@ -143,7 +143,7 @@ class DBM:
         for i, j in np.ndindex(img.shape):
             color_img[i,j] = colors_mapper[img[i,j]]
         
-        plt.figure(figsize=(20, 10))
+        plt.figure(figsize=(12, 10))
         plt.title("2D boundary mapping")
         plt.axis('off')
         
