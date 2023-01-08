@@ -17,6 +17,8 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
 
+from utils.Logger import Logger
+
 def build_autoencoder(classifier, input_shape = (28, 28), num_classes = 10, show_summary = False):
     """ Building an autoencoder for dimensionality reduction of the data
 
@@ -59,7 +61,6 @@ def load_autoencoder(folder_path = os.path.join("models", "model", "DBM", "MNIST
     try:
         return Autoencoder(folder_path = folder_path, load = True)
     except Exception as e:
-        print(e)
         raise e
 
 class Autoencoder:
@@ -72,6 +73,7 @@ class Autoencoder:
             Classifier: The classifier part of the autoencoder.
             Input_layer: The input layer of the autoencoder.
         """
+        self.console = Logger(name="Autoencoder")
         self.save_folder_path = folder_path
         self.encoder = encoder
         self.decoder = decoder
@@ -96,8 +98,8 @@ class Autoencoder:
             self.decoder = tf.keras.models.load_model(os.path.join(folder_path, "decoder.h5"))
             self.encoder = tf.keras.models.load_model(os.path.join(folder_path, "encoder.h5"))
         except Exception as e:
-            print("Autoencoder not found. Please check the path folder and make sure the autoencoder is saved there")        
-            print(f"Exception: {e}")
+            self.console.log("Autoencoder not found. Please check the path folder and make sure the autoencoder is saved there")        
+            self.console.error(f"Exception: {e}")
             raise e
     
     

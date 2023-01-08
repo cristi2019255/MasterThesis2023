@@ -19,6 +19,8 @@ from models.autoencoder import build_autoencoder, load_autoencoder
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
+from utils.Logger import Logger
+
 
 DBM_DEFAULT_RESOLUTION = 100
 
@@ -27,6 +29,8 @@ class DBM:
         DBM - Decision Boundary Mapper
     """
     def __init__(self, classifier):
+        self.console = Logger(name="Decision Boundary Mapper - DBM, using Autoencoder")
+        self.console.log("Loaded classifier: " + classifier.name + "")
         self.classifier = classifier
         self.autoencoder = None
 
@@ -37,9 +41,9 @@ class DBM:
         # 1. Train an autoencoder on the training data (this will be used to reduce the dimensionality of the data) nD -> 2D
         try:
             autoencoder = load_autoencoder(load_autoencoder_folder)
-            print("Loaded autoencoder from disk")
+            self.console.log("Loaded autoencoder from disk")
         except Exception as e:
-            print("Could not load autoencoder from disk. Training a new one.")
+            self.console.log("Could not load autoencoder from disk. Training a new one.")
             autoencoder = build_autoencoder(self.classifier, data_shape, num_classes, show_summary=True)
             autoencoder.fit(X_train, Y_train, X_test, Y_test, epochs=epochs, batch_size=batch_size)
         
@@ -101,7 +105,7 @@ class DBM:
         predictions = self.classifier.predict(spaceNd)
         predicted_labels = np.array([np.argmax(p) for p in predictions])
         img = predicted_labels.reshape((resolution, resolution))
-        #print("2D boundary mapping: \n", img)
+        #self.console.log("2D boundary mapping: \n", img)
 
         self._build_2D_image(encoded_training_data, encoded_testing_data, img, show_mapping, save_file_path)
     
