@@ -58,6 +58,7 @@ class DBM:
                               X_train, Y_train, X_test, Y_test,
                               train_epochs=10, train_batch_size=128,
                               show_autoencoder_predictions=True,
+                              show_encoded_corpus=True,
                               resolution=DBM_DEFAULT_RESOLUTION, 
                               show_mapping=True, 
                               save_file_path=os.path.join("results", "MNIST", "2D_boundary_mapping.png"),
@@ -78,13 +79,14 @@ class DBM:
         encoded_training_data = self.autoencoder.encode(X_train)
         encoded_testing_data = self.autoencoder.encode(X_test)            
         
-        plt.figure(figsize=(20, 20))
-        plt.title("Encoded data in 2D space")
-        plt.axis('off')
-        plt.plot(encoded_training_data[:,0], encoded_training_data[:,1], 'ro', label="Training data", alpha=0.5)
-        plt.plot(encoded_testing_data[:,0], encoded_testing_data[:,1], 'bo', label="Testing data", alpha=0.5)
-        plt.show()
-        
+        if show_encoded_corpus:
+            plt.figure(figsize=(20, 20))
+            plt.title("Encoded data in 2D space")
+            plt.axis('off')
+            plt.plot(encoded_training_data[:,0], encoded_training_data[:,1], 'ro', label="Training data", alpha=0.5)
+            plt.plot(encoded_testing_data[:,0], encoded_testing_data[:,1], 'bo', label="Testing data", alpha=0.5)
+            plt.show()
+            
         # getting the max and min values for the encoded data
         min_x = min(np.min(encoded_training_data[:,0]), np.min(encoded_testing_data[:,0]))
         max_x = max(np.max(encoded_training_data[:,0]), np.max(encoded_testing_data[:,0]))
@@ -143,7 +145,7 @@ class DBM:
         for i, j in np.ndindex(img.shape):
             color_img[i,j] = colors_mapper[img[i,j]]
         
-        plt.figure(figsize=(12, 10))
+        plt.figure(figsize=(13, 10))
         plt.title("2D boundary mapping")
         plt.axis('off')
         
@@ -168,4 +170,5 @@ class DBM:
         
         if show_mapping:
             plt.show()
-            
+        
+        self.console.success(f"2D boundary mapping saved to: {save_file_path}")
