@@ -64,9 +64,7 @@ class DBM:
                               show_autoencoder_predictions=True,
                               show_encoded_corpus=True,
                               resolution=DBM_DEFAULT_RESOLUTION, 
-                              show_mapping=True, 
                               save_file_path=os.path.join("results", "MNIST", "2D_boundary_mapping.png"),
-                              class_name_mapper = lambda x: str(x)
                               ):
         
         # first train the autoencoder if it is not already trained
@@ -108,7 +106,6 @@ class DBM:
         encoded_training_data = encoded_training_data.astype(int)
         encoded_testing_data = encoded_testing_data.astype(int)
         
-        
         # generate the 2D image in the encoded space
         space = np.array([(i / resolution * (max_x - min_x) + min_x, j / resolution * (max_y - min_y) + min_y) for i in range(resolution) for j in range(resolution)])
         self.console.log("Decoding the 2D space... 2D -> nD")
@@ -119,64 +116,13 @@ class DBM:
         img = predicted_labels.reshape((resolution, resolution))
         #self.console.log("2D boundary mapping: \n", img)
 
-        self._build_2D_image(encoded_training_data, encoded_testing_data, img, show_mapping, save_file_path, class_name_mapper)
-    
-        return img
-
-    def _build_2D_image(self, encoded_training_data, encoded_testing_data, img, show_mapping, save_file_path, class_name_mapper = lambda x: str(x)):
-        color_img = np.zeros((img.shape[0], img.shape[1], 3))
-    
         for [i,j] in encoded_training_data:
             img[i,j] = -1
         for [i,j] in encoded_testing_data:
             img[i,j] = -2
         
-        
         with open(f"{save_file_path}.npy", 'wb') as f:
             np.save(f, img)
         
-        colors_mapper = {
-            -2: [0,0,0], # setting original test data to black
-            -1: [1,1,1], # setting original train data to white
-            0: [1,0,0], 
-            1: [0,1,0], 
-            2: [0,0,1], 
-            3: [1,1,0], 
-            4: [0,1,1], 
-            5: [1,0,1], 
-            6: [0.5,0.5,0.5], 
-            7: [0.5,0,0], 
-            8: [0,0.5,0], 
-            9: [0,0,0.5]
-        }
-        
-        for i, j in np.ndindex(img.shape):
-            color_img[i,j] = colors_mapper[img[i,j]]
-        
-        plt.figure(figsize=(13, 10))
-        plt.title("2D boundary mapping")
-        plt.axis('off')
-        
-        values = np.unique(img)
-        im =  plt.imshow(color_img)
-        
-        patches = []
-        for value in values:
-            color = colors_mapper[value]
-            if value==-1:
-                label = "Original train data"
-            elif value==-2:
-                label = "Original test data"
-            else:
-                label = f"Value region: {class_name_mapper(value)}"
 
-            patches.append(mpatches.Patch(color=color, label=label))
-        
-        plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0. )
-        
-        plt.savefig(save_file_path)
-        
-        if show_mapping:
-            plt.show()
-        
-        self.console.success(f"2D boundary mapping saved to: {save_file_path}")
+        return (img, encoded_training_data, encoded_testing_data)

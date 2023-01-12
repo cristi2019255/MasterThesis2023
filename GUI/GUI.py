@@ -38,6 +38,7 @@ from GUI.LoggerGUI import LoggerGUI
 from utils.DBM import DBM
 from utils.Logger import Logger
 from PIL import Image, ImageTk
+from GUI.DBMPlotter import DBMPlotter
 
 # TODO: delete this after refactoring
 import numpy as np
@@ -51,6 +52,39 @@ class GUI:
     def __init__(self):
         self.window = self.build()
         self.logger = Logger(name = "GUI")
+        
+        # --------------- Data ---------------
+        self.upload_data()
+        
+        # --------------- DBM ---------------
+        self.dbm_plotter = None
+    
+    def upload_data(self):
+        # import MNIST dataset
+        (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
+        
+        # limiting to first 5000 samples for testing
+        SAMPLES_LIMIT = 5000
+        X_train = X_train[:int(0.7 * SAMPLES_LIMIT)]
+        Y_train = Y_train[:int(0.7 * SAMPLES_LIMIT)]
+        X_test = X_test[:int(0.3 * SAMPLES_LIMIT)]
+        Y_test = Y_test[:int(0.3 * SAMPLES_LIMIT)]
+        
+        
+        X_train = X_train.astype('float32')
+        X_test = X_test.astype('float32')
+        X_train /= 255
+        X_test /= 255
+        
+        
+        num_classes = np.unique(Y_train).shape[0]
+        
+        self.X_train = X_train
+        self.Y_train = Y_train
+        self.X_test = X_test
+        self.Y_test = Y_test
+        self.num_classes = num_classes
+        
     
     def build(self):
         layout = self._get_layout()
@@ -70,8 +104,9 @@ class GUI:
         self.stop()
     
     def stop(self):
+        self.logger.log("Closing the application...")
         self.window.close()
-        
+    
     def handle_event(self, event, values):        
         # Folder name was filled in, make a list of files in the folder
         EVENTS = {
@@ -199,57 +234,53 @@ class GUI:
         
     def handle_dbm_image_event(self, event, values):
         self.logger.log("Clicked on the dbm image")
-        image = mpimg.imread(DEFAULT_DBM_IMAGE_PATH) # images are color images
-        plt.gca().clear()
-        plt.axis('off')
-        plt.imshow(image)
-        plt.show()
+        if self.dbm_plotter is None:
+            self.logger.warn("No image to show")
+            return
+    
+        self.dbm_plotter.plot()
         
     def handle_get_decision_boundary_mapping_event(self, event, values):
         # update loading state
         self.switch_visibility(["-DBM IMAGE LOADING-"], True)
         
-        # import MNIST dataset
-        (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
-        
-        # limiting to first 5000 samples for testing
-        SAMPLES_LIMIT = 5000
-        X_train = X_train[:int(0.7 * SAMPLES_LIMIT)]
-        Y_train = Y_train[:int(0.7 * SAMPLES_LIMIT)]
-        X_test = X_test[:int(0.3 * SAMPLES_LIMIT)]
-        Y_test = Y_test[:int(0.3 * SAMPLES_LIMIT)]
-        
-        
-        X_train = X_train.astype('float32')
-        X_test = X_test.astype('float32')
-        X_train /= 255
-        X_test /= 255
-        
-        
-        num_classes = np.unique(Y_train).shape[0]
         classifier = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(num_classes, activation=tf.nn.softmax)
+            tf.keras.layers.Dense(self.num_classes, activation=tf.nn.softmax)
         ])
         
         
         dbm_logger = LoggerGUI(name = "Decision Boundary Mapper", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
-        dbm = DBM(classifier, logger=dbm_logger)
-        dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test, 
+        dbm = DBM(classifier = classifier, logger = dbm_logger)
+        img, encoded_training_data, encoded_testing_data = dbm.generate_boundary_map(
+                                self.X_train, 
+                                self.Y_train, 
+                                self.X_test, 
+                                self.Y_test, 
                                 train_epochs=10, 
                                 train_batch_size=128,
                                 resolution=256,
-                                class_name_mapper=lambda x: "Digit " + str(x),
                                 save_file_path=DEFAULT_DBM_IMAGE_PATH,
-                                show_mapping=False,
                                 show_autoencoder_predictions=False,
                                 show_encoded_corpus=False,
                                 )
 
         # ---------------------------------
+        # update the GUI dbm attributes
+        self.dbm_plotter = DBMPlotter(img = img, 
+                                      num_classes = self.num_classes, 
+                                      encoded_train = encoded_training_data, 
+                                      encoded_test = encoded_testing_data,
+                                      X_train = self.X_train,
+                                      Y_train = self.Y_train,
+                                      X_test = self.X_test,
+                                      Y_test = self.Y_test)
+        
+        # ---------------------------------
         # update the dbm image
-        img = Image.open(DEFAULT_DBM_IMAGE_PATH)
-        img.thumbnail((600, 600), Image.ANTIALIAS)
+        img = Image.fromarray(np.uint8(self.dbm_plotter.color_img*255))
+        #img = Image.open(DEFAULT_DBM_IMAGE_PATH)
+        img.thumbnail((700, 700), Image.ANTIALIAS)
         # Convert im to ImageTk.PhotoImage after window finalized
         image = ImageTk.PhotoImage(image=img)
         
