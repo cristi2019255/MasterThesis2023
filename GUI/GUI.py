@@ -237,7 +237,7 @@ class GUI:
         if self.dbm_plotter is None:
             self.logger.warn("No image to show")
             return
-    
+        self.dbm_plotter.initialize_plot()
         self.dbm_plotter.plot()
         
     def handle_get_decision_boundary_mapping_event(self, event, values):

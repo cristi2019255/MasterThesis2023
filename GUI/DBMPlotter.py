@@ -50,11 +50,15 @@ class DBMPlotter:
         self.Y_train = Y_train
         self.X_test = X_test
         self.Y_test = Y_test
+        self.color_img, self.legend = self._build_2D_image(img)
+        self.train_mapper, self.test_mapper = self._generate_encoded_mapping()
+        self.initialize_plot()
+    
+    def initialize_plot(self):    
         plt.close()
         self.fig, self.ax = plt.subplots(figsize = (15, 10))
         self.ax.xaxis.set_visible(False)
         self.ax.yaxis.set_visible(False)
-        self.color_img, self.legend = self._build_2D_image(img)
         self.build_annotation_mapper()
     
     def _build_2D_image(self, img, class_name_mapper = lambda x: str(x), colors_mapper = COLORS_MAPPER):
@@ -79,6 +83,19 @@ class DBMPlotter:
         
         return color_img, patches
     
+    def _generate_encoded_mapping(self):
+        train_mapper = {}
+        for k in range(len(self.encoded_train)):
+            [x, y] = self.encoded_train[k]
+            train_mapper[f"{x} {y}"] = k
+    
+        test_mapper = {}
+        for k in range(len(self.encoded_test)):
+            [x, y] = self.encoded_test[k]
+            test_mapper[f"{x} {y}"] = k
+        
+        return train_mapper, test_mapper
+
     def build_annotation_mapper(self):
         image = OffsetImage(self.X_train[0], zoom=2, cmap="gray")
         label = TextArea("Data point label: None")
@@ -103,8 +120,7 @@ class DBMPlotter:
         
             j, i = int(event.xdata), int(event.ydata)
             
-            if self.img[i,j] >= 0 or self.img[i,j] < -2:
-                self.console.log("Not a data point")
+            if self.img[i,j] >= 0 or self.img[i,j] < -2:                
                 #annImage.set_visible(False)
                 #annLabels.set_visible(False)
                 #self.fig.canvas.draw_idle()
@@ -121,56 +137,39 @@ class DBMPlotter:
             # place it at the position of the event scatter point
             annImage.xy = (j, i)
             annLabels.xy = (j, i)
-                            
-            if self.img[i,j] == -1:
-                for k in range(len(self.encoded_train)):
-                    [x,y] = self.encoded_train[k]
-                    if x == i and y == j:
-                        self.console.log("Found point in train set")
-                        # set the image corresponding to that point
-                        image.set_data(self.X_train[k])
-                        label.set_text(f"Label: {self.Y_train[k]}")
-                        self.fig.canvas.draw_idle()
-                        return    
-            
-            if self.img[i,j] == -2:            
-                for k in range(len(self.encoded_test)):
-                    [x,y] = self.encoded_test[k]
-                    if x == i and y == j:
-                        self.console.log("Found point in test set")
-                        image.set_data(self.X_test[k])
-                        label.set_text(f"Label: {self.Y_test[k]}")
-                        self.fig.canvas.draw_idle()
-                        return
-            
+
+            x_data, y_data = find_data_point(i,j)                            
+            image.set_data(x_data)
+            label.set_text(f"Label: {y_data}")
+
+            self.fig.canvas.draw_idle()
+                
         def onclick(event):
             if event.inaxes == None:
                 return
             
             self.console.log("Clicked on: " + str(event.xdata) + ", " + str(event.ydata))
-            
             j, i = int(event.xdata), int(event.ydata)
-            
+
             if self.img[i,j] >= 0 or self.img[i,j] < -2:
-                return
+                self.console.log("Data point not in training or testing set")
+
+            x, y = find_data_point(i, j)
+            self.plot_data_point(x, y)
             
-            if self.img[i,j] == -1:  
-                for k in range(len(self.encoded_train)):
-                    [x,y] = self.encoded_train[k]
-                    if x == i and y == j:
-                        self.console.log("Found point in train set")
-                        self.plot_data_point(self.X_train[k], self.Y_train[k])
-                        return
+            
+        def find_data_point(i, j):
+            if self.img[i,j] == -1:
+                k = self.train_mapper[f"{i} {j}"]
+                self.console.log("Found point in train set")
+                return self.X_train[k], self.Y_train[k]
             
             if self.img[i,j] == -2:
-                for k in range(len(self.encoded_test)):
-                    [x,y] = self.encoded_test[k]
-                    if x == i and y == j:
-                        self.console.log("Found point in test set")
-                        self.plot_data_point(self.X_test[k], self.Y_test[k])
-                        return
+                k = self.test_mapper[f"{i} {j}"]
+                self.console.log("Found point in test set")
+                return self.X_test[k], self.Y_test[k]        
             
-            self.console.log("No point found")
+            return None, None
             
             
         self.fig.canvas.mpl_connect('motion_notify_event', display_annotation)           
