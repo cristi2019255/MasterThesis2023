@@ -28,8 +28,12 @@ class DBM:
     """
         DBM - Decision Boundary Mapper
     """
-    def __init__(self, classifier):
-        self.console = Logger(name="Decision Boundary Mapper - DBM, using Autoencoder")
+    def __init__(self, classifier, logger=None):
+        if logger is None:
+            self.console = Logger(name="Decision Boundary Mapper - DBM, using Autoencoder")
+        else:
+            self.console = logger
+        
         self.console.log("Loaded classifier: " + classifier.name + "")
         self.classifier = classifier
         self.autoencoder = None
@@ -76,7 +80,9 @@ class DBM:
                     show_predictions=show_autoencoder_predictions)
 
         # encoder the train and test data and show the encoded data in 2D space
+        self.console.log("Encoding the training data to 2D space")
         encoded_training_data = self.autoencoder.encode(X_train)
+        self.console.log("Encoding the testing data to 2D space")
         encoded_testing_data = self.autoencoder.encode(X_test)            
         
         if show_encoded_corpus:
@@ -105,7 +111,9 @@ class DBM:
         
         # generate the 2D image in the encoded space
         space = np.array([(i / resolution * (max_x - min_x) + min_x, j / resolution * (max_y - min_y) + min_y) for i in range(resolution) for j in range(resolution)])
+        self.console.log("Decoding the 2D space... 2D -> nD")
         spaceNd = self.autoencoder.decode(space)
+        self.console.log("Predicting labels for the 2D boundary mapping using the nD data and the trained classifier...")
         predictions = self.classifier.predict(spaceNd)
         predicted_labels = np.array([np.argmax(p) for p in predictions])
         img = predicted_labels.reshape((resolution, resolution))

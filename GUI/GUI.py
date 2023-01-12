@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
 TITLE = "Classifiers visualization tool"
 WINDOW_SIZE = (1300, 800)
 BACKGROUND_COLOR = "#252526"
@@ -20,9 +22,19 @@ TEXT_COLOR = "#ffffff"
 RIGHTS_MESSAGE = "© 2023 Cristian Grosu. All rights reserved."
 RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"
 
+DEFAULT_DBM_IMAGE_PATH = os.path.join(os.getcwd(), "results", "MNIST", "2D_boundary_mapping.png")
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Disable tensorflow logs
+
+"""
+0 = all messages are logged (default behavior)
+1 = INFO messages are not printed
+2 = INFO and WARNING messages are not printed
+3 = INFO, WARNING, and ERROR messages are not printed
+"""
 
 import PySimpleGUI as sg
-import os
+from GUI.LoggerGUI import LoggerGUI
 from utils.DBM import DBM
 from utils.Logger import Logger
 from PIL import Image, ImageTk
@@ -30,6 +42,8 @@ from PIL import Image, ImageTk
 # TODO: delete this after refactoring
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
 from utils.reader import import_mnist_dataset
 
@@ -41,6 +55,7 @@ class GUI:
     def build(self):
         layout = self._get_layout()
         window = sg.Window(TITLE, layout, size=WINDOW_SIZE, background_color=BACKGROUND_COLOR)
+        window.finalize()
         return window
         
     def start(self):
@@ -134,7 +149,7 @@ class GUI:
             [
                 sg.Column([
                     [sg.Text("Logger: ", background_color=BACKGROUND_COLOR)],
-                    [sg.Text("", size=(80, 20), key="-LOGGER-", background_color=TEXT_COLOR, text_color=BACKGROUND_COLOR, expand_y=True, auto_size_text=True)],   
+                    [sg.Multiline("",size=(80, 20), key="-LOGGER-", background_color=TEXT_COLOR, text_color=BACKGROUND_COLOR, expand_y=True, auto_size_text=True)],   
                 ], background_color=BACKGROUND_COLOR),    
             ]
         ]
@@ -184,13 +199,15 @@ class GUI:
         
     def handle_dbm_image_event(self, event, values):
         self.logger.log("Clicked on the dbm image")
+        image = mpimg.imread(DEFAULT_DBM_IMAGE_PATH) # images are color images
+        plt.gca().clear()
+        plt.axis('off')
+        plt.imshow(image)
+        plt.show()
         
     def handle_get_decision_boundary_mapping_event(self, event, values):
         # update loading state
         self.switch_visibility(["-DBM IMAGE LOADING-"], True)
-        
-        # setting the dbm image file path
-        default_dbm_image_path = os.path.join(os.getcwd(), "results", "MNIST", "2D_boundary_mapping.png")
         
         # import MNIST dataset
         (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
@@ -215,13 +232,15 @@ class GUI:
             tf.keras.layers.Dense(num_classes, activation=tf.nn.softmax)
         ])
         
-        dbm = DBM(classifier)
+        
+        dbm_logger = LoggerGUI(name = "Decision Boundary Mapper", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
+        dbm = DBM(classifier, logger=dbm_logger)
         dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test, 
                                 train_epochs=10, 
                                 train_batch_size=128,
                                 resolution=256,
                                 class_name_mapper=lambda x: "Digit " + str(x),
-                                save_file_path=default_dbm_image_path,
+                                save_file_path=DEFAULT_DBM_IMAGE_PATH,
                                 show_mapping=False,
                                 show_autoencoder_predictions=False,
                                 show_encoded_corpus=False,
@@ -229,7 +248,7 @@ class GUI:
 
         # ---------------------------------
         # update the dbm image
-        img = Image.open(default_dbm_image_path)
+        img = Image.open(DEFAULT_DBM_IMAGE_PATH)
         img.thumbnail((600, 600), Image.ANTIALIAS)
         # Convert im to ImageTk.PhotoImage after window finalized
         image = ImageTk.PhotoImage(image=img)

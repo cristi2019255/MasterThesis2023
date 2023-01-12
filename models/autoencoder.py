@@ -65,7 +65,7 @@ def load_autoencoder(folder_path = os.path.join("models", "model", "DBM", "MNIST
 
 class Autoencoder:
     def __init__(self, encoder = None, decoder = None, classifier = None, input_layer = None, 
-                 folder_path = os.path.join("models", "model", "DBM", "MNIST"), load = False):
+                 folder_path = os.path.join("models", "model", "DBM", "MNIST"), load = False, logger = None):
         """
             Creates an autoencoder model.
             Encoder: The encoder part of the autoencoder.
@@ -73,7 +73,11 @@ class Autoencoder:
             Classifier: The classifier part of the autoencoder.
             Input_layer: The input layer of the autoencoder.
         """
-        self.console = Logger(name="Autoencoder")
+        if logger is not None:
+            self.console = logger
+        else:
+            self.console = Logger(name="Autoencoder")
+        
         self.save_folder_path = folder_path
         self.encoder = encoder
         self.decoder = decoder
@@ -91,12 +95,12 @@ class Autoencoder:
         """
         self.save_folder_path = folder_path
         try:
-            self.autoencoder_classifier = tf.keras.models.load_model(os.path.join(folder_path, "autoencoder_classifier.h5"))
-            self.auto_encoder = tf.keras.models.load_model(os.path.join(folder_path, "auto_encoder.h5"))
-            self.classifier = tf.keras.models.load_model(os.path.join(folder_path, "classifier.h5"))
-            self.autoencoder = tf.keras.models.load_model(os.path.join(folder_path, "autoencoder.h5"))
-            self.decoder = tf.keras.models.load_model(os.path.join(folder_path, "decoder.h5"))
-            self.encoder = tf.keras.models.load_model(os.path.join(folder_path, "encoder.h5"))
+            self.autoencoder_classifier = tf.keras.models.load_model(os.path.join(folder_path, "autoencoder_classifier.h5"), compile=False)
+            self.auto_encoder = tf.keras.models.load_model(os.path.join(folder_path, "auto_encoder.h5"), compile=False)
+            self.classifier = tf.keras.models.load_model(os.path.join(folder_path, "classifier.h5"), compile=False)
+            self.autoencoder = tf.keras.models.load_model(os.path.join(folder_path, "autoencoder.h5"), compile=False)
+            self.decoder = tf.keras.models.load_model(os.path.join(folder_path, "decoder.h5"), compile=False)
+            self.encoder = tf.keras.models.load_model(os.path.join(folder_path, "encoder.h5"), compile=False)
         except Exception as e:
             self.console.log("Autoencoder not found. Please check the path folder and make sure the autoencoder is saved there")        
             self.console.error(f"Exception: {e}")
@@ -124,7 +128,9 @@ class Autoencoder:
                                                     auto_encoder_classifier_output], 
                                             name="autoencoder")
         
-        self.autoencoder.compile(optimizer='adam', 
+        optimizer = tf.keras.optimizers.Adam()
+        
+        self.autoencoder.compile(optimizer=optimizer, 
                                 loss={"auto_encoder":"binary_crossentropy",
                                       "autoencoder_classifier": "sparse_categorical_crossentropy"}, 
                                 metrics=['accuracy'])
@@ -186,7 +192,9 @@ class Autoencoder:
         plt.show()
     
     def encode(self, data):
+        self.console.log("Encoding data")
         return self.encoder.predict(data)
     
     def decode(self, data):
+        self.console.log("Decoding data")
         return self.decoder.predict(data)
