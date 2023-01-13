@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+from shutil import rmtree
 
 TITLE = "Classifiers visualization tool"
 WINDOW_SIZE = (1300, 800)
@@ -23,6 +24,7 @@ RIGHTS_MESSAGE = "© 2023 Cristian Grosu. All rights reserved."
 RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"
 
 DEFAULT_DBM_IMAGE_PATH = os.path.join(os.getcwd(), "results", "MNIST", "2D_boundary_mapping.png")
+TMP_FOLDER = os.path.join(os.getcwd(), "tmp")
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Disable tensorflow logs
 
@@ -43,21 +45,31 @@ from GUI.DBMPlotter import DBMPlotter
 # TODO: delete this after refactoring
 import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
+from tensorflow.keras.utils import plot_model
 
 from utils.reader import import_mnist_dataset
 
 class GUI:
     def __init__(self):
+        self.create_tmp_folder()
         self.window = self.build()
         self.logger = Logger(name = "GUI")
         
         # --------------- Data ---------------
         self.upload_data()
         
+        # --------------- Classifier ---------------
+        self.upload_classifier()
         # --------------- DBM ---------------
         self.dbm_plotter = None
+    
+    def create_tmp_folder(self):
+        if not os.path.exists(TMP_FOLDER):
+            os.makedirs(TMP_FOLDER)
+    
+    def remove_tmp_folder(self):
+        if os.path.exists(TMP_FOLDER):
+            rmtree(TMP_FOLDER)
     
     def upload_data(self):
         # import MNIST dataset
@@ -85,6 +97,20 @@ class GUI:
         self.Y_test = Y_test
         self.num_classes = num_classes
         
+    def upload_classifier(self):
+        self.classifier = tf.keras.models.Sequential([
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(self.num_classes, activation=tf.nn.softmax)
+        ])
+        self.classifier.build(input_shape=(None, 28, 28))
+        file = os.path.join(TMP_FOLDER, "classifier.png")
+        plot_model(self.classifier, to_file=file, show_shapes=True, show_layer_names=True)    
+        img = Image.open(file)
+        img.thumbnail((300, 300), Image.ANTIALIAS)
+        # Convert im to ImageTk.PhotoImage after window finalized
+        image = ImageTk.PhotoImage(image=img)
+        self.window["-CLASSIFIER IMAGE-"].update(data=image)
+        self.window.refresh()
     
     def build(self):
         layout = self._get_layout()
@@ -104,6 +130,8 @@ class GUI:
         self.stop()
     
     def stop(self):
+        self.logger.log("Removing tmp folder...")
+        self.remove_tmp_folder()
         self.logger.log("Closing the application...")
         self.window.close()
     
@@ -171,6 +199,12 @@ class GUI:
                 ),
             ],
             # ---------------------------------------------------------------------------------------------------
+            [
+               sg.Column([
+                    [sg.Text("Classifier: ", background_color=BACKGROUND_COLOR)],
+                    [sg.Image(key="-CLASSIFIER IMAGE-", size=(30, 30), visible=True, enable_events=True)],   
+                ], background_color=BACKGROUND_COLOR),
+            ],
             [
                sg.Column([
                     [sg.Text("Decision boundary map: ", background_color=BACKGROUND_COLOR)],
@@ -243,15 +277,9 @@ class GUI:
     def handle_get_decision_boundary_mapping_event(self, event, values):
         # update loading state
         self.switch_visibility(["-DBM IMAGE LOADING-"], True)
-        
-        classifier = tf.keras.models.Sequential([
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(self.num_classes, activation=tf.nn.softmax)
-        ])
-        
-        
+            
         dbm_logger = LoggerGUI(name = "Decision Boundary Mapper", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
-        dbm = DBM(classifier = classifier, logger = dbm_logger)
+        dbm = DBM(classifier = self.classifier, logger = dbm_logger)
         img, encoded_training_data, encoded_testing_data = dbm.generate_boundary_map(
                                 self.X_train, 
                                 self.Y_train, 
@@ -279,7 +307,6 @@ class GUI:
         # ---------------------------------
         # update the dbm image
         img = Image.fromarray(np.uint8(self.dbm_plotter.color_img*255))
-        #img = Image.open(DEFAULT_DBM_IMAGE_PATH)
         img.thumbnail((700, 700), Image.ANTIALIAS)
         # Convert im to ImageTk.PhotoImage after window finalized
         image = ImageTk.PhotoImage(image=img)
