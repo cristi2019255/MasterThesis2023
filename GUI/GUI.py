@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import os
-from shutil import rmtree # this is only used for removing a tmp folder
+from shutil import rmtree
+
+from DBM.DBM import DBM # this is only used for removing a tmp folder
 
 TITLE = "Classifiers visualization tool"
 WINDOW_SIZE = (1300, 800)
@@ -23,8 +25,10 @@ TEXT_COLOR = "#ffffff"
 RIGHTS_MESSAGE = "© 2023 Cristian Grosu. All rights reserved."
 RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"
 
-DEFAULT_DBM_IMAGE_PATH = os.path.join(os.getcwd(), "results", "MNIST", "2D_boundary_mapping.png")
+DEFAULT_DBM_IMAGE_PATH = os.path.join(os.getcwd(), "results", "MNIST", "2D_boundary_mapping.png") # unused
 TMP_FOLDER = os.path.join(os.getcwd(), "tmp")
+
+SAMPLES_LIMIT = 5000 # Limit the number of samples to be loaded from the dataset
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Disable tensorflow logs
 
@@ -47,22 +51,24 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.utils import plot_model
 
-from utils.reader import import_mnist_dataset
+from utils.reader import import_csv_dataset, import_mnist_dataset
+
+DBM_TECHNIQUES = {
+    "Autoencoder": SDBM,
+    "Inverse Projection": DBM,
+}
+
 
 class GUI:
     def __init__(self):
         self.create_tmp_folder()
         self.window = self.build()
         self.logger = Logger(name = "GUI")
-        
-        # --------------- Data ---------------
-        self.upload_data()
-        
-        # --------------- Classifier ---------------
-        self.upload_classifier()
+            
         # --------------- DBM ---------------
         self.dbm_plotter = None
-    
+        self.dbm_logger = LoggerGUI(name = "DBM logger", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
+        
     def create_tmp_folder(self):
         if not os.path.exists(TMP_FOLDER):
             os.makedirs(TMP_FOLDER)
@@ -70,39 +76,15 @@ class GUI:
     def remove_tmp_folder(self):
         if os.path.exists(TMP_FOLDER):
             rmtree(TMP_FOLDER)
-    
-    def upload_data(self):
-        # import MNIST dataset
-        (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
-        
-        # limiting to first 5000 samples for testing
-        SAMPLES_LIMIT = 5000
-        X_train = X_train[:int(0.7 * SAMPLES_LIMIT)]
-        Y_train = Y_train[:int(0.7 * SAMPLES_LIMIT)]
-        X_test = X_test[:int(0.3 * SAMPLES_LIMIT)]
-        Y_test = Y_test[:int(0.3 * SAMPLES_LIMIT)]
-        
-        
-        X_train = X_train.astype('float32')
-        X_test = X_test.astype('float32')
-        X_train /= 255
-        X_test /= 255
-        
-        
-        num_classes = np.unique(Y_train).shape[0]
-        
-        self.X_train = X_train
-        self.Y_train = Y_train
-        self.X_test = X_test
-        self.Y_test = Y_test
-        self.num_classes = num_classes
         
     def upload_classifier(self):
         self.classifier = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(self.num_classes, activation=tf.nn.softmax)
         ])
-        self.classifier.build(input_shape=(None, 28, 28))
+        input_shape = self.X_train.shape[1:]
+        input_shape = (None, *input_shape)
+        self.classifier.build(input_shape=input_shape)
         file = os.path.join(TMP_FOLDER, "classifier.png")
         plot_model(self.classifier, to_file=file, show_shapes=True, show_layer_names=True, show_layer_activations=True)    
         img = Image.open(file)
@@ -143,23 +125,20 @@ class GUI:
             "-DBM BTN-": self.handle_get_decision_boundary_mapping_event,
             "-DBM TECHNIQUE-": self.handle_change_dbm_technique_event,
             "-DBM IMAGE-": self.handle_dbm_image_event,
+            "-UPLOAD TRAIN DATA BTN-": self.handle_upload_train_data_event,
+            "-UPLOAD TEST DATA BTN-": self.handle_upload_test_data_event,
         }
         
         EVENTS[event](event, values)
         
     
     def _get_layout(self):        
-        data_dir = os.getcwd()
-
-        dbm_techniques = [
-            "Autoencoder",
-        ]
         
         data_files_list_column = [
             [
                 sg.Text(size= (15, 1), text = "Data Folder", background_color=BACKGROUND_COLOR),
                 sg.In(size=(25, 1), enable_events=True, key="-FOLDER-"),
-                sg.FolderBrowse(button_text="Browse folder", button_color=(TEXT_COLOR, BUTTON_PRIMARY_COLOR), initial_folder=data_dir, size = (22,1)),
+                sg.FolderBrowse(button_text="Browse folder", button_color=(TEXT_COLOR, BUTTON_PRIMARY_COLOR), initial_folder=os.getcwd(), size = (22,1)),
             ],
             [
                sg.Text("Choose the data file from the list: ", background_color=BACKGROUND_COLOR),
@@ -169,10 +148,25 @@ class GUI:
             ],
             [
                 sg.Listbox(
-                    values=[], enable_events=True, size=(70, 30), key="-FILE LIST-"
+                    values=[], enable_events=True, size=(70, 10), key="-FILE LIST-"
                 )
             ],
-            
+            [
+                sg.Button("Upload train data for DBM", button_color=(TEXT_COLOR, BUTTON_PRIMARY_COLOR), size = (30,1), key = "-UPLOAD TRAIN DATA BTN-"),
+                sg.Button("Upload test data for DBM", button_color=(TEXT_COLOR, BUTTON_PRIMARY_COLOR), size = (30,1), key = "-UPLOAD TEST DATA BTN-"),
+            ],
+            [   
+               sg.Text("Training data file: ", key="-TRAIN DATA FILE-", background_color=BACKGROUND_COLOR, size=(70, 1)),            
+            ],
+            [   
+               sg.Text("Training data shape: ", key="-TRAIN DATA SHAPE-", background_color=BACKGROUND_COLOR, size=(70, 1)),            
+            ],
+            [   
+               sg.Text("Testing data file: ", key="-TEST DATA FILE-", background_color=BACKGROUND_COLOR, size=(70, 1)),            
+            ],
+            [   
+               sg.Text("Testing data shape: ", key="-TEST DATA SHAPE-", background_color=BACKGROUND_COLOR, size=(70, 1)),            
+            ],
             [
                 sg.Button("Show the Decision Boundary Mapping", button_color=(TEXT_COLOR, BUTTON_PRIMARY_COLOR), size = (69,1), key = "-DBM BTN-"),
             ],
@@ -191,8 +185,8 @@ class GUI:
             [
                 sg.Text("Which dbm technique would you like to use?", background_color=BACKGROUND_COLOR, size=(60,1)),
                 sg.Combo(
-                    values=dbm_techniques,
-                    default_value=dbm_techniques[0],
+                    values=list(DBM_TECHNIQUES.keys()),
+                    default_value=list(DBM_TECHNIQUES.keys())[0],
                     size=(20, 1),
                     key="-DBM TECHNIQUE-",
                     enable_events=True,
@@ -244,7 +238,7 @@ class GUI:
             file_list = []
 
         fnames = [ f for f in file_list
-                   if os.path.isfile(os.path.join(folder, f))
+                   if os.path.isfile(os.path.join(folder, f)) and (f.lower().endswith((".csv")) or f.lower().endswith((".txt")))
                 ]
         self.window["-FILE LIST-"].update(fnames)
         
@@ -257,6 +251,33 @@ class GUI:
                 self.window["-TOUT-"].update(filename)
             except Exception as e:
                 self.logger.error("Error while loading data file" + str(e))
+    
+    def handle_upload_train_data_event(self, event, values):
+        try:
+            filename = os.path.join(
+                values["-FOLDER-"], values["-FILE LIST-"][0]
+            )
+            self.X_train, self.Y_train = import_csv_dataset(filename, limit=int(0.7*SAMPLES_LIMIT))
+            
+            self.num_classes = np.unique(self.Y_train).shape[0]
+            self.upload_classifier()
+        
+            self.window["-TRAIN DATA FILE-"].update("Training data file: " + filename)
+            self.window["-TRAIN DATA SHAPE-"].update(f"Training data shape: X {self.X_train.shape} Y {self.Y_train.shape}")
+        except Exception as e:
+            self.logger.error("Error while loading data file" + str(e))
+            
+    
+    def handle_upload_test_data_event(self, event, values):
+        try:
+            filename = os.path.join(
+                values["-FOLDER-"], values["-FILE LIST-"][0]
+            )
+            self.X_test, self.Y_test = import_csv_dataset(filename, limit=int(0.3*SAMPLES_LIMIT))
+            self.window["-TEST DATA FILE-"].update("Testing data file: " + filename)
+            self.window["-TEST DATA SHAPE-"].update(f"Testing data shape: X {self.X_test.shape} Y {self.Y_test.shape}")
+        except Exception as e:
+            self.logger.error("Error while loading data file" + str(e))
     
     def switch_visibility(self, elements, visible):
         for x in elements:
@@ -277,10 +298,8 @@ class GUI:
     def handle_get_decision_boundary_mapping_event(self, event, values):
         # update loading state
         self.switch_visibility(["-DBM IMAGE LOADING-"], True)
-            
-        dbm_logger = LoggerGUI(name = "Decision Boundary Mapper", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
         
-        dbm = SDBM(classifier = self.classifier, logger = dbm_logger)
+        dbm = DBM_TECHNIQUES[values["-DBM TECHNIQUE-"]](classifier = self.classifier, logger = self.dbm_logger)
         
         img, encoded_training_data, encoded_testing_data = dbm.generate_boundary_map(
                                 self.X_train, 
@@ -290,9 +309,6 @@ class GUI:
                                 train_epochs=10, 
                                 train_batch_size=128,
                                 resolution=256,
-                                save_file_path=DEFAULT_DBM_IMAGE_PATH,
-                                show_autoencoder_predictions=False,
-                                show_encoded_corpus=False,
                                 )
 
         # ---------------------------------

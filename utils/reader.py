@@ -38,3 +38,33 @@ def load_mnist_preprocessed():
     with open(os.path.join(MNIST_DATA_FOLDER, "mnist_Y_test.npy"), "rb") as f:
         Y_test = np.load(f)
     return (X_train, Y_train), (X_test, Y_test)
+
+def import_csv_dataset(file_path, labels_index = 0, headers = False, separator=",", limit = None, shape = (28, 28)):        
+    if not os.path.exists(file_path):
+        print("File not found")
+        return None, None
+    
+    if not (file_path.endswith(".csv") or file_path.endswith(".txt")):
+        print("File format not supported")
+        return None, None
+    
+    try:
+        with open(file_path, "r") as f:
+            if headers:
+                f.readline()
+            lines = f.readlines()
+            
+            if limit is not None and limit < len(lines):
+                lines = lines[:limit]
+            
+            lines = [line.strip().split(separator) for line in lines]
+            X = [line[:labels_index] + line[labels_index+1:] for line in lines]
+            Y = [line[labels_index] for line in lines]
+        
+        X, Y = np.array(X).astype("float32"), np.array(Y).astype("int")    
+        X = X.reshape(X.shape[0], *shape)
+        X /= 255
+        return X, Y
+    except Exception as e:
+        print(e)
+        return None, None    
