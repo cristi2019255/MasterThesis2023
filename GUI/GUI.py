@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import os
-from shutil import rmtree
+from shutil import rmtree # this is only used for removing a tmp folder
 
 TITLE = "Classifiers visualization tool"
 WINDOW_SIZE = (1300, 800)
@@ -37,7 +37,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Disable tensorflow logs
 
 import PySimpleGUI as sg
 from GUI.LoggerGUI import LoggerGUI
-from utils.DBM import DBM
+from DBM.SDBM import SDBM
 from utils.Logger import Logger
 from PIL import Image, ImageTk
 from GUI.DBMPlotter import DBMPlotter
@@ -104,7 +104,7 @@ class GUI:
         ])
         self.classifier.build(input_shape=(None, 28, 28))
         file = os.path.join(TMP_FOLDER, "classifier.png")
-        plot_model(self.classifier, to_file=file, show_shapes=True, show_layer_names=True)    
+        plot_model(self.classifier, to_file=file, show_shapes=True, show_layer_names=True, show_layer_activations=True)    
         img = Image.open(file)
         img.thumbnail((300, 300), Image.ANTIALIAS)
         # Convert im to ImageTk.PhotoImage after window finalized
@@ -279,7 +279,9 @@ class GUI:
         self.switch_visibility(["-DBM IMAGE LOADING-"], True)
             
         dbm_logger = LoggerGUI(name = "Decision Boundary Mapper", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
-        dbm = DBM(classifier = self.classifier, logger = dbm_logger)
+        
+        dbm = SDBM(classifier = self.classifier, logger = dbm_logger)
+        
         img, encoded_training_data, encoded_testing_data = dbm.generate_boundary_map(
                                 self.X_train, 
                                 self.Y_train, 

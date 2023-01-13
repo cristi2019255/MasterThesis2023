@@ -14,19 +14,17 @@
 
 import os
 import numpy as np
-import tensorflow as tf
-from models.autoencoder import build_autoencoder, load_autoencoder
+from models.Autoencoder import build_autoencoder, load_autoencoder
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 
 from utils.Logger import Logger
 
 
 DBM_DEFAULT_RESOLUTION = 100
 
-class DBM:
+class SDBM:
     """
-        DBM - Decision Boundary Mapper
+        SDBM - Self Decision Boundary Mapper
     """
     def __init__(self, classifier, logger=None):
         if logger is None:
@@ -38,7 +36,16 @@ class DBM:
         self.classifier = classifier
         self.autoencoder = None
 
-    def fit(self, X_train, Y_train, X_test, Y_test, epochs=10, batch_size=128, show_predictions=True, load_autoencoder_folder = os.path.join("models", "model", "DBM", "MNIST")):
+    def fit(self, 
+            X_train, 
+            Y_train, 
+            X_test, 
+            Y_test, 
+            epochs=10,
+            batch_size=128,
+            show_predictions=True,
+            load_autoencoder_folder = os.path.join("models", "model", "DBM", "MNIST")):
+        
         num_classes = np.unique(Y_train).shape[0]
         data_shape = X_train.shape[1:]
         
@@ -66,6 +73,13 @@ class DBM:
                               resolution=DBM_DEFAULT_RESOLUTION, 
                               save_file_path=os.path.join("results", "MNIST", "2D_boundary_mapping.png"),
                               ):
+        
+        # making sure that the data is of the correct type
+        assert type(X_train) == np.ndarray
+        assert type(Y_train) == np.ndarray
+        assert type(X_test) == np.ndarray
+        assert type(Y_test) == np.ndarray
+        
         
         # first train the autoencoder if it is not already trained
         if self.autoencoder is None:
