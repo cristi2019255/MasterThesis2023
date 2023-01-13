@@ -15,13 +15,13 @@
 import os
 import numpy as np
 from DBM.DBMInterface import DBMInterface
+from DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
 from models.Autoencoder import build_autoencoder, load_autoencoder
 import matplotlib.pyplot as plt
 
 from utils.Logger import Logger
 
 
-DBM_DEFAULT_RESOLUTION = 100
 
 class SDBM(DBMInterface):
     """
@@ -38,14 +38,14 @@ class SDBM(DBMInterface):
             Y_test, 
             epochs=10,
             batch_size=128,
-            load_autoencoder_folder = os.path.join("models", "model", "DBM", "MNIST")):
+            load_folder = os.path.join("models", "model", "DBM", "MNIST")):
         
         num_classes = np.unique(Y_train).shape[0]
         data_shape = X_train.shape[1:]
         
         # 1. Train an autoencoder on the training data (this will be used to reduce the dimensionality of the data) nD -> 2D
         try:
-            autoencoder = load_autoencoder(load_autoencoder_folder)
+            autoencoder = load_autoencoder(load_folder)
             self.console.log("Loaded autoencoder from disk")
         except Exception as e:
             self.console.log("Could not load autoencoder from disk. Training a new one.")

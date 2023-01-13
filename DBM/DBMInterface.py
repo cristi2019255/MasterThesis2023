@@ -29,7 +29,7 @@ class DBMInterface:
         self.console.log("Loaded classifier: " + classifier.name + "")
         self.classifier = classifier
         
-    def fit(self, X_train, Y_train, X_test, Y_test, epochs=10, batch_size=128):
+    def fit(self, X_train, Y_train, X_test, Y_test, epochs=10, batch_size=128, load_folder = None):
         """ Trains the classifier on the given data set.
 
         Args:
