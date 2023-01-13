@@ -14,6 +14,7 @@
 
 import os
 import numpy as np
+from DBM.DBMInterface import DBMInterface
 from models.Autoencoder import build_autoencoder, load_autoencoder
 import matplotlib.pyplot as plt
 
@@ -22,18 +23,12 @@ from utils.Logger import Logger
 
 DBM_DEFAULT_RESOLUTION = 100
 
-class SDBM:
+class SDBM(DBMInterface):
     """
         SDBM - Self Decision Boundary Mapper
     """
     def __init__(self, classifier, logger=None):
-        if logger is None:
-            self.console = Logger(name="Decision Boundary Mapper - DBM, using Autoencoder")
-        else:
-            self.console = logger
-        
-        self.console.log("Loaded classifier: " + classifier.name + "")
-        self.classifier = classifier
+        super().__init__(classifier, logger)
         self.autoencoder = None
 
     def fit(self, 
@@ -43,7 +38,6 @@ class SDBM:
             Y_test, 
             epochs=10,
             batch_size=128,
-            show_predictions=True,
             load_autoencoder_folder = os.path.join("models", "model", "DBM", "MNIST")):
         
         num_classes = np.unique(Y_train).shape[0]
@@ -58,8 +52,8 @@ class SDBM:
             autoencoder = build_autoencoder(self.classifier, data_shape, num_classes, show_summary=True)
             autoencoder.fit(X_train, Y_train, X_test, Y_test, epochs=epochs, batch_size=batch_size)
         
-        if show_predictions:
-            autoencoder.show_predictions(X_test[:20], Y_test[:20])
+        #if show_predictions:
+        #    autoencoder.show_predictions(X_test[:20], Y_test[:20])
 
         self.autoencoder = autoencoder
         self.classifier = autoencoder.classifier
@@ -67,11 +61,10 @@ class SDBM:
     
     def generate_boundary_map(self, 
                               X_train, Y_train, X_test, Y_test,
-                              train_epochs=10, train_batch_size=128,
-                              show_autoencoder_predictions=True,
+                              train_epochs=10, 
+                              train_batch_size=128,
                               show_encoded_corpus=True,
                               resolution=DBM_DEFAULT_RESOLUTION, 
-                              save_file_path=os.path.join("results", "MNIST", "2D_boundary_mapping.png"),
                               ):
         
         # making sure that the data is of the correct type
@@ -88,8 +81,7 @@ class SDBM:
                     X_test, 
                     Y_test, 
                     epochs=train_epochs, 
-                    batch_size=train_batch_size, 
-                    show_predictions=show_autoencoder_predictions)
+                    batch_size=train_batch_size)
 
         # encoder the train and test data and show the encoded data in 2D space
         self.console.log("Encoding the training data to 2D space")
@@ -97,13 +89,14 @@ class SDBM:
         self.console.log("Encoding the testing data to 2D space")
         encoded_testing_data = self.autoencoder.encode(X_test)            
         
-        if show_encoded_corpus:
-            plt.figure(figsize=(20, 20))
-            plt.title("Encoded data in 2D space")
-            plt.axis('off')
-            plt.plot(encoded_training_data[:,0], encoded_training_data[:,1], 'ro', label="Training data", alpha=0.5)
-            plt.plot(encoded_testing_data[:,0], encoded_testing_data[:,1], 'bo', label="Testing data", alpha=0.5)
-            plt.show()
+        # Skip the visualization of the encoded data
+        #if show_encoded_corpus:
+        #    plt.figure(figsize=(20, 20))
+        #    plt.title("Encoded data in 2D space")
+        #    plt.axis('off')
+        #    plt.plot(encoded_training_data[:,0], encoded_training_data[:,1], 'ro', label="Training data", alpha=0.5)
+        #    plt.plot(encoded_testing_data[:,0], encoded_testing_data[:,1], 'bo', label="Testing data", alpha=0.5)
+        #    plt.show()
             
         # getting the max and min values for the encoded data
         min_x = min(np.min(encoded_training_data[:,0]), np.min(encoded_testing_data[:,0]))
@@ -135,8 +128,8 @@ class SDBM:
         for [i,j] in encoded_testing_data:
             img[i,j] = -2
         
-        with open(f"{save_file_path}.npy", 'wb') as f:
-            np.save(f, img)
+        #with open(f"{save_file_path}.npy", 'wb') as f:
+        #    np.save(f, img)
         
 
         return (img, encoded_training_data, encoded_testing_data)
