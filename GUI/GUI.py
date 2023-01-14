@@ -16,7 +16,7 @@ import os
 from shutil import rmtree
 
 TITLE = "Classifiers visualization tool"
-WINDOW_SIZE = (1300, 800)
+WINDOW_SIZE = (1150, 650)
 BACKGROUND_COLOR = "#252526"
 BUTTON_PRIMARY_COLOR = "#007acc"
 TEXT_COLOR = "#ffffff"
@@ -58,6 +58,11 @@ DBM_TECHNIQUES = {
     "Inverse Projection": DBM,
 }
 
+PROJECTION_TECHNIQUES = [
+    "t-SNE",
+    "UMAP",
+    "PCA",
+]
 
 class GUI:
     def __init__(self):
@@ -92,6 +97,7 @@ class GUI:
         # Convert im to ImageTk.PhotoImage after window finalized
         image = ImageTk.PhotoImage(image=img)
         self.window["-CLASSIFIER IMAGE-"].update(data=image)
+        self.switch_visibility(["-CLASSIFIER IMAGE-", "-CLASSIFIER TEXT-"], True)
         self.window.refresh()
     
     def build(self):
@@ -122,8 +128,10 @@ class GUI:
         EVENTS = {
             "-FOLDER-": self.handle_select_folder_event,
             "-FILE LIST-": self.handle_file_list_event,
+            "-DBM TECHNIQUE-": self.handle_dbm_technique_event,
             "-DBM BTN-": self.handle_get_decision_boundary_mapping_event,
             "-DBM IMAGE-": self.handle_dbm_image_event,
+            "-PROJECTION TECHNIQUE-": self.handle_projection_technique_event,
             "-UPLOAD TRAIN DATA BTN-": self.handle_upload_train_data_event,
             "-UPLOAD TEST DATA BTN-": self.handle_upload_test_data_event,
             "-UPLOAD MNIST DATA BTN-": self.handle_upload_mnist_data_event,
@@ -195,18 +203,28 @@ class GUI:
                     enable_events=True,
                 ),
             ],
+            [
+                sg.Text("Which Projection technique would you like to use?", background_color=BACKGROUND_COLOR, size=(60,1), key="-PROJECTION TECHNIQUE TEXT-", visible=False),
+                sg.Combo(
+                    values = PROJECTION_TECHNIQUES,
+                    default_value = PROJECTION_TECHNIQUES[0],
+                    size=(20, 1),
+                    key="-PROJECTION TECHNIQUE-",
+                    enable_events=True,
+                    visible=False,
+                ),
+            ],
             # ---------------------------------------------------------------------------------------------------
             [
                sg.Column([
-                    [sg.Text("Classifier: ", background_color=BACKGROUND_COLOR)],
-                    [sg.Image(key="-CLASSIFIER IMAGE-", size=(30, 30), visible=True, enable_events=True)],   
+                    [sg.Text("Classifier: ", background_color=BACKGROUND_COLOR, visible=False, key="-CLASSIFIER TEXT-")],
+                    [sg.Image(key="-CLASSIFIER IMAGE-", size=(40, 40), visible=False, enable_events=True)],   
                 ], background_color=BACKGROUND_COLOR),
-            ],
-            [
+               sg.VSeparator(),
                sg.Column([
-                    [sg.Text("Decision boundary map: ", background_color=BACKGROUND_COLOR)],
+                    [sg.Text("Decision boundary map: ", background_color=BACKGROUND_COLOR, visible=False, key="-DBM TEXT-")],
                     [sg.Text("Loading... ", background_color=BACKGROUND_COLOR, visible=False, key="-DBM IMAGE LOADING-")],
-                    [sg.Image(key="-DBM IMAGE-", size=(80, 80), visible=False, enable_events=True)],   
+                    [sg.Image(key="-DBM IMAGE-", size=(40, 40), visible=False, enable_events=True)],   
                 ], background_color=BACKGROUND_COLOR),
             ],
             [
@@ -254,6 +272,19 @@ class GUI:
                 self.window["-TOUT-"].update(filename)
             except Exception as e:
                 self.logger.error("Error while loading data file" + str(e))
+    
+    def handle_projection_technique_event(self, event, values):
+        projection_technique = values["-PROJECTION TECHNIQUE-"]
+        self.logger.log(f"Projection technique: {projection_technique}")
+    
+    def handle_dbm_technique_event(self, event, values):
+        dbm_technique = values["-DBM TECHNIQUE-"]
+        if dbm_technique == "Inverse Projection":
+            self.switch_visibility(["-PROJECTION TECHNIQUE TEXT-", "-PROJECTION TECHNIQUE-"], True)
+        else:
+            self.switch_visibility(["-PROJECTION TECHNIQUE TEXT-", "-PROJECTION TECHNIQUE-"], False)
+            
+        self.logger.log(f"DBM technique: {dbm_technique}")
     
     def handle_upload_train_data_event(self, event, values):
         try:
@@ -312,16 +343,17 @@ class GUI:
         if self.dbm_plotter is None:
             self.logger.warn("No image to show")
             return
-        self.dbm_plotter.initialize_plot()
         self.dbm_plotter.plot()
         
     def handle_get_decision_boundary_mapping_event(self, event, values):
         # update loading state
-        self.switch_visibility(["-DBM IMAGE LOADING-"], True)
+        self.switch_visibility(["-DBM TEXT-", "-DBM IMAGE LOADING-"], True)
         
         dbm = DBM_TECHNIQUES[values["-DBM TECHNIQUE-"]](classifier = self.classifier, logger = self.dbm_logger)
         
-        img, encoded_training_data, encoded_testing_data = dbm.generate_boundary_map(
+        if values["-DBM TECHNIQUE-"] == "Inverse Projection":
+            projection_technique = values["-PROJECTION TECHNIQUE-"]
+            img, _, encoded_training_data, encoded_testing_data = dbm.generate_boundary_map(
                                 self.X_train, 
                                 self.Y_train, 
                                 self.X_test, 
@@ -329,7 +361,18 @@ class GUI:
                                 train_epochs=10, 
                                 train_batch_size=128,
                                 resolution=256,
+                                projection=projection_technique
                                 )
+        else:
+            img, _, encoded_training_data, encoded_testing_data = dbm.generate_boundary_map(
+                                    self.X_train, 
+                                    self.Y_train, 
+                                    self.X_test, 
+                                    self.Y_test, 
+                                    train_epochs=10, 
+                                    train_batch_size=128,
+                                    resolution=256
+                                    )
 
         # ---------------------------------
         # update the GUI dbm attributes

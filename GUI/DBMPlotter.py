@@ -19,7 +19,6 @@ from PIL import Image
 import numpy as np
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
 
-
 COLORS_MAPPER = {
     -2: [0,0,0], # setting original test data to black
     -1: [1,1,1], # setting original train data to white
@@ -52,14 +51,14 @@ class DBMPlotter:
         self.Y_test = Y_test
         self.color_img, self.legend = self._build_2D_image(img)
         self.train_mapper, self.test_mapper = self._generate_encoded_mapping()
-        self.initialize_plot()
+        self._initialize_plot()
     
-    def initialize_plot(self):    
+    def _initialize_plot(self):    
         plt.close()
         self.fig, self.ax = plt.subplots(figsize = (15, 10))
         self.ax.xaxis.set_visible(False)
         self.ax.yaxis.set_visible(False)
-        self.build_annotation_mapper()
+        self._build_annotation_mapper()
     
     def _build_2D_image(self, img, class_name_mapper = lambda x: str(x), colors_mapper = COLORS_MAPPER):
         color_img = np.zeros((img.shape[0], img.shape[1], 3))
@@ -96,7 +95,7 @@ class DBMPlotter:
         
         return train_mapper, test_mapper
 
-    def build_annotation_mapper(self):
+    def _build_annotation_mapper(self):
         image = OffsetImage(self.X_train[0], zoom=2, cmap="gray")
         label = TextArea("Data point label: None")
 
@@ -119,11 +118,7 @@ class DBMPlotter:
                 return
         
             j, i = int(event.xdata), int(event.ydata)
-            
             if self.img[i,j] >= 0 or self.img[i,j] < -2:                
-                #annImage.set_visible(False)
-                #annLabels.set_visible(False)
-                #self.fig.canvas.draw_idle()
                 return
             
             # change the annotation box position relative to mouse.
@@ -171,7 +166,6 @@ class DBMPlotter:
             
             return None, None
             
-            
         self.fig.canvas.mpl_connect('motion_notify_event', display_annotation)           
         self.fig.canvas.mpl_connect('button_press_event', onclick)
     
@@ -186,4 +180,3 @@ class DBMPlotter:
         self.ax.legend(handles=self.legend, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0. )
         self.fig.show()
         plt.show()
-        #self.fig.clear()

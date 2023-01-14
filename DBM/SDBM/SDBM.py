@@ -16,7 +16,7 @@ import os
 import numpy as np
 from DBM.DBMInterface import DBMInterface
 from DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
-from DBM.SDBM.Autoencoder import build_autoencoder, load_autoencoder
+from DBM.SDBM.Autoencoder import DEFAULT_MODEL_PATH, Autoencoder, build_autoencoder
 
 class SDBM(DBMInterface):
     """
@@ -33,18 +33,16 @@ class SDBM(DBMInterface):
             Y_test, 
             epochs=10,
             batch_size=128,
-            load_folder = os.path.join("models", "model", "DBM", "MNIST")):
+            load_folder = DEFAULT_MODEL_PATH):
         
-        num_classes = np.unique(Y_train).shape[0]
-        data_shape = X_train.shape[1:]
-        
-        # 1. Train an autoencoder on the training data (this will be used to reduce the dimensionality of the data) nD -> 2D
+        # Train an autoencoder on the training data (this will be used to reduce the dimensionality of the data) nD -> 2D
         try:
-            autoencoder = load_autoencoder(load_folder)
+            autoencoder = Autoencoder(folder_path = load_folder, load = True)
             self.console.log("Loaded autoencoder from disk")
         except Exception as e:
             self.console.log("Could not load autoencoder from disk. Training a new one.")
-            autoencoder = build_autoencoder(self.classifier, data_shape, num_classes, show_summary=True)
+            data_shape = X_train.shape[1:]
+            autoencoder = build_autoencoder(self.classifier, data_shape, show_summary=True)
             autoencoder.fit(X_train, Y_train, X_test, Y_test, epochs=epochs, batch_size=batch_size)
         
         #if show_predictions:
@@ -115,16 +113,23 @@ class SDBM(DBMInterface):
         self.console.log("Predicting labels for the 2D boundary mapping using the nD data and the trained classifier...")
         predictions = self.classifier.predict(spaceNd)
         predicted_labels = np.array([np.argmax(p) for p in predictions])
+        predicted_confidence = np.array([np.max(p) for p in predictions])
         img = predicted_labels.reshape((resolution, resolution))
+        img_confidence = predicted_confidence.reshape((resolution, resolution))
         #self.console.log("2D boundary mapping: \n", img)
 
         for [i,j] in encoded_training_data:
             img[i,j] = -1
+            img_confidence[i,j] = 1
         for [i,j] in encoded_testing_data:
             img[i,j] = -2
+            img_confidence[i,j] = 1
         
-        #with open(f"{save_file_path}.npy", 'wb') as f:
-        #    np.save(f, img)
+        save_img_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map")
+        save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map_confidence")
+        with open(f"{save_img_path}.npy", 'wb') as f:
+            np.save(f, img)
+        with open(f"{save_img_confidence_path}.npy", 'wb') as f:
+            np.save(f, img_confidence)
         
-
-        return (img, encoded_training_data, encoded_testing_data)
+        return (img, img_confidence, encoded_training_data, encoded_testing_data)

@@ -1,6 +1,11 @@
 keras==2.11.0
 matplotlib==3.5.1
 numpy==1.22.2
+opfython==1.0.12
+pandas==1.4.1
+Pillow==9.4.0
+PySimpleGUI==4.60.4
+scikit_learn==1.2.0
+seaborn==0.12.2
 tensorflow==2.11.0
-termcolor==2.1.1
-tqdm==4.62.3
+termcolor==2.2.0

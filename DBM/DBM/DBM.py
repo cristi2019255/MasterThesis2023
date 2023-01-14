@@ -12,83 +12,59 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+from DBM.DBM.invNN import DEFAULT_MODEL_PATH, invNN
 from DBM.DBMInterface import DBMInterface
 from DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
-import tensorflow as tf
-from sklearn.manifold import TSNE
+from DBM.DBM.projections import PROJECTION_METHODS
 import numpy as np
-import matplotlib.pyplot as plt
+
 
 class DBM(DBMInterface):
     
     def __init__(self, classifier, logger=None):
         super().__init__(classifier, logger)
-    
-    def build_decoder(self, output_shape):
-        self.decoder = tf.keras.Sequential([
-            tf.keras.layers.Dense(32, activation='relu'),
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dense(512, activation='relu'),
-            tf.keras.layers.Dense(output_shape[0] * output_shape[1], activation='linear'),
-            tf.keras.layers.Reshape(output_shape)
-        ], name="decoder")
-
-        self.decoder_classifier = tf.keras.Sequential([
-            self.decoder,
-            self.classifier
-        ], name="decoder_classifier")  
+        self.invNN = None
         
-        input_layer = tf.keras.Input(shape=(None, 2), name="input")
-                                             
-        decoder_classifier_output = self.decoder_classifier(input_layer)
-        decoder_output = self.decoder(input_layer)
-        
-            
-        self.invNN = tf.keras.models.Model(inputs=input_layer, 
-                                            outputs=[decoder_output, 
-                                                    decoder_classifier_output], 
-                                            name="invNN")
-        
-        optimizer = tf.keras.optimizers.Adam()
-        
-        self.invNN.compile(optimizer=optimizer, 
-                                loss={"decoder":"binary_crossentropy",
-                                      "decoder_classifier": "sparse_categorical_crossentropy"}, 
-                                metrics=['accuracy'])
-                                          
-            
+        # creating a folder for the model
+        if not os.path.exists(DEFAULT_MODEL_PATH):
+           os.makedirs(DEFAULT_MODEL_PATH) 
+                                                  
     def fit(self, 
-            X2d_train, X_train, Y_train, 
-            X2d_test, X_test, Y_test, 
-            epochs=10, batch_size=128, load_folder=None):
+            X2d_train, Xnd_train, Y_train,
+            X2d_test, Xnd_test, Y_test, 
+            epochs=10, batch_size=128, load_folder=DEFAULT_MODEL_PATH):
         """ Trains the classifier on the given data set.
 
         Args:
-            X_train (np.array): Training data set 2D data got from the projection of the original data (e.g. PCA, t-SNE, UMAP)
-            Y_train (np.array): Training data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
-            X_test (np.array): Testing data set 2D data got from the projection of the original data (e.g. PCA, t-SNE, UMAP)
+            X2d_train (np.array): Training data set 2D data got from the projection of the original data (e.g. PCA, t-SNE, UMAP)
+            Xnd_train (np.array): Training data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
+            Y_train (np.array): Training data set labels
+            X2d_test (np.array): Testing data set 2D data got from the projection of the original data (e.g. PCA, t-SNE, UMAP)
+            Xnd_test (np.array): Testing data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
             Y_test (np.array): Testing data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
             epochs (int, optional): The number of epochs for which the DBM is trained. Defaults to 10.
             batch_size (int, optional): Train batch size. Defaults to 128.
         """
-        self.build_decoder(output_shape=X_train.shape[1:])  
-        self.invNN.fit(X2d_train, 
-                       [X_train, Y_train], 
-                       epochs=epochs, 
-                       batch_size=batch_size,
-                       shuffle=True,
-                       validation_data=(X2d_test, [X_test, Y_test])
-                       )
+        
+        inverse_porjection_NN = invNN(classifier=self.classifier)
+        inverse_porjection_NN.fit(X2d_train, Xnd_train, Y_train, 
+                                      X2d_test, Xnd_test, Y_test, 
+                                      epochs=epochs, batch_size=batch_size)
+            
+        self.invNN = inverse_porjection_NN
+        self.classifier = self.invNN.classifier
+        return inverse_porjection_NN
         
     def generate_boundary_map(self, 
-                              X_train, 
-                              Y_train, 
-                              X_test, 
-                              Y_test,
+                              Xnd_train, Y_train, 
+                              Xnd_test, Y_test,
+                              X2d_train = None,
+                              X2d_test = None,
                               train_epochs=10, 
                               train_batch_size=128,
                               resolution=DBM_DEFAULT_RESOLUTION,
-                              encoder='t-SNE'
+                              projection='t-SNE'                              
                               ):
         """ Generates a 2D boundary map of the classifier's decision boundary.
 
@@ -103,41 +79,87 @@ class DBM(DBMInterface):
             resolution (_type_, optional): _description_. Defaults to DBM_DEFAULT_RESOLUTION.
         
         Returns:
-            np.array: A 2D numpy array with the decision boundary map
-        
+            img (np.array): A 2D numpy array with the decision boundary map, each element is an integer representing the class of the corresponding point.
+            img_confidence (np.array): A 2D numpy array with the decision boundary map, each element is a float representing the confidence of the classifier for the corresponding point.
+            X2d_train (np.array): A 2D matrix representing the projection of the training data set, each element is an integer representing the class of the corresponding point.
+            X2d_test (np.array): A 2D matrix representing the projection of the testing data set, each element is an integer representing the class of the corresponding point.
         """
-        if encoder == 't-SNE':
-            encoder = TSNE(n_components=2, random_state=0)
-            self.console.log("Transforming the data to 2D using t-SNE")
-            X_train_flat = X_train.reshape(X_train.shape[0], -1)
-            X_test_flat = X_test.reshape(X_test.shape[0], -1)
-            X2d_train = encoder.fit_transform(X_train_flat)
-            X2d_test = encoder.fit_transform(X_test_flat)
-            self.console.log("Finished transforming the data to 2D using t-SNE")
-            self.console.log("Starting training the DBM")
-            self.fit(X2d_train, X_train, Y_train, X2d_test, X_test, Y_test, epochs=train_epochs, batch_size=train_batch_size)
-            self.console.log("Finishing training the DBM")
-            self.invNN.save("invNN")
-            
-            min_x = min(np.min(X2d_train[:,0]), np.min(X2d_test[:,0]))
-            max_x = max(np.max(X2d_train[:,0]), np.max(X2d_test[:,0]))
-            min_y = min(np.min(X2d_train[:,1]), np.min(X2d_test[:,1]))
-            max_y = max(np.max(X2d_train[:,1]), np.max(X2d_test[:,1]))
-            
-            space2d = np.array([(i / resolution * (max_x - min_x) + min_x, j / resolution * (max_y - min_y) + min_y) for i in range(resolution) for j in range(resolution)])
+        assert type(Xnd_train) == np.ndarray
+        assert type(Y_train) == np.ndarray
+        assert type(Xnd_test) == np.ndarray
+        assert type(Y_test) == np.ndarray
+        assert projection in ['t-SNE', 'PCA', 'UMAP']
         
-            self.console.log("Decoding the 2D space... 2D -> nD -> 1D")
-            predictions = self.decoder_classifier.predict(space2d)
-            predicted_labels = np.array([np.argmax(p) for p in predictions])
-            img = predicted_labels.reshape((resolution, resolution))
-        
-            print(img)
+        if X2d_train is None:
+            X2d_train = self.transform_2d(Xnd_train, projection, data_name = "train")
+            
+        if X2d_test is None:
+            X2d_test = self.transform_2d(Xnd_test, projection, data_name = "test")
 
-            # TODO: generate the training and testing corpus embeddings in the 2D space of the image
-            # TODO: refactoring as written in hurry
-            # TODO: delegate the NN part to another class and use DBM as a wrapper for the NN
+        if self.invNN is None:
+            self.fit(X2d_train, Xnd_train, Y_train, 
+                     X2d_test, Xnd_test, Y_test, 
+                     train_epochs, train_batch_size)   
+        
+        min_x = min(np.min(X2d_train[:,0]), np.min(X2d_test[:,0]))
+        max_x = max(np.max(X2d_train[:,0]), np.max(X2d_test[:,0]))
+        min_y = min(np.min(X2d_train[:,1]), np.min(X2d_test[:,1]))
+        max_y = max(np.max(X2d_train[:,1]), np.max(X2d_test[:,1]))
             
-            plt.imshow(img, cmap='gray')
-            plt.show()
+        space2d = np.array([(i / resolution * (max_x - min_x) + min_x, j / resolution * (max_y - min_y) + min_y) for i in range(resolution) for j in range(resolution)])
+        
+        self.console.log("Decoding the 2D space... 2D -> nD -> 1D")
+        predictions = self.invNN.decoder_classifier.predict(space2d)
+        predicted_labels = np.array([np.argmax(p) for p in predictions])
+        predicted_confidence = np.array([np.max(p) for p in predictions])
+        img = predicted_labels.reshape((resolution, resolution))
+        img_confidence = predicted_confidence.reshape((resolution, resolution))
+        
+        self.console.log("Map the 2D embedding of the data to the 2D image")
+        # transform the encoded data to be in the range [0, resolution]
+        X2d_train[:,0] = (X2d_train[:,0] - min_x) / (max_x - min_x) * (resolution - 1)
+        X2d_train[:,1] = (X2d_train[:,1] - min_y) / (max_y - min_y) * (resolution - 1)
+        X2d_test[:,0] = (X2d_test[:,0] - min_x) / (max_x - min_x) * (resolution - 1)
+        X2d_test[:,1] = (X2d_test[:,1] - min_y) / (max_y - min_y) * (resolution - 1)
+        
+        X2d_train = X2d_train.astype(int)
+        X2d_test = X2d_test.astype(int)
+        
+        for [i,j] in X2d_train:
+            img[i,j] = -1
+            img_confidence[i,j] = 1
+        for [i,j] in X2d_test:
+            img[i,j] = -2
+            img_confidence[i,j] = 1
             
-        return img, None, None
+        save_img_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map")
+        save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map_confidence")
+        with open(f"{save_img_path}.npy", 'wb') as f:
+            np.save(f, img)
+        with open(f"{save_img_confidence_path}.npy", 'wb') as f:
+            np.save(f, img_confidence)
+        
+        return (img, img_confidence, X2d_train, X2d_test)
+    
+    
+    def transform_2d(self, X, projection='t-SNE', data_name="training"):
+        """ Transforms the given data to 2D using a projection method.
+
+        Args:
+            X (np.array): The data to be transformed
+
+        Returns:
+            np.array: The transformed data
+        """
+        self.console.log("Transforming the data to 2D using {projection}")
+        
+        X2d = PROJECTION_METHODS[projection](X)
+            
+        self.console.log("Finished transforming the data to 2D using {projection}")
+        
+        file_path = os.path.join(DEFAULT_MODEL_PATH, data_name + "_2d.npy")
+        self.console.log("Saving the 2D data to the disk: " + file_path)
+        with open(file_path, 'wb') as f:
+            np.save(f, X2d)
+        
+        return X2d
