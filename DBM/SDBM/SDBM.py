@@ -133,12 +133,12 @@ class SDBM(DBMInterface):
         with open(f"{save_img_confidence_path}.npy", 'wb') as f:
             np.save(f, img_confidence)
         
-        img_projection_errors = self.get_projection_errors(spaceNd.reshape(resolution, resolution, -1), space2d.reshape((resolution, resolution, -1)))
+        img_projection_errors = self.get_projection_errors(spaceNd, space2d, predicted_labels, resolution)
         img_inverse_projection_errors = self.get_inverse_projection_errors(spaceNd.reshape((resolution, resolution, -1)))
       
         return (img, img_confidence, img_projection_errors, img_inverse_projection_errors, encoded_training_data, encoded_testing_data)
     
-    def get_projection_errors(self, Xnd, X2d):
+    def get_projection_errors(self, Xnd, X2d, labels, resolution):
         """ Calculates the projection errors of the given data.
 
         Args:
@@ -148,13 +148,22 @@ class SDBM(DBMInterface):
             np.array: The projection errors matrix of the 
         """
         self.console.log("Calculating the projection errors of the given data")
-        errors = np.zeros(X2d.shape[:2])
-        for i in range(X2d.shape[0]):
-            for j in range(X2d.shape[1]):
-                errors[i,j] = get_proj_error(i,j, Xnd, X2d)    
+        errors = np.zeros(X2d.shape[0])
         
-        # normalizing the errors to be in the range [0,1]
-        errors = (errors - np.min(errors)) / (np.max(errors) - np.min(errors))
+        distances_2d = np.array([np.linalg.norm(x) for x in X2d])
+        distances_nd = np.array([np.linalg.norm(x) for x in Xnd])
+        
+        indices_2d = np.argsort(distances_2d)
+        indices_nd = np.argsort(distances_nd)
+        
+        self.console.log(f"Indices 2d: {indices_2d[:10]}")
+        self.console.log(f"Indices nd: {indices_nd[:10]}")
+        
+        for i in range(X2d.shape[0]):
+            errors[i] = get_proj_error(i, indices_nd, indices_2d, labels)    
+        
+        # reshaping the errors to be in the shape of the 2d space
+        errors = errors.reshape((resolution, resolution))
         return errors
     
     def get_inverse_projection_errors(self, Xnd):
