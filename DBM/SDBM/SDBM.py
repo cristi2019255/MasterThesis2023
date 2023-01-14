@@ -17,7 +17,7 @@ import numpy as np
 from DBM.DBMInterface import DBMInterface
 from DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
 from DBM.SDBM.Autoencoder import DEFAULT_MODEL_PATH, Autoencoder, build_autoencoder
-from DBM.tools import get_inv_proj_error
+from DBM.tools import get_inv_proj_error, get_proj_error
 
 class SDBM(DBMInterface):
     """
@@ -148,9 +148,14 @@ class SDBM(DBMInterface):
             np.array: The projection errors matrix of the 
         """
         self.console.log("Calculating the projection errors of the given data")
-        # TODO: implement this function
-        # also normalize the errors to be in the range [0,1]
-        return np.zeros(X2d.shape[:2])
+        errors = np.zeros(X2d.shape[:2])
+        for i in range(X2d.shape[0]):
+            for j in range(X2d.shape[1]):
+                errors[i,j] = get_proj_error(i,j, Xnd, X2d)    
+        
+        # normalizing the errors to be in the range [0,1]
+        errors = (errors - np.min(errors)) / (np.max(errors) - np.min(errors))
+        return errors
     
     def get_inverse_projection_errors(self, Xnd):
         """ Calculates the inverse projection errors of the given data.

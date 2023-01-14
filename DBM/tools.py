@@ -35,3 +35,12 @@ def get_inv_proj_error(i,j, Xnd):
     
     error /= len(neighbours_nd)
     return error
+
+def get_proj_error(i,j, Xnd, X2d):
+    trustworthiness = np.random.rand()
+    confidence = np.random.rand()
+    
+    # TODO: finish this function implementation
+    
+    error = trustworthiness * confidence
+    return error
