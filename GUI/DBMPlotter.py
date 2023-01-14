@@ -35,13 +35,14 @@ COLORS_MAPPER = {
 }
 
 class DBMPlotter:
-    def __init__ (self, img, num_classes, encoded_train, encoded_test, X_train, Y_train, X_test, Y_test, logger=None):
+    def __init__ (self, img, img_confidence, num_classes, encoded_train, encoded_test, X_train, Y_train, X_test, Y_test, logger=None):
         if logger is None:
             self.console = Logger(name="DBMPlotter")
         else:
             self.console = logger
         
         self.img = img
+        self.img_confidence = img_confidence
         self.num_classes = num_classes
         self.encoded_train = encoded_train
         self.encoded_test = encoded_test
@@ -49,7 +50,7 @@ class DBMPlotter:
         self.Y_train = Y_train
         self.X_test = X_test
         self.Y_test = Y_test
-        self.color_img, self.legend = self._build_2D_image(img)
+        self.color_img, self.legend = self._build_2D_image(img, img_confidence)
         self.train_mapper, self.test_mapper = self._generate_encoded_mapping()
         self._initialize_plot()
     
@@ -60,11 +61,11 @@ class DBMPlotter:
         self.ax.yaxis.set_visible(False)
         self._build_annotation_mapper()
     
-    def _build_2D_image(self, img, class_name_mapper = lambda x: str(x), colors_mapper = COLORS_MAPPER):
-        color_img = np.zeros((img.shape[0], img.shape[1], 3))
+    def _build_2D_image(self, img, img_confidence, class_name_mapper = lambda x: str(x), colors_mapper = COLORS_MAPPER):
+        color_img = np.zeros((img.shape[0], img.shape[1], 4))
                 
         for i, j in np.ndindex(img.shape):
-            color_img[i,j] = colors_mapper[img[i,j]]
+            color_img[i,j] = colors_mapper[img[i,j]] + [img_confidence[i,j]]
         
         values = np.unique(img)
         
