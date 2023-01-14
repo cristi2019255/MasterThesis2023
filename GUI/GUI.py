@@ -15,8 +15,6 @@
 import os
 from shutil import rmtree
 
-from DBM.DBM import DBM # this is only used for removing a tmp folder
-
 TITLE = "Classifiers visualization tool"
 WINDOW_SIZE = (1300, 800)
 BACKGROUND_COLOR = "#252526"
@@ -41,7 +39,9 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Disable tensorflow logs
 
 import PySimpleGUI as sg
 from GUI.LoggerGUI import LoggerGUI
-from DBM.SDBM import SDBM
+from DBM.SDBM.SDBM import SDBM
+from DBM.DBM.DBM import DBM 
+
 from utils.Logger import Logger
 from PIL import Image, ImageTk
 from GUI.DBMPlotter import DBMPlotter

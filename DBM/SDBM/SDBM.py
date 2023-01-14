@@ -16,12 +16,7 @@ import os
 import numpy as np
 from DBM.DBMInterface import DBMInterface
 from DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
-from models.Autoencoder import build_autoencoder, load_autoencoder
-import matplotlib.pyplot as plt
-
-from utils.Logger import Logger
-
-
+from DBM.SDBM.Autoencoder import build_autoencoder, load_autoencoder
 
 class SDBM(DBMInterface):
     """
