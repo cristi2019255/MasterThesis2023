@@ -114,13 +114,21 @@ class DBMPlotter:
         xybox=(50., 50.)
         annImage = AnnotationBbox(image, (0,0), xybox=xybox, xycoords='data',
                 boxcoords="offset points",  pad=0.1,  arrowprops=dict(arrowstyle="->"))
+        annImage_ax1 = AnnotationBbox(image, (0,0), xybox=xybox, xycoords='data',
+                boxcoords="offset points",  pad=0.1,  arrowprops=dict(arrowstyle="->"))
+        annImage_ax2 = AnnotationBbox(image, (0,0), xybox=xybox, xycoords='data',
+                boxcoords="offset points",  pad=0.1,  arrowprops=dict(arrowstyle="->"))
 
         annLabels = AnnotationBbox(label, (0,0), xybox=xybox, xycoords='data',
                 boxcoords="offset points",  pad=0.3,  arrowprops=dict(arrowstyle="->"))
 
         self.ax.add_artist(annImage)
         self.ax.add_artist(annLabels)
+        self.ax_inv_proj_errors.add_artist(annImage_ax1)
+        self.ax_proj_errs.add_artist(annImage_ax2)
         annImage.set_visible(False)
+        annImage_ax1.set_visible(False)
+        annImage_ax2.set_visible(False)
         annLabels.set_visible(False)
 
         fig_width, fig_height = self.fig.get_size_inches() * self.fig.dpi
@@ -140,9 +148,13 @@ class DBMPlotter:
             annLabels.xybox = (-50. * ws, 50. *hs)
             # make annotation box visible
             annImage.set_visible(True)
+            annImage_ax1.set_visible(True)
+            annImage_ax2.set_visible(True)
             annLabels.set_visible(True)
             # place it at the position of the event scatter point
             annImage.xy = (j, i)
+            annImage_ax1.xy = (j, i)
+            annImage_ax2.xy = (j, i)
             annLabels.xy = (j, i)
 
             x_data, y_data = find_data_point(i,j)                            
