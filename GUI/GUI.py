@@ -123,10 +123,10 @@ class GUI:
             "-FOLDER-": self.handle_select_folder_event,
             "-FILE LIST-": self.handle_file_list_event,
             "-DBM BTN-": self.handle_get_decision_boundary_mapping_event,
-            "-DBM TECHNIQUE-": self.handle_change_dbm_technique_event,
             "-DBM IMAGE-": self.handle_dbm_image_event,
             "-UPLOAD TRAIN DATA BTN-": self.handle_upload_train_data_event,
             "-UPLOAD TEST DATA BTN-": self.handle_upload_test_data_event,
+            "-UPLOAD MNIST DATA BTN-": self.handle_upload_mnist_data_event,
         }
         
         EVENTS[event](event, values)
@@ -166,6 +166,9 @@ class GUI:
             ],
             [   
                sg.Text("Testing data shape: ", key="-TEST DATA SHAPE-", background_color=BACKGROUND_COLOR, size=(70, 1)),            
+            ],
+            [
+                sg.Button("Upload MNIST Data set", button_color=(TEXT_COLOR, BUTTON_PRIMARY_COLOR), size = (69,1), key = "-UPLOAD MNIST DATA BTN-"),
             ],
             [
                 sg.Button("Show the Decision Boundary Mapping", button_color=(TEXT_COLOR, BUTTON_PRIMARY_COLOR), size = (69,1), key = "-DBM BTN-"),
@@ -279,13 +282,30 @@ class GUI:
         except Exception as e:
             self.logger.error("Error while loading data file" + str(e))
     
+    def handle_upload_mnist_data_event(self, event, values):
+        (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
+        
+        X_train = X_train.astype('float32')
+        X_test = X_test.astype('float32')
+        X_train /= 255
+        X_test /= 255
+        X_train, Y_train = X_train[:int(0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
+        X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
+        self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
+        self.num_classes = np.unique(self.Y_train).shape[0]
+        
+        self.window["-TRAIN DATA FILE-"].update("Training data: MNIST")
+        self.window["-TRAIN DATA SHAPE-"].update(f"Training data shape: X {self.X_train.shape} Y {self.Y_train.shape}")
+        
+        self.window["-TEST DATA FILE-"].update("Testing data: MNIST")
+        self.window["-TEST DATA SHAPE-"].update(f"Testing data shape: X {self.X_test.shape} Y {self.Y_test.shape}")
+        
+        self.upload_classifier()
+    
     def switch_visibility(self, elements, visible):
         for x in elements:
             self.window[x].update(visible=visible)
         self.window.refresh()
-        
-    def handle_change_dbm_technique_event(self, event, values):
-        self.logger.log("Changed dbm technique to: " + values["-DBM TECHNIQUE-"])
         
     def handle_dbm_image_event(self, event, values):
         self.logger.log("Clicked on the dbm image")
