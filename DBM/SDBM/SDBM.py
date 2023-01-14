@@ -17,6 +17,7 @@ import numpy as np
 from DBM.DBMInterface import DBMInterface
 from DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
 from DBM.SDBM.Autoencoder import DEFAULT_MODEL_PATH, Autoencoder, build_autoencoder
+from DBM.tools import get_inv_proj_error
 
 class SDBM(DBMInterface):
     """
@@ -107,9 +108,9 @@ class SDBM(DBMInterface):
         encoded_testing_data = encoded_testing_data.astype(int)
         
         # generate the 2D image in the encoded space
-        space = np.array([(i / resolution * (max_x - min_x) + min_x, j / resolution * (max_y - min_y) + min_y) for i in range(resolution) for j in range(resolution)])
+        space2d = np.array([(i / resolution * (max_x - min_x) + min_x, j / resolution * (max_y - min_y) + min_y) for i in range(resolution) for j in range(resolution)])
         self.console.log("Decoding the 2D space... 2D -> nD")
-        spaceNd = self.autoencoder.decode(space)
+        spaceNd = self.autoencoder.decode(space2d)
         self.console.log("Predicting labels for the 2D boundary mapping using the nD data and the trained classifier...")
         predictions = self.classifier.predict(spaceNd)
         predicted_labels = np.array([np.argmax(p) for p in predictions])
@@ -132,4 +133,38 @@ class SDBM(DBMInterface):
         with open(f"{save_img_confidence_path}.npy", 'wb') as f:
             np.save(f, img_confidence)
         
-        return (img, img_confidence, encoded_training_data, encoded_testing_data)
+        img_projection_errors = self.get_projection_errors(spaceNd.reshape(resolution, resolution, -1), space2d.reshape((resolution, resolution, -1)))
+        img_inverse_projection_errors = self.get_inverse_projection_errors(spaceNd.reshape((resolution, resolution, -1)))
+      
+        return (img, img_confidence, img_projection_errors, img_inverse_projection_errors, encoded_training_data, encoded_testing_data)
+    
+    def get_projection_errors(self, Xnd, X2d):
+        """ Calculates the projection errors of the given data.
+
+        Args:
+            Xnd (np.array): The data to be projected.
+            X2d (np.array): The 2D projection of the data.
+        Returns:
+            np.array: The projection errors matrix of the 
+        """
+        self.console.log("Calculating the projection errors of the given data")
+        # TODO: implement this function
+        # also normalize the errors to be in the range [0,1]
+        return np.zeros(X2d.shape[:2])
+    
+    def get_inverse_projection_errors(self, Xnd):
+        """ Calculates the inverse projection errors of the given data.
+
+        Args:
+            X2d (np.array): The 2d projection of the data.
+            Xnd (np.array): The nd inverse projection of the data.
+        """
+        self.console.log("Calculating the inverse projection errors of the given data")
+        errors = np.zeros(Xnd.shape[:2])
+        for i in range(Xnd.shape[0]):
+            for j in range(Xnd.shape[1]):
+                errors[i,j] = get_inv_proj_error(i,j, Xnd)
+                
+        # normalizing the errors to be in the range [0,1]
+        errors = (errors - np.min(errors)) / (np.max(errors) - np.min(errors))
+        return errors

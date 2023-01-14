@@ -35,7 +35,8 @@ COLORS_MAPPER = {
 }
 
 class DBMPlotter:
-    def __init__ (self, img, img_confidence, num_classes, encoded_train, encoded_test, X_train, Y_train, X_test, Y_test, logger=None):
+    def __init__ (self, img, img_confidence, img_projection_errors, img_inverse_projection_errors, 
+                  num_classes, encoded_train, encoded_test, X_train, Y_train, X_test, Y_test, logger=None):
         if logger is None:
             self.console = Logger(name="DBMPlotter")
         else:
@@ -43,6 +44,8 @@ class DBMPlotter:
         
         self.img = img
         self.img_confidence = img_confidence
+        self.img_projection_errors = img_projection_errors
+        self.img_inverse_projection_errors = img_inverse_projection_errors
         self.num_classes = num_classes
         self.encoded_train = encoded_train
         self.encoded_test = encoded_test
@@ -56,9 +59,17 @@ class DBMPlotter:
     
     def _initialize_plot(self):    
         plt.close()
-        self.fig, self.ax = plt.subplots(figsize = (15, 10))
+        self.fig = plt.figure(figsize = (15, 10))
+        self.ax = plt.subplot(1,2,1)
+        self.ax_proj_errs = plt.subplot(2, 2, 2) 
+        self.ax_inv_proj_errors = plt.subplot(2, 2, 4)
+        
         self.ax.xaxis.set_visible(False)
         self.ax.yaxis.set_visible(False)
+        self.ax_proj_errs.xaxis.set_visible(False)
+        self.ax_proj_errs.yaxis.set_visible(False)
+        self.ax_inv_proj_errors.xaxis.set_visible(False)
+        self.ax_inv_proj_errors.yaxis.set_visible(False)
         self._build_annotation_mapper()
     
     def _build_2D_image(self, img, img_confidence, class_name_mapper = lambda x: str(x), colors_mapper = COLORS_MAPPER):
@@ -178,6 +189,13 @@ class DBMPlotter:
     def plot(self, title="Decision Boundary Mapper"):
         self.ax.imshow(self.color_img)
         self.ax.set_title(title)
-        self.ax.legend(handles=self.legend, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0. )
+        self.ax.legend(handles=self.legend, bbox_to_anchor=(0, 1), loc=1, borderaxespad=0. )
+        
+        self.ax_proj_errs.imshow(self.img_projection_errors, cmap="jet")
+        self.ax_proj_errs.set_title("Projection Errors")
+        
+        self.ax_inv_proj_errors.imshow(self.img_inverse_projection_errors, cmap="jet")
+        self.ax_inv_proj_errors.set_title("Inverse Projection Errors")
+        
         self.fig.show()
         plt.show()

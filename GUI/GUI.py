@@ -353,7 +353,7 @@ class GUI:
         
         if values["-DBM TECHNIQUE-"] == "Inverse Projection":
             projection_technique = values["-PROJECTION TECHNIQUE-"]
-            img, img_confidence, encoded_training_data, encoded_testing_data = dbm.generate_boundary_map(
+            dbm_info = dbm.generate_boundary_map(
                                 self.X_train, 
                                 self.Y_train, 
                                 self.X_test, 
@@ -364,7 +364,7 @@ class GUI:
                                 projection=projection_technique
                                 )
         else:
-            img, img_confidence, encoded_training_data, encoded_testing_data = dbm.generate_boundary_map(
+            dbm_info = dbm.generate_boundary_map(
                                     self.X_train, 
                                     self.Y_train, 
                                     self.X_test, 
@@ -374,10 +374,13 @@ class GUI:
                                     resolution=256
                                     )
 
+        img, img_confidence, img_projection_errors, img_inverse_projection_errors, encoded_training_data, encoded_testing_data = dbm_info
         # ---------------------------------
         # update the GUI dbm attributes
         self.dbm_plotter = DBMPlotter(img = img,
-                                      img_confidence = img_confidence, 
+                                      img_confidence = img_confidence,
+                                      img_projection_errors = img_projection_errors, 
+                                      img_inverse_projection_errors = img_inverse_projection_errors,
                                       num_classes = self.num_classes, 
                                       encoded_train = encoded_training_data, 
                                       encoded_test = encoded_testing_data,
