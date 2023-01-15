@@ -41,16 +41,12 @@ import PySimpleGUI as sg
 from GUI.LoggerGUI import LoggerGUI
 from DBM.SDBM.SDBM import SDBM
 from DBM.DBM.DBM import DBM 
-
 from utils.Logger import Logger
 from PIL import Image, ImageTk
 from GUI.DBMPlotter import DBMPlotter
-
-# TODO: delete this after refactoring
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.utils import plot_model
-
 from utils.reader import import_csv_dataset, import_mnist_dataset
 
 DBM_TECHNIQUES = {
