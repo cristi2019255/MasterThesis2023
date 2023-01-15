@@ -133,3 +133,7 @@ dmypy.json
 
 # data folder
 data/
+
+# models folder for decision boundary mapping
+models/DBM
+models/SDBM

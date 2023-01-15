@@ -16,10 +16,11 @@ import os
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
-
 from utils.Logger import Logger
 
-def build_autoencoder(classifier, input_shape = (28, 28), num_classes = 10, show_summary = False):
+DEFAULT_MODEL_PATH = os.path.join("models", "SDBM")
+
+def build_autoencoder(classifier, input_shape = (28, 28), show_summary = False):
     """ Building an autoencoder for dimensionality reduction of the data
 
     Args:
@@ -31,15 +32,15 @@ def build_autoencoder(classifier, input_shape = (28, 28), num_classes = 10, show
     Returns:
         keras.Model: The autoencoder model
     """
-    encoder = tf.keras.models.Sequential([
+    ENCODER = tf.keras.models.Sequential([
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(512, activation='relu', bias_initializer=tf.keras.initializers.Constant(10e-4)),
         tf.keras.layers.Dense(128, activation='relu', bias_initializer=tf.keras.initializers.Constant(10e-4)),
         tf.keras.layers.Dense(32, activation='relu', bias_initializer=tf.keras.initializers.Constant(10e-4)),
         tf.keras.layers.Dense(2, activation='linear', activity_regularizer=tf.keras.regularizers.l2(1/2), bias_initializer=tf.keras.initializers.Constant(10e-4)),
     ], name="encoder")
-    
-    decoder = tf.keras.models.Sequential([
+
+    DECODER = tf.keras.models.Sequential([
         tf.keras.layers.Dense(32, activation='relu', bias_initializer=tf.keras.initializers.Constant(10e-4)),
         tf.keras.layers.Dense(128, activation='relu', bias_initializer=tf.keras.initializers.Constant(10e-4)),
         tf.keras.layers.Dense(512, activation='relu', bias_initializer=tf.keras.initializers.Constant(10e-4)),
@@ -48,24 +49,18 @@ def build_autoencoder(classifier, input_shape = (28, 28), num_classes = 10, show
     ], name="decoder")       
     
     
-    input = tf.keras.Input(shape=input_shape, name="input")
+    INPUT = tf.keras.Input(shape=input_shape, name="input")
     
-    autoencoder = Autoencoder(encoder, decoder, classifier, input)
+    autoencoder = Autoencoder(ENCODER, DECODER, classifier, INPUT)
     
     if show_summary:
         autoencoder.summary()
         
     return autoencoder
 
-def load_autoencoder(folder_path = os.path.join("models", "model", "DBM", "MNIST")):
-    try:
-        return Autoencoder(folder_path = folder_path, load = True)
-    except Exception as e:
-        raise e
-
 class Autoencoder:
     def __init__(self, encoder = None, decoder = None, classifier = None, input_layer = None, 
-                 folder_path = os.path.join("models", "model", "DBM", "MNIST"), load = False):
+                 folder_path = DEFAULT_MODEL_PATH, load = False, logger = None):
         """
             Creates an autoencoder model.
             Encoder: The encoder part of the autoencoder.
@@ -73,7 +68,11 @@ class Autoencoder:
             Classifier: The classifier part of the autoencoder.
             Input_layer: The input layer of the autoencoder.
         """
-        self.console = Logger(name="Autoencoder")
+        if logger is not None:
+            self.console = logger
+        else:
+            self.console = Logger(name="Autoencoder")
+        
         self.save_folder_path = folder_path
         self.encoder = encoder
         self.decoder = decoder
@@ -81,22 +80,22 @@ class Autoencoder:
         self.input_layer = input_layer
         
         if load:
-            self.load()
+            self.load(folder_path)
         else:
             self.build()
     
-    def load(self, folder_path = os.path.join("models", "model", "DBM", "MNIST")):
+    def load(self, folder_path):
         """
             Loads an autoencoder from the specified folder path. With the .h5 extension.
         """
         self.save_folder_path = folder_path
         try:
-            self.autoencoder_classifier = tf.keras.models.load_model(os.path.join(folder_path, "autoencoder_classifier.h5"))
-            self.auto_encoder = tf.keras.models.load_model(os.path.join(folder_path, "auto_encoder.h5"))
-            self.classifier = tf.keras.models.load_model(os.path.join(folder_path, "classifier.h5"))
-            self.autoencoder = tf.keras.models.load_model(os.path.join(folder_path, "autoencoder.h5"))
-            self.decoder = tf.keras.models.load_model(os.path.join(folder_path, "decoder.h5"))
-            self.encoder = tf.keras.models.load_model(os.path.join(folder_path, "encoder.h5"))
+            self.autoencoder_classifier = tf.keras.models.load_model(os.path.join(folder_path, "autoencoder_classifier.h5"), compile=False)
+            self.auto_encoder = tf.keras.models.load_model(os.path.join(folder_path, "auto_encoder.h5"), compile=False)
+            self.classifier = tf.keras.models.load_model(os.path.join(folder_path, "classifier.h5"), compile=False)
+            self.autoencoder = tf.keras.models.load_model(os.path.join(folder_path, "autoencoder.h5"), compile=False)
+            self.decoder = tf.keras.models.load_model(os.path.join(folder_path, "decoder.h5"), compile=False)
+            self.encoder = tf.keras.models.load_model(os.path.join(folder_path, "encoder.h5"), compile=False)
         except Exception as e:
             self.console.log("Autoencoder not found. Please check the path folder and make sure the autoencoder is saved there")        
             self.console.error(f"Exception: {e}")
@@ -124,7 +123,9 @@ class Autoencoder:
                                                     auto_encoder_classifier_output], 
                                             name="autoencoder")
         
-        self.autoencoder.compile(optimizer='adam', 
+        optimizer = tf.keras.optimizers.Adam()
+        
+        self.autoencoder.compile(optimizer=optimizer, 
                                 loss={"auto_encoder":"binary_crossentropy",
                                       "autoencoder_classifier": "sparse_categorical_crossentropy"}, 
                                 metrics=['accuracy'])
@@ -186,7 +187,9 @@ class Autoencoder:
         plt.show()
     
     def encode(self, data):
+        self.console.log("Encoding data")
         return self.encoder.predict(data)
     
     def decode(self, data):
+        self.console.log("Decoding data")
         return self.decoder.predict(data)
