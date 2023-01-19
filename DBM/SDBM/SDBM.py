@@ -18,7 +18,8 @@ from DBM.DBMInterface import DBMInterface
 from DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
 from DBM.SDBM.Autoencoder import DEFAULT_MODEL_PATH, Autoencoder, build_autoencoder
 from DBM.tools import get_inv_proj_error, get_proj_error
-
+from utils.tools import track_time_wrapper
+        
 class SDBM(DBMInterface):
     """
         SDBM - Self Decision Boundary Mapper
@@ -58,7 +59,8 @@ class SDBM(DBMInterface):
                               train_epochs=10, 
                               train_batch_size=128,
                               show_encoded_corpus=True,
-                              resolution=DBM_DEFAULT_RESOLUTION, 
+                              resolution=DBM_DEFAULT_RESOLUTION,
+                              use_fast_decoding=True, 
                               ):
         
         # making sure that the data is of the correct type
@@ -108,23 +110,16 @@ class SDBM(DBMInterface):
         encoded_testing_data = encoded_testing_data.astype(int)
         
         # generate the 2D image in the encoded space
-        space2d = np.array([(i / resolution * (max_x - min_x) + min_x, j / resolution * (max_y - min_y) + min_y) for i in range(resolution) for j in range(resolution)])
         self.console.log("Decoding the 2D space... 2D -> nD")
-        spaceNd = self.autoencoder.decode(space2d)
-        self.console.log("Predicting labels for the 2D boundary mapping using the nD data and the trained classifier...")
-        predictions = self.classifier.predict(spaceNd)
-        predicted_labels = np.array([np.argmax(p) for p in predictions])
-        predicted_confidence = np.array([np.max(p) for p in predictions])
-        img = predicted_labels.reshape((resolution, resolution))
-        img_confidence = predicted_confidence.reshape((resolution, resolution))
-        #self.console.log("2D boundary mapping: \n", img)
-
-        for [i,j] in encoded_training_data:
-            img[i,j] = -1
-            img_confidence[i,j] = 1
-        for [i,j] in encoded_testing_data:
-            img[i,j] = -2
-            img_confidence[i,j] = 1
+        
+        img, img_confidence = self._get_img_dbm_fast_((min_x, max_x, min_y, max_y), resolution)
+        
+        with open(os.path.join(DEFAULT_MODEL_PATH, "fast_boundary_map.npy"), 'wb') as f:
+            np.save(f, img)
+        with open(os.path.join(DEFAULT_MODEL_PATH, "fast_boundary_map_confidence.npy"), 'wb') as f:
+            np.save(f, img_confidence)
+        
+        img, img_confidence, space2d, spaceNd = self._get_img_dbm_((min_x, max_x, min_y, max_y), resolution)
         
         save_img_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map")
         save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map_confidence")
@@ -133,11 +128,37 @@ class SDBM(DBMInterface):
         with open(f"{save_img_confidence_path}.npy", 'wb') as f:
             np.save(f, img_confidence)
         
-        img_projection_errors = self.get_projection_errors(spaceNd, space2d, predicted_labels, resolution)
+        for [i,j] in encoded_training_data:
+            img[i,j] = -1
+            img_confidence[i,j] = 1
+        for [i,j] in encoded_testing_data:
+            img[i,j] = -2
+            img_confidence[i,j] = 1
+        
+        #img_projection_errors = self.get_projection_errors(spaceNd, space2d, img.flatten() , resolution)
+        img_projection_errors = np.zeros((resolution, resolution))
         img_inverse_projection_errors = self.get_inverse_projection_errors(spaceNd.reshape((resolution, resolution, -1)))
       
         return (img, img_confidence, img_projection_errors, img_inverse_projection_errors, encoded_training_data, encoded_testing_data)
     
+    def _predict2dspace_(self, X2d):
+        """ Predicts the labels for the given 2D data set.
+
+        Args:
+            X2d (np.array): The 2D data set
+        
+        Returns:
+            np.array: The predicted labels for the given 2D data set
+            np.array: The predicted probabilities for the given 2D data set
+            np.array: The decoded nD space
+        """
+        spaceNd = self.autoencoder.decode(X2d)
+        predictions = self.classifier.predict(spaceNd, verbose=0)
+        predicted_labels = np.array([np.argmax(p) for p in predictions])
+        predicted_confidence = np.array([np.max(p) for p in predictions])
+        return predicted_labels, predicted_confidence, spaceNd
+    
+        
     def get_projection_errors(self, Xnd, X2d, labels, resolution):
         """ Calculates the projection errors of the given data.
 
@@ -155,9 +176,6 @@ class SDBM(DBMInterface):
         
         indices_2d = np.argsort(distances_2d)
         indices_nd = np.argsort(distances_nd)
-        
-        self.console.log(f"Indices 2d: {indices_2d[:10]}")
-        self.console.log(f"Indices nd: {indices_nd[:10]}")
         
         for i in range(X2d.shape[0]):
             errors[i] = get_proj_error(i, indices_nd, indices_2d, labels)    

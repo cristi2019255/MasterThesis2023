@@ -13,27 +13,28 @@
 # limitations under the License.
 
 import numpy as np
+from numba import jit
 
 def get_inv_proj_error(i,j, Xnd):
     error = 0
     # getting the neighbours of the given point
-    neighbours_nd = []
+    neighbors_nd = []
     current_point_nd = Xnd[i,j]
     
     if i - 1 >= 0:
-        neighbours_nd.append(Xnd[i-1,j])
+        neighbors_nd.append(Xnd[i-1,j])
     if i + 1 < Xnd.shape[0]:
-        neighbours_nd.append(Xnd[i+1,j])
+        neighbors_nd.append(Xnd[i+1,j])
     if j - 1 >= 0:
-        neighbours_nd.append(Xnd[i,j-1])
+        neighbors_nd.append(Xnd[i,j-1])
     if j + 1 < Xnd.shape[1]:
-        neighbours_nd.append(Xnd[i,j+1])
+        neighbors_nd.append(Xnd[i,j+1])
     
     # calculating the error
-    for neighbour_nd in neighbours_nd:
-        error += np.linalg.norm(current_point_nd - neighbour_nd)
+    for neighbor_nd in neighbors_nd:
+        error += np.linalg.norm(current_point_nd - neighbor_nd)
     
-    error /= len(neighbours_nd)
+    error /= len(neighbors_nd)
     return error
 
 def get_proj_error(index, indices_2d, indices_nd, labels):
@@ -54,3 +55,31 @@ def get_proj_error(index, indices_2d, indices_nd, labels):
     error = trustworthiness * continuity 
     return error
 
+@jit
+def get_decode_pixel_priority(img, i, j, window_size, label):
+    resolution = img.shape[0]
+    # getting the 4 neighbors
+    i, j = int(i), int(j)
+    w = int(window_size / 2)
+    neighbors = []
+    if i - w > 0:
+        neighbors.append(img[i - w, j])
+    if i + w + 1 < resolution:
+        neighbors.append(img[i + w + 1, j])
+    if j - w > 0 and i + 1 < resolution:
+        neighbors.append(img[i + 1, j - w])
+    if j + w + 1 < resolution:
+        neighbors.append(img[i, j + w + 1])
+        
+    cost = 0
+    for neighbor in neighbors:
+        if neighbor != label:
+            cost += 1
+        
+    if cost == 0:
+        return -1
+    
+    cost /= len(neighbors)
+    cost *= window_size      
+    
+    return 1/cost
