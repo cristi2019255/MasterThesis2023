@@ -119,7 +119,7 @@ class SDBM(DBMInterface):
         with open(os.path.join(DEFAULT_MODEL_PATH, "fast_boundary_map_confidence.npy"), 'wb') as f:
             np.save(f, img_confidence)
         
-        img, img_confidence, spaceNd, space2d = self._get_img_dbm_((min_x, max_x, min_y, max_y), resolution)
+        img, img_confidence, space2d, spaceNd = self._get_img_dbm_((min_x, max_x, min_y, max_y), resolution)
         
         save_img_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map")
         save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map_confidence")
@@ -135,7 +135,8 @@ class SDBM(DBMInterface):
             img[i,j] = -2
             img_confidence[i,j] = 1
         
-        img_projection_errors = self.get_projection_errors(spaceNd, space2d, img.flatten() , resolution)
+        #img_projection_errors = self.get_projection_errors(spaceNd, space2d, img.flatten() , resolution)
+        img_projection_errors = np.zeros((resolution, resolution))
         img_inverse_projection_errors = self.get_inverse_projection_errors(spaceNd.reshape((resolution, resolution, -1)))
       
         return (img, img_confidence, img_projection_errors, img_inverse_projection_errors, encoded_training_data, encoded_testing_data)
@@ -175,9 +176,6 @@ class SDBM(DBMInterface):
         
         indices_2d = np.argsort(distances_2d)
         indices_nd = np.argsort(distances_nd)
-        
-        self.console.log(f"Indices 2d: {indices_2d[:10]}")
-        self.console.log(f"Indices nd: {indices_nd[:10]}")
         
         for i in range(X2d.shape[0]):
             errors[i] = get_proj_error(i, indices_nd, indices_2d, labels)    

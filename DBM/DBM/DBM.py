@@ -121,7 +121,7 @@ class DBM(DBMInterface):
             np.save(f, img_confidence)        
 
         
-        img, img_confidence, spaceNd, space2d = self._get_img_dbm_((min_x, max_x, min_y, max_y), resolution)
+        img, img_confidence, space2d, spaceNd = self._get_img_dbm_((min_x, max_x, min_y, max_y), resolution)
         
         save_img_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map")
         save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map_confidence")
