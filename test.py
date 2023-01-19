@@ -21,11 +21,23 @@ path1 = os.path.join(os.getcwd(), "models", "SDBM", "boundary_map.npy")
 
 fig, [ax1,ax2] = plt.subplots(1, 2)
 with open(path, "rb") as f:
-    img = np.load(f)
-    ax1.imshow(img)
+    img1 = np.load(f)
+    ax1.imshow(img1)
 
 with open(path1, "rb") as f:
-    img = np.load(f)
-    ax2.imshow(img)
-    
+    img2 = np.load(f)
+    ax2.imshow(img2)
+
+
+errors = 0
+for (i, j), z in np.ndenumerate(img1):
+    if img2[i,j] == -1 or img2[i,j] == -2:
+        continue
+    if img2[i,j] != z:
+       errors += 1
+       print(f"Error at {i}, {j} : {img2[i,j]} != {z}")
+
+print(f"Percentage of errors: {errors / (img1.shape[0] * img1.shape[1]) * 100} %")     
+print(f"Number of errors: {errors}")
+
 plt.show()

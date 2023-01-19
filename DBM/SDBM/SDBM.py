@@ -21,33 +21,36 @@ from DBM.SDBM.Autoencoder import DEFAULT_MODEL_PATH, Autoencoder, build_autoenco
 from DBM.tools import get_inv_proj_error, get_proj_error
 from queue import PriorityQueue
 from numba import jit
+import matplotlib.pyplot as plt
+from math import ceil, floor
 
 @jit
 def get_priority(img, i, j, window_size, label):
     resolution = img.shape[0]
     # getting the 4 neighbors
     i, j = int(i), int(j)
+    w = int(window_size / 2)
     neighbors = []
-    if i - window_size/2 > window_size:
-        neighbors.append(img[i - window_size, j])
-    if i + window_size/2 < resolution - window_size:
-        neighbors.append(img[i + window_size + 1, j])
-    if j - window_size/2 > window_size:
-        neighbors.append(img[i + 1, j - window_size])
-    if j + window_size/2 < resolution - window_size:
-        neighbors.append(img[i, j + window_size + 1])
-    
-    if len(neighbors) == 0:
-        print("No neighbors!!!!")
-            
+    if i - w > 0:
+        neighbors.append(img[i - w, j])
+    if i + w + 1 < resolution:
+        neighbors.append(img[i + w + 1, j])
+    if j - w > 0 and i + 1 < resolution:
+        neighbors.append(img[i + 1, j - w])
+    if j + w + 1 < resolution:
+        neighbors.append(img[i, j + w + 1])
+        
     cost = 0
-    for neighbour_label in neighbors:
-        if neighbour_label == label:
+    for neighbor in neighbors:
+        if neighbor != label:
             cost += 1
-    cost = cost / len(neighbors)
-    cost = cost * window_size        
+        
     if cost == 0:
         return -1
+    
+    cost /= len(neighbors)
+    cost *= window_size      
+    
     return 1/cost
         
 
@@ -192,16 +195,14 @@ class SDBM(DBMInterface):
     
     @track_time_wrapper
     def get_img_dbm_fast(self, min_x, min_y, max_x, max_y, resolution):
-        
         self.console.log("Decoding the 2D space... 2D -> nD")
-        INITIAL_RESOLUTION = 64
-        COMPUTATIONAL_BUDGET = 20000 # number of points that can be computed
+        INITIAL_RESOLUTION = 16
+        COMPUTATIONAL_BUDGET = 40000 # number of points that can be computed
         img = np.zeros((resolution, resolution)) - 1000 # -1000 is the value for the unknown points, this is used to see if the point was computed or not
         window_size = int(resolution / INITIAL_RESOLUTION)
-        
-        sparse_space_2d = []
-        
+                
         # generate the initial points
+        sparse_space_2d = []
         for i in range(INITIAL_RESOLUTION):
             for j in range(INITIAL_RESOLUTION):
                 float_x = i * window_size + window_size / 2
@@ -219,108 +220,127 @@ class SDBM(DBMInterface):
         
         for i in range(INITIAL_RESOLUTION):
             for j in range(INITIAL_RESOLUTION):
-                img[i*window_size:(i+1)*window_size, j*window_size:(j+1)*window_size] = img_pred[i,j]
+                img[i*window_size:(i+1)*window_size + 1, j*window_size:(j+1)*window_size + 1] = img_pred[i,j]
         
+        # -------------------------------------
+        # analyze the initial points and generate the priority queue
         priority_queue = PriorityQueue()
-        
-        
+                
         for i in range(INITIAL_RESOLUTION):
             for j in range(INITIAL_RESOLUTION):
-                x, y = i * window_size + window_size / 2, j * window_size + window_size / 2
+                x, y = i * window_size + window_size / 2 - 0.5, j * window_size + window_size / 2 - 0.5
                 priority = get_priority(img, x, y, window_size, img_pred[i,j])
-                item = (window_size, x, y)
                 if priority != -1:
+                    item = (window_size, x, y)
                     priority_queue.put((priority, item))
 
+        # -------------------------------------
+        # start the iterative process of filling the image
         iteration = 0
-        while COMPUTATIONAL_BUDGET > 0 and not priority_queue.empty():
+        while not priority_queue.empty():
+            
+            #print(f"[START] Iteration: {iteration}, Computational budget: {COMPUTATIONAL_BUDGET}, priority queue size: {priority_queue.qsize()}")
+            
             # take the highest priority task
             priority, item = priority_queue.get()
-            if priority == -1:
-                continue
+            #print(f"Current priority: {priority}")
             
-            print(f"Current priority: {priority}")
-            
+            # getting all the items with the same priority
             items = [item]
-            if not priority_queue.empty():        
+            if not priority_queue.empty():
                 next_priority, next_item = priority_queue.get()
-                while next_priority == priority:
+                while priority == next_priority:
                     items.append(next_item)
-                    if priority_queue.empty():
+                    if not priority_queue.empty():
+                        next_priority, next_item = priority_queue.get()
+                    else:
                         break
-                    next_priority, next_item = priority_queue.get()
-                priority_queue.put((next_priority, next_item))
-                
-            space, indices, window_sizes = [], [], []
-            print(f"Number of items with the same priority: {len(items)}")
+                if priority != next_priority:
+                    priority_queue.put((next_priority, next_item))
+        
+            #print(f"Number of items with the same priority: {len(items)}")
+            
+
+            space2d, indices = [], []
+            valid_items = []
+            single_points_space, single_points_indices = [], []
+            SPLITTING_FACTOR = 2
+            NEIGHBORS_NUMBER = SPLITTING_FACTOR * SPLITTING_FACTOR
             for item in items:            
-                        (window_size, i, j) = item
-                        window_size = int(window_size / 2)
-                        i1, j1 = i - window_size, j - window_size
-                        i2, j2 = i - window_size, j + window_size
-                        i3, j3 = i + window_size, j - window_size
-                        i4, j4 = i + window_size, j + window_size
-                        
-                        x1, y1 = i1 / resolution * (max_x - min_x) + min_x, j1 / resolution * (max_y - min_y) + min_y                
-                        x2, y2 = i2 / resolution * (max_x - min_x) + min_x, j2 / resolution * (max_y - min_y) + min_y
-                        x3, y3 = i3 / resolution * (max_x - min_x) + min_x, j3 / resolution * (max_y - min_y) + min_y
-                        x4, y4 = i4 / resolution * (max_x - min_x) + min_x, j4 / resolution * (max_y - min_y) + min_y
-                        
-                        space += [(x1, y1), (x2, y2), (x3, y3), (x4, y4)]
-                        indices += [(i1, j1), (i2, j2), (i3, j3), (i4, j4)]
-                        window_sizes += [window_size]
-            
-            COMPUTATIONAL_BUDGET -= 4 * len(items)
-            if COMPUTATIONAL_BUDGET < 0:
-                break
-                    
-            spaceNd = self.autoencoder.decode(space)
-            preds = self.classifier.predict(spaceNd, verbose=0)
-            
-            preds = [np.argmax(p) for p in preds]
-            
-            for item in items:
-                window_size = window_sizes.pop(0)
-                if window_size >= 1:
-                    i1, j1 = indices.pop(0)
-                    i2, j2 = indices.pop(0)
-                    i3, j3 = indices.pop(0)
-                    i4, j4 = indices.pop(0)
-                    w = window_size
-                    label1 = preds.pop(0)
-                    label2 = preds.pop(0)
-                    label3 = preds.pop(0)
-                    label4 = preds.pop(0)
-                    x1, y1 = int(i1), int(j1)
-                    x2, y2 = int(i2), int(j2)
-                    x3, y3 = int(i3), int(j3)
-                    x4, y4 = int(i4), int(j4)
-                    
-                    img[x1-w-1:x1+w, y1-w-1:y1+w] = label1
-                    img[x2-w-1:x2+w, y2-w-1:y2+w] = label2
-                    img[x3-w-1:x3+w, y3-w-1:y3+w] = label3
-                    img[x4-w-1:x4+w, y4-w-1:y4+w] = label4
-                    
-                    priority1 = get_priority(img, i1, j1, window_size, label1)
-                    priority2 = get_priority(img, i2, j2, window_size, label2)
-                    priority3 = get_priority(img, i3, j3, window_size, label3)
-                    priority4 = get_priority(img, i4, j4, window_size, label4)
+                (window_size, i, j) = item
                 
-                    if priority1 != -1:
-                            priority_queue.put((priority1, (window_size, i1, j1)))
-                    if priority2 != -1:
-                            priority_queue.put((priority2, (window_size, i2, j2)))
-                    if priority3 != -1:
-                            priority_queue.put((priority3, (window_size, i3, j3)))
-                    if priority4 != -1:
-                            priority_queue.put((priority4, (window_size, i4, j4)))
+                if window_size == 1:
+                    single_points_indices += [(int(i), int(j))]
+                    single_points_space += [(i / resolution * (max_x - min_x) + min_x, j / resolution * (max_y - min_y) + min_y)]
+                    continue
+                
+                window_size = window_size / NEIGHBORS_NUMBER
+                
+                neighbors = [(i - window_size, j - window_size), (i - window_size, j + window_size), 
+                              (i + window_size, j - window_size), (i + window_size, j + window_size)]
+                
+                space_chunk = [(x / resolution * (max_x - min_x) + min_x, y / resolution * (max_y - min_y) + min_y) for (x, y) in neighbors]
+                                                
+                space2d += space_chunk
+                indices += neighbors
+                valid_items.append(item)
             
-            print(f"Iteration: {iteration}, Computational budget: {COMPUTATIONAL_BUDGET}, priority queue size: {priority_queue.qsize()}")
+            """
+            if COMPUTATIONAL_BUDGET - len(space2d) < 0:
+                max_allowed = COMPUTATIONAL_BUDGET // NEIGHBORS_NUMBER
+                items = items[:max_allowed]
+                COMPUTATIONAL_BUDGET -= max_allowed * NEIGHBORS_NUMBER
+                space2d = space2d[:max_allowed * NEIGHBORS_NUMBER]
+                #print(f"Computational budget exceeded, only {max_allowed} items will be computed")                        
+            else:
+                COMPUTATIONAL_BUDGET -= len(space2d) + len(single_points_space)
+            """
+                
+            # decode the space
+            space = space2d + single_points_space
+            spaceNd = self.autoencoder.decode(space)
+            predictions = self.classifier.predict(spaceNd, verbose=0)
+            labels = [np.argmax(p) for p in predictions]
             
-            #self.console.log(f"Iteration: {iteration}, Computational budget: {COMPUTATIONAL_BUDGET}, priority queue size: {priority_queue.qsize()}")
+            new_img = np.copy(img)            
+            # fill the image with the single points
+            single_points_labels = labels[len(space2d):]
+            for i in range(len(single_points_indices)):
+                new_img[single_points_indices[i]] = single_points_labels[i]
+            
+            labels = labels[:len(space2d)]
+            
+            # fill the image with the new labels and update the priority queue
+            for item in valid_items:
+                (window_size, i, j) = item
+                neighbors = indices[:NEIGHBORS_NUMBER]
+                indices = indices[NEIGHBORS_NUMBER:]
+                neighbors_labels = labels[:NEIGHBORS_NUMBER]
+                labels = labels[NEIGHBORS_NUMBER:]
+                
+                new_window_size = window_size / NEIGHBORS_NUMBER
+                
+                    
+                for (x, y), label in zip(neighbors, neighbors_labels):
+                    # all the pixels in the window are set to the same label
+                    # starting from the top left corner of the window
+                    # ending at the bottom right corner of the window
+                    # the +1 is because the range function is not inclusive
+                    if new_window_size >= 1:
+                        new_img[ceil(x-new_window_size):floor(x + new_window_size) + 1, ceil(y - new_window_size):floor(y + new_window_size) + 1] = label
+                    else:
+                        new_img[int(x), int(y)] = label
+                
+                # update the priority queue after the window has been filled
+                for (x, y), label in zip(neighbors, neighbors_labels):
+                    priority = get_priority(img, x, y, 2*new_window_size, label)
+                    if priority != -1:
+                        priority_queue.put((priority, (2*new_window_size, x, y)))
+                    
+            img = new_img
+            #print(f"[FINISH] Iteration: {iteration}, Computational budget: {COMPUTATIONAL_BUDGET}, priority queue size: {priority_queue.qsize()}")
             iteration += 1
-        print(f"Iteration: {iteration}, Computational budget: {COMPUTATIONAL_BUDGET}, priority queue size: {priority_queue.qsize()}")
-            
+                
         return img
         
         
