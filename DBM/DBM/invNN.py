@@ -163,5 +163,5 @@ class invNN:
         plt.show()
     
     def decode(self, data):
-        self.console.log("Decoding data")
-        return self.decoder.predict(data)
+        #self.console.log("Decoding data")
+        return self.decoder.predict(data, verbose=0)

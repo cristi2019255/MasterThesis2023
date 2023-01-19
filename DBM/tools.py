@@ -18,23 +18,23 @@ from numba import jit
 def get_inv_proj_error(i,j, Xnd):
     error = 0
     # getting the neighbours of the given point
-    neighbours_nd = []
+    neighbors_nd = []
     current_point_nd = Xnd[i,j]
     
     if i - 1 >= 0:
-        neighbours_nd.append(Xnd[i-1,j])
+        neighbors_nd.append(Xnd[i-1,j])
     if i + 1 < Xnd.shape[0]:
-        neighbours_nd.append(Xnd[i+1,j])
+        neighbors_nd.append(Xnd[i+1,j])
     if j - 1 >= 0:
-        neighbours_nd.append(Xnd[i,j-1])
+        neighbors_nd.append(Xnd[i,j-1])
     if j + 1 < Xnd.shape[1]:
-        neighbours_nd.append(Xnd[i,j+1])
+        neighbors_nd.append(Xnd[i,j+1])
     
     # calculating the error
-    for neighbour_nd in neighbours_nd:
-        error += np.linalg.norm(current_point_nd - neighbour_nd)
+    for neighbor_nd in neighbors_nd:
+        error += np.linalg.norm(current_point_nd - neighbor_nd)
     
-    error /= len(neighbours_nd)
+    error /= len(neighbors_nd)
     return error
 
 def get_proj_error(index, indices_2d, indices_nd, labels):

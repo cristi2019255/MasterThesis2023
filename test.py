@@ -16,11 +16,11 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-path_img_fast = os.path.join(os.getcwd(), "models", "SDBM", "fast_boundary_map.npy")
-path_img_real = os.path.join(os.getcwd(), "models", "SDBM", "boundary_map.npy")
+path_img_fast = os.path.join(os.getcwd(), "models", "DBM", "fast_boundary_map.npy")
+path_img_real = os.path.join(os.getcwd(), "models", "DBM", "boundary_map.npy")
 
-path_confidence_fast = os.path.join(os.getcwd(), "models", "SDBM", "fast_boundary_map_confidence.npy")
-path_confidence_real = os.path.join(os.getcwd(), "models", "SDBM", "boundary_map_confidence.npy")
+path_confidence_fast = os.path.join(os.getcwd(), "models", "DBM", "fast_boundary_map_confidence.npy")
+path_confidence_real = os.path.join(os.getcwd(), "models", "DBM", "boundary_map_confidence.npy")
 
 with open(path_img_fast, "rb") as f:
     img1 = np.load(f)
