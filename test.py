@@ -16,28 +16,59 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-path = os.path.join(os.getcwd(), "models", "SDBM", "fast_boundary_map.npy")
-path1 = os.path.join(os.getcwd(), "models", "SDBM", "boundary_map.npy")
+path_img_fast = os.path.join(os.getcwd(), "models", "SDBM", "fast_boundary_map.npy")
+path_img_real = os.path.join(os.getcwd(), "models", "SDBM", "boundary_map.npy")
 
-fig, [ax1,ax2] = plt.subplots(1, 2)
-with open(path, "rb") as f:
+path_confidence_fast = os.path.join(os.getcwd(), "models", "SDBM", "fast_boundary_map_confidence.npy")
+path_confidence_real = os.path.join(os.getcwd(), "models", "SDBM", "boundary_map_confidence.npy")
+
+with open(path_img_fast, "rb") as f:
     img1 = np.load(f)
-    ax1.imshow(img1)
 
-with open(path1, "rb") as f:
+with open(path_img_real, "rb") as f:
     img2 = np.load(f)
-    ax2.imshow(img2)
-
 
 errors = 0
 for (i, j), z in np.ndenumerate(img1):
-    if img2[i,j] == -1 or img2[i,j] == -2:
-        continue
     if img2[i,j] != z:
        errors += 1
        print(f"Error at {i}, {j} : {img2[i,j]} != {z}")
 
 print(f"Percentage of errors: {errors / (img1.shape[0] * img1.shape[1]) * 100} %")     
 print(f"Number of errors: {errors}")
+
+with open(path_confidence_fast, "rb") as f:
+    img1_conf = np.load(f)
+
+with open(path_confidence_real, "rb") as f:
+    img2_conf = np.load(f)
+
+COLORS_MAPPER = {
+    0: [1,0,0], 
+    1: [0,1,0], 
+    2: [0,0,1], 
+    3: [1,1,0], 
+    4: [0,1,1], 
+    5: [1,0,1], 
+    6: [0.5,0.5,0.5], 
+    7: [0.5,0,0], 
+    8: [0,0.5,0], 
+    9: [0,0,0.5]
+}
+
+immg1 = np.zeros((img1.shape[0], img1.shape[1], 4))
+immg2 = np.zeros((img2.shape[0], img2.shape[1], 4))
+
+for (i, j), z in np.ndenumerate(img1):
+    immg1[i,j] = COLORS_MAPPER[z] + [img1_conf[i,j]]
+
+for (i, j), z in np.ndenumerate(img2):
+    immg2[i,j] = COLORS_MAPPER[z] + [img2_conf[i,j]]
+
+fig, [ax1, ax2, ax3, ax4] = plt.subplots(1, 4)
+ax1.imshow(img1)
+ax2.imshow(img2)
+ax3.imshow(immg1)
+ax4.imshow(immg2)
 
 plt.show()

@@ -13,56 +13,15 @@
 # limitations under the License.
 
 import os
-import time
 import numpy as np
 from DBM.DBMInterface import DBMInterface
 from DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
 from DBM.SDBM.Autoencoder import DEFAULT_MODEL_PATH, Autoencoder, build_autoencoder
-from DBM.tools import get_inv_proj_error, get_proj_error
+from DBM.tools import get_decode_pixel_priority, get_inv_proj_error, get_proj_error
 from queue import PriorityQueue
-from numba import jit
-import matplotlib.pyplot as plt
 from math import ceil, floor
-
-@jit
-def get_priority(img, i, j, window_size, label):
-    resolution = img.shape[0]
-    # getting the 4 neighbors
-    i, j = int(i), int(j)
-    w = int(window_size / 2)
-    neighbors = []
-    if i - w > 0:
-        neighbors.append(img[i - w, j])
-    if i + w + 1 < resolution:
-        neighbors.append(img[i + w + 1, j])
-    if j - w > 0 and i + 1 < resolution:
-        neighbors.append(img[i + 1, j - w])
-    if j + w + 1 < resolution:
-        neighbors.append(img[i, j + w + 1])
+from utils.tools import track_time_wrapper
         
-    cost = 0
-    for neighbor in neighbors:
-        if neighbor != label:
-            cost += 1
-        
-    if cost == 0:
-        return -1
-    
-    cost /= len(neighbors)
-    cost *= window_size      
-    
-    return 1/cost
-        
-
-def track_time_wrapper(func):
-    def wrapper(*args, **kwargs):
-        start = time.time()
-        result = func(*args, **kwargs)
-        end = time.time()
-        print(f"{func.__name__} took {end-start} seconds")
-        return result
-    return wrapper
-
 class SDBM(DBMInterface):
     """
         SDBM - Self Decision Boundary Mapper
@@ -153,20 +112,14 @@ class SDBM(DBMInterface):
         
         # generate the 2D image in the encoded space
         
-        img = self.get_img_dbm_fast(min_x, min_y, max_x, max_y, resolution)
+        img, img_confidence = self.get_img_dbm_fast(min_x, min_y, max_x, max_y, resolution)
         
-        self.console.log(f"Generated boundary map {img}")
         with open(os.path.join(DEFAULT_MODEL_PATH, "fast_boundary_map.npy"), 'wb') as f:
             np.save(f, img)
+        with open(os.path.join(DEFAULT_MODEL_PATH, "fast_boundary_map_confidence.npy"), 'wb') as f:
+            np.save(f, img_confidence)
         
         img, img_confidence, spaceNd, space2d, predicted_labels = self.get_img_dbm(min_x, min_y, max_x, max_y, resolution)
-        
-        for [i,j] in encoded_training_data:
-            img[i,j] = -1
-            img_confidence[i,j] = 1
-        for [i,j] in encoded_testing_data:
-            img[i,j] = -2
-            img_confidence[i,j] = 1
         
         save_img_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map")
         save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map_confidence")
@@ -175,11 +128,19 @@ class SDBM(DBMInterface):
         with open(f"{save_img_confidence_path}.npy", 'wb') as f:
             np.save(f, img_confidence)
         
+        for [i,j] in encoded_training_data:
+            img[i,j] = -1
+            img_confidence[i,j] = 1
+        for [i,j] in encoded_testing_data:
+            img[i,j] = -2
+            img_confidence[i,j] = 1
+        
         img_projection_errors = self.get_projection_errors(spaceNd, space2d, predicted_labels, resolution)
         img_inverse_projection_errors = self.get_inverse_projection_errors(spaceNd.reshape((resolution, resolution, -1)))
       
         return (img, img_confidence, img_projection_errors, img_inverse_projection_errors, encoded_training_data, encoded_testing_data)
     
+    @track_time_wrapper
     def get_img_dbm(self, min_x, min_y, max_x, max_y, resolution):
         space2d = np.array([(i / resolution * (max_x - min_x) + min_x, j / resolution * (max_y - min_y) + min_y) for i in range(resolution) for j in range(resolution)])
         self.console.log("Decoding the 2D space... 2D -> nD")
@@ -199,6 +160,8 @@ class SDBM(DBMInterface):
         INITIAL_RESOLUTION = 16
         COMPUTATIONAL_BUDGET = 40000 # number of points that can be computed
         img = np.zeros((resolution, resolution)) - 1000 # -1000 is the value for the unknown points, this is used to see if the point was computed or not
+        img_confidence = np.zeros((resolution, resolution))
+        
         window_size = int(resolution / INITIAL_RESOLUTION)
                 
         # generate the initial points
@@ -216,12 +179,16 @@ class SDBM(DBMInterface):
         spaceNd = self.autoencoder.decode(sparse_space_2d)
         predictions = self.classifier.predict(spaceNd, verbose=0)
         predictions_labels = np.array([np.argmax(p) for p in predictions])
+        predictions_confidence = np.array([np.max(p) for p in predictions])
+        
         img_pred = predictions_labels.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION))
+        confidences = predictions_confidence.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION))
         
         for i in range(INITIAL_RESOLUTION):
             for j in range(INITIAL_RESOLUTION):
                 img[i*window_size:(i+1)*window_size + 1, j*window_size:(j+1)*window_size + 1] = img_pred[i,j]
-        
+                img_confidence[i*window_size:(i+1)*window_size + 1, j*window_size:(j+1)*window_size + 1] = confidences[i,j]
+
         # -------------------------------------
         # analyze the initial points and generate the priority queue
         priority_queue = PriorityQueue()
@@ -229,21 +196,16 @@ class SDBM(DBMInterface):
         for i in range(INITIAL_RESOLUTION):
             for j in range(INITIAL_RESOLUTION):
                 x, y = i * window_size + window_size / 2 - 0.5, j * window_size + window_size / 2 - 0.5
-                priority = get_priority(img, x, y, window_size, img_pred[i,j])
+                priority = get_decode_pixel_priority(img, x, y, window_size, img_pred[i,j])
                 if priority != -1:
                     item = (window_size, x, y)
                     priority_queue.put((priority, item))
 
         # -------------------------------------
         # start the iterative process of filling the image
-        iteration = 0
-        while not priority_queue.empty():
-            
-            #print(f"[START] Iteration: {iteration}, Computational budget: {COMPUTATIONAL_BUDGET}, priority queue size: {priority_queue.qsize()}")
-            
+        while not priority_queue.empty():    
             # take the highest priority task
             priority, item = priority_queue.get()
-            #print(f"Current priority: {priority}")
             
             # getting all the items with the same priority
             items = [item]
@@ -258,9 +220,7 @@ class SDBM(DBMInterface):
                 if priority != next_priority:
                     priority_queue.put((next_priority, next_item))
         
-            #print(f"Number of items with the same priority: {len(items)}")
             
-
             space2d, indices = [], []
             valid_items = []
             single_points_space, single_points_indices = [], []
@@ -301,6 +261,7 @@ class SDBM(DBMInterface):
             spaceNd = self.autoencoder.decode(space)
             predictions = self.classifier.predict(spaceNd, verbose=0)
             labels = [np.argmax(p) for p in predictions]
+            labels_confidence = [np.max(p) for p in predictions]
             
             new_img = np.copy(img)            
             # fill the image with the single points
@@ -317,31 +278,32 @@ class SDBM(DBMInterface):
                 indices = indices[NEIGHBORS_NUMBER:]
                 neighbors_labels = labels[:NEIGHBORS_NUMBER]
                 labels = labels[NEIGHBORS_NUMBER:]
+                confidences = labels_confidence[:NEIGHBORS_NUMBER]
+                labels_confidence = labels_confidence[NEIGHBORS_NUMBER:]
                 
                 new_window_size = window_size / NEIGHBORS_NUMBER
                 
-                    
-                for (x, y), label in zip(neighbors, neighbors_labels):
+                for (x, y), label, conf in zip(neighbors, neighbors_labels, confidences):
                     # all the pixels in the window are set to the same label
                     # starting from the top left corner of the window
                     # ending at the bottom right corner of the window
                     # the +1 is because the range function is not inclusive
                     if new_window_size >= 1:
                         new_img[ceil(x-new_window_size):floor(x + new_window_size) + 1, ceil(y - new_window_size):floor(y + new_window_size) + 1] = label
+                        img_confidence[ceil(x-new_window_size):floor(x + new_window_size) + 1, ceil(y - new_window_size):floor(y + new_window_size) + 1] = conf
                     else:
                         new_img[int(x), int(y)] = label
+                        img_confidence[int(x), int(y)] = conf
                 
                 # update the priority queue after the window has been filled
                 for (x, y), label in zip(neighbors, neighbors_labels):
-                    priority = get_priority(img, x, y, 2*new_window_size, label)
+                    priority = get_decode_pixel_priority(img, x, y, 2*new_window_size, label)
                     if priority != -1:
                         priority_queue.put((priority, (2*new_window_size, x, y)))
                     
             img = new_img
-            #print(f"[FINISH] Iteration: {iteration}, Computational budget: {COMPUTATIONAL_BUDGET}, priority queue size: {priority_queue.qsize()}")
-            iteration += 1
                 
-        return img
+        return img, img_confidence
         
         
     def get_projection_errors(self, Xnd, X2d, labels, resolution):

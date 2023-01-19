@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import numpy as np
+from numba import jit
 
 def get_inv_proj_error(i,j, Xnd):
     error = 0
@@ -54,3 +55,31 @@ def get_proj_error(index, indices_2d, indices_nd, labels):
     error = trustworthiness * continuity 
     return error
 
+@jit
+def get_decode_pixel_priority(img, i, j, window_size, label):
+    resolution = img.shape[0]
+    # getting the 4 neighbors
+    i, j = int(i), int(j)
+    w = int(window_size / 2)
+    neighbors = []
+    if i - w > 0:
+        neighbors.append(img[i - w, j])
+    if i + w + 1 < resolution:
+        neighbors.append(img[i + w + 1, j])
+    if j - w > 0 and i + 1 < resolution:
+        neighbors.append(img[i + 1, j - w])
+    if j + w + 1 < resolution:
+        neighbors.append(img[i, j + w + 1])
+        
+    cost = 0
+    for neighbor in neighbors:
+        if neighbor != label:
+            cost += 1
+        
+    if cost == 0:
+        return -1
+    
+    cost /= len(neighbors)
+    cost *= window_size      
+    
+    return 1/cost
