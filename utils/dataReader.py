@@ -18,6 +18,11 @@ from keras.datasets import mnist
 import os
 
 def import_mnist_dataset():
+    """Imports the MNIST dataset from keras.datasets.mnist
+
+    Returns:
+        (X_train, Y_train), (X_test, Y_test): The train and test sets
+    """
     console = Logger(name="MNIST dataset importer")
     (train_X, train_y), (test_X, test_y) = mnist.load_data()
     console.log("MNIST dataset imported")
@@ -25,7 +30,22 @@ def import_mnist_dataset():
     console.log(f"Test set: {test_X.shape}")
     return (train_X, train_y), (test_X, test_y)
 
-def import_csv_dataset(file_path, labels_index = 0, headers = False, separator=",", limit = None, shape = (28, 28)):        
+def import_csv_dataset(file_path:str, labels_index:int = 0, headers:bool = False, 
+                       separator:str=",", limit:int = None, shape:tuple = (28, 28)):        
+    """Imports a dataset from a csv file
+
+    Args:
+        file_path (str): The file path
+        labels_index (int, optional): The index of the column with the data labels. Defaults to 0.
+        headers (bool, optional): If headers are present in the file set to True. Defaults to False.
+        separator (str, optional): The file data separator. Defaults to ",".
+        limit (_type_, optional): The limit of data points to be loaded. Defaults to None.
+        shape (tuple, optional): The data points shape. Defaults to (28, 28).
+
+    Returns:
+        X, Y (np.ndarray, np.ndarray): The data points and labels
+    """
+    
     if not os.path.exists(file_path):
         print("File not found")
         return None, None
