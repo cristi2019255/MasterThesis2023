@@ -16,38 +16,35 @@ from sklearn.decomposition import PCA
 from umap import UMAP
 import numpy as np
 
-def transform_tsne(X):
+def transform_tsne(X: np.ndarray):
     """ Transforms the given data to 2D using t-SNE.
 
     Args:
-        X (np.array): The data to be transformed
+        X (np.ndarray): The data to be transformed
     """
-    assert type(X) == np.ndarray
     X_flat = X.reshape(X.shape[0], -1)
     projection = TSNE(n_components=2, random_state=0)
     X2d = projection.fit_transform(X_flat)
     return X2d
 
-def transform_umap(X):
+def transform_umap(X: np.ndarray):
     """ Transforms the given data to 2D using UMAP.
 
     Args:
-        X (np.array): The data to be transformed
+        X (np.ndarray): The data to be transformed
     """
-    assert type(X) == np.ndarray
     X_flat = X.reshape(X.shape[0], -1)
     projection = UMAP(n_components=2, random_state=0)
     X2d = projection.fit_transform(X_flat)
     return X2d
 
 
-def transform_pca(X):
+def transform_pca(X: np.ndarray):
     """ Transforms the given data to 2D using PCA.
 
     Args:
-        X (np.array): The data to be transformed
+        X (np.ndarray): The data to be transformed
     """
-    assert type(X) == np.ndarray
     X_flat = X.reshape(X.shape[0], -1)
     projection = PCA(n_components=2, random_state=0)
     X2d = projection.fit_transform(X_flat)

@@ -14,3 +14,4 @@
 
 from Logger.Logger import Logger
 from Logger.LoggerGUI import LoggerGUI
+from Logger.LoggerInterface import LoggerInterface
