@@ -13,20 +13,24 @@
 # limitations under the License.
 
 class LoggerInterface:
-    def log(self, message):
+    """ Interface for the logger class
+    """
+    
+    def log(self, message:str):
         """ Log a message to the console
-        __param__ message: the message to log
+        Args:
+            message (str): the message to log
         """
         pass
         
-    def warn(self, message):
+    def warn(self, message:str):
         pass
     
-    def error(self, message):
+    def error(self, message:str):
         pass
     
-    def debug(self, message):
+    def debug(self, message:str):
         pass
         
-    def success(self, message):
+    def success(self, message:str):
         pass
