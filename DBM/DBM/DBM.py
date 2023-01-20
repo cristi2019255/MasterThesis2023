@@ -272,9 +272,9 @@ class DBM(DBMInterface):
         
         X2d = PROJECTION_METHODS[projection](X)
             
-        self.console.log("Finished transforming the data to 2D using {projection}")
+        self.console.log(f"Finished transforming the data to 2D using {projection}")
         
-        file_path = os.path.join(DEFAULT_MODEL_PATH, projection + data_name + "_2d.npy")
+        file_path = os.path.join(DEFAULT_MODEL_PATH, projection + "_" + data_name + "_2d.npy")
         self.console.log("Saving the 2D data to the disk: " + file_path)
         with open(file_path, 'wb') as f:
             np.save(f, X2d)
