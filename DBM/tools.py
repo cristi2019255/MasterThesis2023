@@ -37,23 +37,9 @@ def get_inv_proj_error(i,j, Xnd):
     error /= len(neighbors_nd)
     return error
 
-def get_proj_error(index, indices_2d, indices_nd, labels):
-    K = 8
-    
-    if index > len(indices_2d) - K:
-        neighbours_2d = indices_2d[-K-1:]
-        neighbours_nd = indices_nd[-K-1:]
-    
-    if index <= len(indices_2d) - K:
-        neighbours_2d = indices_2d[index:index+K+1]
-        neighbours_nd = indices_nd[index:index+K+1]
-    
-    # calculating the trustworthiness
-    trustworthiness = 1 - (np.sum([1 for i in range(K) if labels[neighbours_nd[i]] == labels[neighbours_2d[i]]]) - 1) / (K - 1)
-    continuity = 1    
-    
-    error = trustworthiness * continuity 
-    return error
+def get_proj_error(indices_source, indices_embedding):
+    rank = np.sum(indices_source != indices_embedding)         
+    return rank / len(indices_source)
 
 @jit
 def get_decode_pixel_priority(img, i, j, window_size, label):

@@ -18,7 +18,7 @@ from DBM.DBMInterface import DBMInterface
 from DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
 from DBM.SDBM.Autoencoder import DEFAULT_MODEL_PATH, Autoencoder, build_autoencoder
 from DBM.tools import get_inv_proj_error, get_proj_error
-from utils.tools import track_time_wrapper
+from sklearn.neighbors import KDTree
         
 class SDBM(DBMInterface):
     """
@@ -112,12 +112,14 @@ class SDBM(DBMInterface):
         # generate the 2D image in the encoded space
         self.console.log("Decoding the 2D space... 2D -> nD")
         
+        """
         img, img_confidence = self._get_img_dbm_fast_((min_x, max_x, min_y, max_y), resolution)
         
         with open(os.path.join(DEFAULT_MODEL_PATH, "fast_boundary_map.npy"), 'wb') as f:
             np.save(f, img)
         with open(os.path.join(DEFAULT_MODEL_PATH, "fast_boundary_map_confidence.npy"), 'wb') as f:
             np.save(f, img_confidence)
+        """
         
         img, img_confidence, space2d, spaceNd = self._get_img_dbm_((min_x, max_x, min_y, max_y), resolution)
         
@@ -135,8 +137,7 @@ class SDBM(DBMInterface):
             img[i,j] = -2
             img_confidence[i,j] = 1
         
-        #img_projection_errors = self.get_projection_errors(spaceNd, space2d, img.flatten() , resolution)
-        img_projection_errors = np.zeros((resolution, resolution))
+        img_projection_errors = self.get_projection_errors(spaceNd.reshape((spaceNd.shape[0], -1)), space2d, resolution)
         img_inverse_projection_errors = self.get_inverse_projection_errors(spaceNd.reshape((resolution, resolution, -1)))
       
         return (img, img_confidence, img_projection_errors, img_inverse_projection_errors, encoded_training_data, encoded_testing_data)
@@ -159,7 +160,7 @@ class SDBM(DBMInterface):
         return predicted_labels, predicted_confidence, spaceNd
     
         
-    def get_projection_errors(self, Xnd, X2d, labels, resolution):
+    def get_projection_errors(self, Xnd, X2d, resolution):
         """ Calculates the projection errors of the given data.
 
         Args:
@@ -169,17 +170,24 @@ class SDBM(DBMInterface):
             np.array: The projection errors matrix of the 
         """
         self.console.log("Calculating the projection errors of the given data")
-        errors = np.zeros(X2d.shape[0])
+        errors = np.zeros(resolution * resolution)
         
-        distances_2d = np.array([np.linalg.norm(x) for x in X2d])
-        distances_nd = np.array([np.linalg.norm(x) for x in Xnd])
+        K = 10
+        metric = "euclidean"
+        tree = KDTree(X2d, metric=metric)
+        indices_embedded = tree.query(X2d, k=K, return_distance=False)
+        # Drop the actual point itself
+        indices_embedded = indices_embedded[:, 1:]
+        self.console.log("Finished computing the 2D tree")
         
-        indices_2d = np.argsort(distances_2d)
-        indices_nd = np.argsort(distances_nd)
+        tree = KDTree(Xnd, metric=metric)
+        indices_source = tree.query(Xnd, k=K, return_distance=False)
+        # Drop the actual point itself
+        indices_source = indices_source[:, 1:]
+        self.console.log("Finished computing the nD tree")
         
-        for i in range(X2d.shape[0]):
-            errors[i] = get_proj_error(i, indices_nd, indices_2d, labels)    
-        
+        for i in range(resolution * resolution):
+            errors[i] = get_proj_error(indices_source[i], indices_embedded[i])
         # reshaping the errors to be in the shape of the 2d space
         errors = errors.reshape((resolution, resolution))
         return errors
