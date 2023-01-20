@@ -15,7 +15,13 @@
 import numpy as np
 from numba import jit
 
-def get_inv_proj_error(i,j, Xnd):
+def get_inv_proj_error(i:int,j:int, Xnd:np.ndarray):
+    """Calculates the inverse projection error for a given point in the image.
+        Args:
+            i (int): the row of the point
+            j (int): the column of the point
+            Xnd (np.ndarray): the nD space
+    """
     error = 0
     # getting the neighbours of the given point
     neighbors_nd = []
@@ -37,12 +43,30 @@ def get_inv_proj_error(i,j, Xnd):
     error /= len(neighbors_nd)
     return error
 
-def get_proj_error(indices_source, indices_embedding):
+def get_proj_error(indices_source: np.ndarray, indices_embedding: np.ndarray):
+    """Calculates the projection error for a given data point.
+        Args:
+            indices_source (np.ndarray): the indices of the point neighbors in the source (i.e. nD) space
+            indices_embedding (np.ndarray): the indices of the point neighbors in the embedding (i.e. 2D) space
+    """
     rank = np.sum(indices_source != indices_embedding)         
     return rank / len(indices_source)
 
 @jit
 def get_decode_pixel_priority(img, i, j, window_size, label):
+    """Calculates the priority of decoding a chunk of pixels.
+       The chunk is defined by the window size and the pixel coordinates (i,j).
+
+    Args:
+        img (np.ndarray): the image w.r.t. which the priority is calculated
+        i (float): the row of the current pixel
+        j (float): the column of the current pixel
+        window_size (float): the window size (i.e. the chunk size)
+        label (any): the label of the current pixel
+
+    Returns:
+        priority (float): the priority of decoding the chunk in range [0,1]
+    """
     resolution = img.shape[0]
     # getting the 4 neighbors
     i, j = int(i), int(j)

@@ -17,15 +17,35 @@ from math import ceil, floor
 from queue import PriorityQueue
 from utils import track_time_wrapper
 from DBM.tools import get_decode_pixel_priority
-from Logger import Logger
-
+from Logger import Logger, LoggerInterface
 
 DBM_DEFAULT_RESOLUTION = 256
 
-
 class DBMInterface:
+    """ Decision Boundary Mapper Interface
     
-    def __init__(self, classifier, logger=None):
+    Methods to be implemented by the class that implements the DBMInterface:
+        fit (X_train, Y_train, X_test, Y_test, epochs=10, batch_size=128, load_folder = None)
+        generate_boundary_map (X_train, Y_train, X_test, Y_test, train_epochs=10, train_batch_size=128, resolution=DBM_DEFAULT_RESOLUTION)
+        _predict2dspace_ (X)
+    
+    Example of usage: 
+        class SuperBoundaryMapper(DBMInterface):
+            def fit (....):
+                # To be implemented
+            def generate_boundary_map (....):
+                # To be implemented
+            def _predict2dspace_ (....):
+                # To be implemented
+    """    
+    
+    def __init__(self, classifier, logger:LoggerInterface=None):
+        """Initializes the classifier and the logger
+
+        Args:
+            classifier (Any): The classifier to be used
+            logger (LoggerInterface, optional): The logger for the outputting info messages. Defaults to None.
+        """
         if logger is None:
             self.console = Logger(name="Decision Boundary Mapper - DBM")
         else:
@@ -34,57 +54,58 @@ class DBMInterface:
         self.console.log("Loaded classifier: " + classifier.name + "")
         self.classifier = classifier
         
-    def fit(self, X_train, Y_train, X_test, Y_test, epochs=10, batch_size=128, load_folder = None):
+    def fit(self, X_train:np.ndarray, Y_train:np.ndarray, 
+            X_test:np.ndarray, Y_test:np.ndarray,
+            epochs:int=10, batch_size:int=128, load_folder:bool = None):
         """ Trains the classifier on the given data set.
 
         Args:
-            X_train (np.array): Training data set
-            Y_train (np.array): Training data labels
-            X_test (np.array): Testing data set
-            Y_test (np.array): Testing data labels
+            X_train (np.ndarray): Training data set
+            Y_train (np.ndarray): Training data labels
+            X_test (np.ndarray): Testing data set
+            Y_test (np.ndarray): Testing data labels
             epochs (int, optional): The number of epochs for which the DBM is trained. Defaults to 10.
             batch_size (int, optional): Train batch size. Defaults to 128.
         """
         pass
     
     def generate_boundary_map(self, 
-                              X_train, Y_train, X_test, Y_test,
-                              train_epochs=10, 
-                              train_batch_size=128,
-                              resolution=DBM_DEFAULT_RESOLUTION):
+                              X_train:np.ndarray, Y_train:np.ndarray, 
+                              X_test:np.ndarray, Y_test:np.ndarray,
+                              train_epochs:int=10, train_batch_size:int=128,
+                              resolution:int=DBM_DEFAULT_RESOLUTION):
         """ Generates a 2D boundary map of the classifier's decision boundary.
 
         Args:
-            X_train (np.array): Training data set
-            Y_train (np.array): Training data labels
-            X_test (np.array): Testing data set
-            Y_test (np.array): Testing data labels
+            X_train (np.ndarray): Training data set
+            Y_train (np.ndarray): Training data labels
+            X_test (np.ndarray): Testing data set
+            Y_test (np.ndarray): Testing data labels
             train_epochs (int, optional): The number of epochs for which the DBM is trained. Defaults to 10.
             train_batch_size (int, optional): Train batch size. Defaults to 128.
             show_predictions (bool, optional): If set to true 10 prediction examples are shown. Defaults to True.
-            resolution (_type_, optional): _description_. Defaults to DBM_DEFAULT_RESOLUTION.
-        
+            resolution (int, optional): _description_. Defaults to DBM_DEFAULT_RESOLUTION = 256.
+            
         Returns:
             np.array: A 2D numpy array with the decision boundary map
         
         """
         pass
     
-    
-    def _predict2dspace_(self, X2d):
+    def _predict2dspace_(self, X2d: np.ndarray):
         """ Predicts the labels for the given 2D data set.
 
         Args:
-            X2d (np.array): The 2D data set
+            X2d (np.ndarray): The 2D data set
         
         Returns:
-            np.array: The predicted labels for the given 2D data set
-            np.array: The predicted probabilities for the given 2D data set
+            predicted_labels (np.array): The predicted labels for the given 2D data set
+            predicted_confidences (np.array): The predicted probabilities for the given 2D data set
         """
         pass
     
     @track_time_wrapper
-    def _get_img_dbm_(self, boundaries, resolution):
+    def _get_img_dbm_(self, boundaries:tuple, resolution:int):
         """ This function generates the 2D image of the boundary map using the trained autoencoder and classifier.
 
         Args:
@@ -109,7 +130,7 @@ class DBMInterface:
         return (img, img_confidence, space2d, spaceNd)
     
     @track_time_wrapper
-    def _get_img_dbm_fast_(self, boundaries, resolution, computational_budget=None):
+    def _get_img_dbm_fast_(self, boundaries:tuple, resolution:int, computational_budget=None):
         """
         This function generates the 2D image of the boundary map. It uses a fast algorithm to generate the image.
         
@@ -118,7 +139,7 @@ class DBMInterface:
         Args:
             boundaries (tuple): The boundaries of the 2D space (min_x, max_x, min_y, max_y)
             resolution (int): the resolution of the 2D image to be generated
-
+            computational_budget (int, optional): The computational budget to be used. Defaults to None.
         Returns:
             img, img_confidence: The 2D image of the boundary map and a image with the confidence for each pixel
         
