@@ -14,7 +14,7 @@
 
 from datetime import datetime
 from termcolor import colored
-from utils.LoggerInterface import LoggerInterface
+from Logger.LoggerInterface import LoggerInterface
 
 class LoggerGUI(LoggerInterface):
     def __init__(self, name="Logger", active=True, output=None, update_callback=lambda x: x):

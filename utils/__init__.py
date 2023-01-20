@@ -12,9 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-from GUI import GUI
-
-if __name__ == '__main__':
-    gui = GUI()
-    gui.start()
+from utils.dataReader import import_mnist_dataset, import_csv_dataset
+from utils.tools import track_time_wrapper

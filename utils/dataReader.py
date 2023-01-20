@@ -13,11 +13,9 @@
 # limitations under the License.
 
 import numpy as np
-from utils.Logger import Logger
+from Logger.Logger import Logger
 from keras.datasets import mnist
 import os
-
-MNIST_DATA_FOLDER = os.path.join(os.getcwd(), "data", "MNIST")
 
 def import_mnist_dataset():
     console = Logger(name="MNIST dataset importer")
@@ -26,18 +24,6 @@ def import_mnist_dataset():
     console.log(f"Train set: {train_X.shape}")
     console.log(f"Test set: {test_X.shape}")
     return (train_X, train_y), (test_X, test_y)
-
-def load_mnist_preprocessed():
-    # Load the preprocessed dataset
-    with open(os.path.join(MNIST_DATA_FOLDER, "mnist_X_train.npy"), "rb") as f:
-        X_train = np.load(f)
-    with open(os.path.join(MNIST_DATA_FOLDER, "mnist_X_test.npy"), "rb") as f:
-        X_test = np.load(f)
-    with open(os.path.join(MNIST_DATA_FOLDER, "mnist_Y_train.npy"), "rb") as f:
-        Y_train = np.load(f)
-    with open(os.path.join(MNIST_DATA_FOLDER, "mnist_Y_test.npy"), "rb") as f:
-        Y_test = np.load(f)
-    return (X_train, Y_train), (X_test, Y_test)
 
 def import_csv_dataset(file_path, labels_index = 0, headers = False, separator=",", limit = None, shape = (28, 28)):        
     if not os.path.exists(file_path):

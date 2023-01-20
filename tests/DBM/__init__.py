@@ -11,10 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
-from GUI import GUI
-
-if __name__ == '__main__':
-    gui = GUI()
-    gui.start()

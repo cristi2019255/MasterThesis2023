@@ -13,14 +13,14 @@
 # limitations under the License.
 
 import os
-from DBM.DBM.invNN import DEFAULT_MODEL_PATH, invNN
-from DBM.DBMInterface import DBMInterface
-from DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
-from DBM.DBM.projections import PROJECTION_METHODS
 import numpy as np
 from sklearn.neighbors import KDTree
-from DBM.tools import get_inv_proj_error, get_proj_error
 
+from DBM.DBM.invNN import DEFAULT_MODEL_PATH, invNN
+from DBM.DBM.projections import PROJECTION_METHODS
+from DBM.DBMInterface import DBMInterface
+from DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
+from DBM.tools import get_inv_proj_error, get_proj_error
 
 class DBM(DBMInterface):
     
@@ -246,3 +246,4 @@ class DBM(DBMInterface):
             np.save(f, X2d)
         
         return X2d
+    

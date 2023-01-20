@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from utils.Logger import Logger
+from Logger import Logger
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from PIL import Image

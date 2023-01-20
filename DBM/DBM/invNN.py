@@ -14,9 +14,9 @@
 
 import os
 import tensorflow as tf
-from utils.Logger import Logger
 import numpy as np
 import matplotlib.pyplot as plt
+from Logger import Logger
 
 DEFAULT_MODEL_PATH = os.path.join("models", "DBM")
 
@@ -165,3 +165,4 @@ class invNN:
     def decode(self, data):
         #self.console.log("Decoding data")
         return self.decoder.predict(data, verbose=0)
+    

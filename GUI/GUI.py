@@ -38,16 +38,16 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Disable tensorflow logs
 """
 
 import PySimpleGUI as sg
-from GUI.LoggerGUI import LoggerGUI
-from DBM.SDBM.SDBM import SDBM
-from DBM.DBM.DBM import DBM 
-from utils.Logger import Logger
-from PIL import Image, ImageTk
-from GUI.DBMPlotter import DBMPlotter
 import numpy as np
+from PIL import Image, ImageTk
 import tensorflow as tf
 from tensorflow.keras.utils import plot_model
-from utils.reader import import_csv_dataset, import_mnist_dataset
+
+from Logger import LoggerGUI, Logger
+from DBM import SDBM, DBM 
+from utils import import_csv_dataset, import_mnist_dataset
+from GUI.DBMPlotter import DBMPlotter
+
 
 DBM_TECHNIQUES = {
     "Autoencoder": SDBM,
@@ -318,6 +318,7 @@ class GUI:
         X_test /= 255
         X_train, Y_train = X_train[:int(0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
         X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
+        
         self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
         self.num_classes = np.unique(self.Y_train).shape[0]
         

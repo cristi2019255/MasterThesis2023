@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from utils.Logger import Logger
 import numpy as np
-from DBM.tools import get_decode_pixel_priority
 from math import ceil, floor
 from queue import PriorityQueue
-from utils.tools import track_time_wrapper
+from utils import track_time_wrapper
+from DBM.tools import get_decode_pixel_priority
+from Logger import Logger
+
 
 DBM_DEFAULT_RESOLUTION = 256
 

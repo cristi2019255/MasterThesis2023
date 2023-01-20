@@ -14,11 +14,11 @@
 
 import os
 import numpy as np
-from DBM.DBMInterface import DBMInterface
-from DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
+from sklearn.neighbors import KDTree
+
+from DBM.DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
 from DBM.SDBM.Autoencoder import DEFAULT_MODEL_PATH, Autoencoder, build_autoencoder
 from DBM.tools import get_inv_proj_error, get_proj_error
-from sklearn.neighbors import KDTree
         
 class SDBM(DBMInterface):
     """
@@ -208,3 +208,4 @@ class SDBM(DBMInterface):
         # normalizing the errors to be in the range [0,1]
         errors = (errors - np.min(errors)) / (np.max(errors) - np.min(errors))
         return errors
+    

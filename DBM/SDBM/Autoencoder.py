@@ -16,7 +16,7 @@ import os
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
-from utils.Logger import Logger
+from Logger import Logger
 
 DEFAULT_MODEL_PATH = os.path.join("models", "SDBM")
 
@@ -193,3 +193,4 @@ class Autoencoder:
     def decode(self, data):
         #self.console.log("Decoding data")
         return self.decoder.predict(data, verbose=0)
+    

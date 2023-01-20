@@ -15,10 +15,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from DBM.DBM.projections import PROJECTION_METHODS
-
-from utils.reader import import_mnist_dataset
-from utils.tools import track_time_wrapper
+from utils import import_mnist_dataset, track_time_wrapper
 
 COLORS_MAPPER = {
     0: [1,0,0], 
@@ -145,7 +142,3 @@ def test_projection_errors():
     img *= 255
     plt.imshow(img, cmap="hot")
     plt.show()
-    
-#test_dbm()
-test_projection_errors()
-

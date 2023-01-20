@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-from GUI import GUI
-
-if __name__ == '__main__':
-    gui = GUI()
-    gui.start()
+from DBM.DBM.projections import PROJECTION_METHODS
+from DBM.DBM.DBM import DBM
+from DBM.DBM.invNN import invNN, DEFAULT_MODEL_PATH
