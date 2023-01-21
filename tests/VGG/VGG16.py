@@ -14,12 +14,12 @@
 
 import os
 import numpy as np
-from Logger.Logger import Logger
 from VGG.tools import freeze_layers, print_model_summary, plot, plot_history, save_history, save_model
 from tensorflow.keras.applications import VGG16
 from tensorflow.keras import models, layers
 from tensorflow.keras.models import Model
 from tensorflow.keras.callbacks import ModelCheckpoint
+from .Logger import Logger
 
 EPOCHS = 16
 BATCH_SIZE = 100

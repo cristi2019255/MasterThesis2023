@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from DBM.DBM.projections import PROJECTION_METHODS
-from DBM.DBM.DBM import DBM
-from DBM.DBM.invNN import invNN, DEFAULT_MODEL_PATH
+from .Logger import Logger, LoggerGUI, LoggerInterface
+from .DBM import DBM, SDBM
+from .GUI import GUI
+from .examples import DBM_usage_example, SDBM_usage_example

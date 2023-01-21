@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from Logger import Logger
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from PIL import Image
 import numpy as np
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
+
+from .. import Logger
 
 COLORS_MAPPER = {
     -2: [0,0,0], # setting original test data to black
@@ -58,7 +59,8 @@ class DBMPlotter:
         self._initialize_plot()
     
     def _initialize_plot(self):    
-        plt.close()
+        plt.close("all")
+        
         self.fig = plt.figure(figsize = (15, 10))
         self.ax = plt.subplot(1,2,1)
         self.ax_proj_errs = plt.subplot(2, 2, 2) 
@@ -199,6 +201,7 @@ class DBMPlotter:
         img.show(title=f"Data point label: {label}")
         
     def plot(self, title="Decision Boundary Mapper"):
+        self._initialize_plot()
         self.ax.imshow(self.color_img)
         self.ax.set_title(title)
         self.ax.legend(handles=self.legend, bbox_to_anchor=(0, 1), loc=1, borderaxespad=0. )

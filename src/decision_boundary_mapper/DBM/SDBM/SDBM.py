@@ -15,11 +15,13 @@
 import os
 import numpy as np
 from sklearn.neighbors import KDTree
-from DBM.DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
-from DBM.SDBM.Autoencoder import DEFAULT_MODEL_PATH, Autoencoder, build_autoencoder
-from DBM.tools import get_inv_proj_error, get_proj_error
-from Logger import LoggerInterface
 from math import sqrt
+
+from .Autoencoder import DEFAULT_MODEL_PATH, Autoencoder, build_autoencoder
+from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
+from ..tools import get_inv_proj_error, get_proj_error
+
+from ...Logger import LoggerInterface
 
 class SDBM(DBMInterface):
     """

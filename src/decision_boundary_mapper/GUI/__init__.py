@@ -12,5 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from DBM.SDBM.SDBM import SDBM
-from DBM.SDBM.Autoencoder import Autoencoder
+from .GUI import GUI

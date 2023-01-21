@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from Logger.Logger import Logger
-from Logger.LoggerGUI import LoggerGUI
-from Logger.LoggerInterface import LoggerInterface
+from .DBM import DBM
+from .SDBM import SDBM
+from .DBMInterface import DBMInterface
+from .tools import *

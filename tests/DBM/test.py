@@ -15,7 +15,8 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import import_mnist_dataset, track_time_wrapper
+
+from src.decision_boundary_mapper.utils import import_mnist_dataset, track_time_wrapper
 
 COLORS_MAPPER = {
     0: [1,0,0], 

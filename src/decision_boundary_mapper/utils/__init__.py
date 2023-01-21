@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from utils.dataReader import import_mnist_dataset, import_csv_dataset
-from utils.tools import track_time_wrapper
+from .dataReader import import_csv_dataset, import_mnist_dataset
+from .tools import track_time_wrapper

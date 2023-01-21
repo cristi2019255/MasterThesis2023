@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from utils import import_mnist_dataset
 import tensorflow as tf
 import numpy as np
-from DBM import SDBM
 import matplotlib.pyplot as plt
 
-def SDBM_usage_example():
-        
+from ..DBM import DBM
+from ..utils import import_mnist_dataset
+
+
+def DBM_usage_example():
+    
     # import the dataset
     (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
     
@@ -42,13 +44,22 @@ def SDBM_usage_example():
     ])
     
     # create the DBM
-    sdbm = SDBM(classifier=classifier)
+    dbm = DBM(classifier=classifier)
     
-    # use the SDBM to get the decision boundary map
-    img, img_confidence, _, _ = sdbm.generate_boundary_map(X_train, Y_train, 
-                                                                X_test, Y_test, 
-                                                                resolution=256)
+    # use the DBM to get the decision boundary map, if you don't have the 2D projection of the data
+    # the DBM will get it for you, you just need to specify the projection method you would like to use (t-SNE, PCA or UMAP)
+    img, img_confidence, _, _ = dbm.generate_boundary_map(X_train, Y_train, 
+                                                          X_test, Y_test, 
+                                                          resolution=256,
+                                                          projection="t-SNE")
     
+    # if you have the 2D projection of the data, you can use the following function to get the decision boundary map
+    """
+    X2d_train, X2d_test = None, None # get the 2D projection of the data by yourself
+    img, img_confidence, _, _ = dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test,
+                                                          X2d_train=X2d_train, X2d_test=X2d_test, 
+                                                          resolution=100)
+    """                                                                  
     
     # make the decision boundary map pretty, by adding the colors and the confidence
     COLORS_MAPPER = {
@@ -76,8 +87,9 @@ def SDBM_usage_example():
     plt.imshow(color_img)
     plt.show()
     
-    # use the SDBM to get the inverse projection errors
-    img_inverse_projection_errors = sdbm.generate_inverse_projection_errors()
+    
+    # use the dbm to get the inverse projection errors
+    img_inverse_projection_errors = dbm.generate_inverse_projection_errors()
     # plot the inverse projection errors
     fig, ax = plt.subplots()
     ax.set_title("Inverse projection errors")
@@ -86,9 +98,9 @@ def SDBM_usage_example():
     img_ax = ax.imshow(img_inverse_projection_errors, cmap="Reds")
     fig.colorbar(img_ax, ax=ax)
     plt.show()
-    
-    # use the SDBM to get the projection errors
-    img_projection_errors = sdbm.generate_projection_errors()
+                                                           
+    # use the dbm to get the projection errors
+    img_projection_errors = dbm.generate_projection_errors()
     # plot the projection errors
     fig, ax = plt.subplots()
     ax.set_title("Projection errors")

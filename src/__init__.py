@@ -12,5 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from DBM.DBM.DBM import DBM
-from DBM.SDBM.SDBM import SDBM
+from .decision_boundary_mapper import Logger, LoggerGUI, LoggerInterface, DBM, SDBM, GUI, DBM_usage_example, SDBM_usage_example

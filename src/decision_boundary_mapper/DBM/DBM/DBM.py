@@ -12,17 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from math import sqrt
 import os
 import numpy as np
 from sklearn.neighbors import KDTree
 
-from DBM.DBM.invNN import DEFAULT_MODEL_PATH, invNN
-from DBM.DBM.projections import PROJECTION_METHODS
-from DBM.DBMInterface import DBMInterface
-from DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
-from DBM.tools import get_inv_proj_error, get_proj_error
-from Logger import LoggerInterface
+from .invNN import DEFAULT_MODEL_PATH, invNN
+from .projections import PROJECTION_METHODS
+
+
+from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
+from ..tools import get_proj_error
+
+from ...Logger import LoggerInterface
 
 class DBM(DBMInterface):
     """
