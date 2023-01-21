@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from DBM.DBM.DBM import DBM
-from DBM.SDBM.SDBM import SDBM
+from src.DBM.SDBM.SDBM import SDBM
+from src.DBM.SDBM.Autoencoder import Autoencoder

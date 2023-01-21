@@ -14,9 +14,10 @@
 
 import os
 import numpy as np
-from Logger import Logger
 from keras.utils.image_utils import img_to_array, array_to_img
 from tensorflow.keras.utils import to_categorical
+
+from src.Logger import Logger
 
 MNIST_DATA_FOLDER = os.path.join(os.getcwd(), "data", "MNIST")
 

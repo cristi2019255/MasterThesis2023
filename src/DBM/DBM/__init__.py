@@ -12,5 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from DBM.SDBM.SDBM import SDBM
-from DBM.SDBM.Autoencoder import Autoencoder
+from src.DBM.DBM.projections import PROJECTION_METHODS
+from src.DBM.DBM.DBM import DBM
+from src.DBM.DBM.invNN import invNN, DEFAULT_MODEL_PATH

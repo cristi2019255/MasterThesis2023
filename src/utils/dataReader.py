@@ -13,9 +13,10 @@
 # limitations under the License.
 
 import numpy as np
-from Logger.Logger import Logger
 from keras.datasets import mnist
 import os
+
+from src.Logger.Logger import Logger
 
 def import_mnist_dataset():
     """Imports the MNIST dataset from keras.datasets.mnist

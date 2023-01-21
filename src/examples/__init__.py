@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from utils.dataReader import import_mnist_dataset, import_csv_dataset
-from utils.tools import track_time_wrapper
+from src.examples.DBM_usage_example import DBM_usage_example
+from src.examples.SDBM_usage_example import SDBM_usage_example

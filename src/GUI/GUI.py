@@ -43,10 +43,10 @@ from PIL import Image, ImageTk
 import tensorflow as tf
 from tensorflow.keras.utils import plot_model
 
-from Logger import LoggerGUI, Logger
-from DBM import SDBM, DBM 
-from utils import import_csv_dataset, import_mnist_dataset
-from GUI.DBMPlotter import DBMPlotter
+from src.Logger import LoggerGUI, Logger
+from src.DBM import SDBM, DBM 
+from src.utils import import_csv_dataset, import_mnist_dataset
+from src.GUI.DBMPlotter import DBMPlotter
 
 
 DBM_TECHNIQUES = {

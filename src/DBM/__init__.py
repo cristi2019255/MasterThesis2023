@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from examples.DBM_usage_example import DBM_usage_example
-from examples.SDBM_usage_example import SDBM_usage_example
+from src.DBM.DBM.DBM import DBM
+from src.DBM.SDBM.SDBM import SDBM

@@ -15,9 +15,10 @@
 import os
 import numpy as np
 import tensorflow as tf
-from Logger import Logger
 import matplotlib.pyplot as plt
 from tensorflow.keras.utils import plot_model
+
+from src.Logger import Logger
 
 
 MODELS_FOLDER = os.path.join("models", "model")
