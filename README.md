@@ -14,13 +14,7 @@ Run the following script to get an example of how the Decision Boundary Mapper w
 
 This is not really an issue
 
-### 2) Make a search in all the TODOs and do the fixes
-
-### 3) Write the API interface documentation
-
-...
-
-### 4) Make a python library for the API
+### 2) Write the API interface documentation
 
 ...
 
