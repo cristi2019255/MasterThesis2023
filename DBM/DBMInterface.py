@@ -13,10 +13,10 @@
 # limitations under the License.
 
 import numpy as np
-from math import ceil, floor
+from math import ceil, floor, sqrt
 from queue import PriorityQueue
 from utils import track_time_wrapper
-from DBM.tools import get_decode_pixel_priority
+from DBM.tools import get_decode_pixel_priority, get_inv_proj_error
 from Logger import Logger, LoggerInterface
 
 DBM_DEFAULT_RESOLUTION = 256
@@ -73,7 +73,10 @@ class DBMInterface:
                               X_train:np.ndarray, Y_train:np.ndarray, 
                               X_test:np.ndarray, Y_test:np.ndarray,
                               train_epochs:int=10, train_batch_size:int=128,
-                              resolution:int=DBM_DEFAULT_RESOLUTION):
+                              resolution:int=DBM_DEFAULT_RESOLUTION,
+                              use_fast_decoding:bool=True,
+                              projection:str=None
+                              ):
         """ Generates a 2D boundary map of the classifier's decision boundary.
 
         Args:
@@ -85,7 +88,8 @@ class DBMInterface:
             train_batch_size (int, optional): Train batch size. Defaults to 128.
             show_predictions (bool, optional): If set to true 10 prediction examples are shown. Defaults to True.
             resolution (int, optional): _description_. Defaults to DBM_DEFAULT_RESOLUTION = 256.
-            
+            use_fast_decoding (bool, optional): If set to true the fast decoding algorithm is used. Defaults to True.
+            projection (str, optional): The projection to be used for the 2D space. Defaults to None.
         Returns:
             np.array: A 2D numpy array with the decision boundary map
         
@@ -103,6 +107,35 @@ class DBMInterface:
             predicted_confidences (np.array): The predicted probabilities for the given 2D data set
         """
         pass
+    
+    def generate_inverse_projection_errors(self, Xnd: np.ndarray = None):
+        """ Calculates the inverse projection errors of the given data.
+
+        Args:
+            Xnd (np.array): The nd inverse projection of the data.
+        
+        Returns:
+            errors (np.ndarray): The inverse projection errors matrix of the given data. (resolution x resolution)
+        """
+        if Xnd is None:
+            if self.spaceNd is None:
+                self.console.error("The nD data is not set, try to call the method 'generate_boundary_map' first.")
+                raise Exception("The nD data is not set, try to call the method 'generate_boundary_map' first.")
+            Xnd = self.spaceNd
+        
+        resolution = int(sqrt(len(Xnd)))
+        assert resolution * resolution == len(Xnd)
+        Xnd = Xnd.reshape((resolution,resolution,-1))
+            
+        self.console.log("Calculating the inverse projection errors of the given data")
+        errors = np.zeros(Xnd.shape[:2])
+        for i in range(Xnd.shape[0]):
+            for j in range(Xnd.shape[1]):
+                errors[i,j] = get_inv_proj_error(i,j, Xnd)
+                
+        # normalizing the errors to be in the range [0,1]
+        errors = (errors - np.min(errors)) / (np.max(errors) - np.min(errors))
+        return errors
     
     @track_time_wrapper
     def _get_img_dbm_(self, boundaries:tuple, resolution:int):

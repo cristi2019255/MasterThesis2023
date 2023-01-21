@@ -203,10 +203,12 @@ class DBMPlotter:
         self.ax.set_title(title)
         self.ax.legend(handles=self.legend, bbox_to_anchor=(0, 1), loc=1, borderaxespad=0. )
         
-        self.ax_proj_errs.imshow(self.img_projection_errors, cmap="jet")
+        ax_img1 = self.ax_proj_errs.imshow(self.img_projection_errors, cmap="Reds")
+        self.fig.colorbar(ax_img1, ax=self.ax_proj_errs)
         self.ax_proj_errs.set_title("Projection Errors")
         
-        self.ax_inv_proj_errors.imshow(self.img_inverse_projection_errors, cmap="jet")
+        ax_img2 = self.ax_inv_proj_errors.imshow(self.img_inverse_projection_errors, cmap="Reds")
+        self.fig.colorbar(ax_img2, ax=self.ax_inv_proj_errors)
         self.ax_inv_proj_errors.set_title("Inverse Projection Errors")
         
         self.fig.show()

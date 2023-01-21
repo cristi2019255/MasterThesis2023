@@ -348,30 +348,29 @@ class GUI:
         
         dbm = DBM_TECHNIQUES[values["-DBM TECHNIQUE-"]](classifier = self.classifier, logger = self.dbm_logger)
         
+        projection_technique = None
         if values["-DBM TECHNIQUE-"] == "Inverse Projection":
             projection_technique = values["-PROJECTION TECHNIQUE-"]
-            dbm_info = dbm.generate_boundary_map(
-                                self.X_train, 
-                                self.Y_train, 
-                                self.X_test, 
-                                self.Y_test, 
-                                train_epochs=10, 
-                                train_batch_size=128,
-                                resolution=256,
-                                projection=projection_technique
-                                )
-        else:
-            dbm_info = dbm.generate_boundary_map(
+    
+        dbm_info = dbm.generate_boundary_map(
                                     self.X_train, 
                                     self.Y_train, 
                                     self.X_test, 
                                     self.Y_test, 
                                     train_epochs=10, 
                                     train_batch_size=128,
-                                    resolution=256
+                                    resolution=256,
+                                    projection=projection_technique
                                     )
 
-        img, img_confidence, img_projection_errors, img_inverse_projection_errors, encoded_training_data, encoded_testing_data = dbm_info
+        img, img_confidence, encoded_training_data, encoded_testing_data = dbm_info
+        
+        # getting the projection errors
+        img_projection_errors = dbm.generate_projection_errors()
+        
+        # getting the inverse projection errors
+        img_inverse_projection_errors = dbm.generate_inverse_projection_errors()
+        
         # ---------------------------------
         # update the GUI dbm attributes
         self.dbm_plotter = DBMPlotter(img = img,

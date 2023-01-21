@@ -19,6 +19,7 @@ from DBM.DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
 from DBM.SDBM.Autoencoder import DEFAULT_MODEL_PATH, Autoencoder, build_autoencoder
 from DBM.tools import get_inv_proj_error, get_proj_error
 from Logger import LoggerInterface
+from math import sqrt
 
 class SDBM(DBMInterface):
     """
@@ -77,7 +78,8 @@ class SDBM(DBMInterface):
                               X_test:np.ndarray, Y_test:np.ndarray,
                               train_epochs:int=10, train_batch_size:int=128,
                               resolution:int=DBM_DEFAULT_RESOLUTION,
-                              use_fast_decoding:bool=True, 
+                              use_fast_decoding:bool=True,
+                              projection:str = None # this parameter is not used in SDBM but is placed here to keep the same interface as DBM
                               ):
         """Generate the decision boundary map
         
@@ -90,12 +92,11 @@ class SDBM(DBMInterface):
                 train_batch_size (int, optional): Defaults to 128.
                 resolution (int, optional): The resolution of the decision boundary map. Defaults to DBM_DEFAULT_RESOLUTION = 256.
                 use_fast_decoding (bool, optional): If True, a fast inference algorithm will be used to decode the 2D space and to generate the decision boundary map. Defaults to True.
-        
+                projection (str, optional): The projection is not used in SDBM, is placed here just to match the DBM signature. Defaults to None.
+                
             Returns:
                 img (np.ndarray): The decision boundary map
                 img_confidence (np.ndarray): The confidence map
-                img_proj_error (np.ndarray): The projection error map
-                img_inverse_proj_error (np.ndarray): The inverse projection error map
                 encoded_training_data (np.ndarray): The 2D coordinates of the training data for each pixel of the decision boundary map
                 encdoded_testing_data (np.ndarray): The 2D coordinates of the testing data for each pixel of the decision boundary map
 
@@ -103,7 +104,7 @@ class SDBM(DBMInterface):
                 >>> import SDBM
                 >>> classifier = build_classifier(...)
                 >>> sdbm = SDBM.SDBM(classifier)
-                >>> img, img_confidence, _, _, _ , _ = sdbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
+                >>> img, img_confidence, _, _ = sdbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
                 >>> plt.imshow(img)
                 >>> plt.show()
         """
@@ -166,10 +167,10 @@ class SDBM(DBMInterface):
             img[i,j] = -2
             img_confidence[i,j] = 1
         
-        img_projection_errors = self.get_projection_errors(spaceNd.reshape((spaceNd.shape[0], -1)), space2d, resolution)
-        img_inverse_projection_errors = self.get_inverse_projection_errors(spaceNd.reshape((resolution, resolution, -1)))
-      
-        return (img, img_confidence, img_projection_errors, img_inverse_projection_errors, encoded_training_data, encoded_testing_data)
+        self.spaceNd = spaceNd
+        self.space2d = space2d
+        
+        return (img, img_confidence, encoded_training_data, encoded_testing_data)
     
     def _predict2dspace_(self, X2d:np.ndarray):
         """ Predicts the labels for the given 2D data set.
@@ -188,7 +189,7 @@ class SDBM(DBMInterface):
         predicted_confidence = np.array([np.max(p) for p in predictions])
         return predicted_labels, predicted_confidence, spaceNd
     
-    def get_projection_errors(self, Xnd: np.ndarray, X2d: np.ndarray, resolution:int):
+    def generate_projection_errors(self, Xnd: np.ndarray = None, X2d: np.ndarray = None):
         """ Calculates the projection errors of the given data.
 
         Args:
@@ -207,17 +208,39 @@ class SDBM(DBMInterface):
             >>> plt.imshow(errors)
             >>> plt.show()
         """
+        if Xnd is None:
+            if self.spaceNd is None:
+                self.console.error("No nD data provided and no data stored in the SDBM object.")
+                raise ValueError("No nD data provided and no data stored in the SDBM object.")
+            Xnd = self.spaceNd
+        if X2d is None:
+            if self.space2d is None:
+                self.console.error("No 2D data provided and no data stored in the SDBM object.")
+                raise ValueError("No 2D data provided and no data stored in the SDBM object.")
+            X2d = self.space2d
+            
+        Xnd = Xnd.reshape((Xnd.shape[0], -1))
+        X2d = X2d.reshape((X2d.shape[0], -1))
+        
+        assert len(X2d) == len(Xnd)
+        assert X2d.shape[1] == 2
+        resolution = int(sqrt(len(X2d)))
+        assert resolution * resolution == len(X2d)
+        
         self.console.log("Calculating the projection errors of the given data")
         errors = np.zeros(resolution * resolution)
         
         K = 10
         metric = "euclidean"
+        
+        self.console.log("Started computing the 2D tree")
         tree = KDTree(X2d, metric=metric)
         indices_embedded = tree.query(X2d, k=K, return_distance=False)
         # Drop the actual point itself
         indices_embedded = indices_embedded[:, 1:]
         self.console.log("Finished computing the 2D tree")
         
+        self.console.log("Started computing the nD tree")
         tree = KDTree(Xnd, metric=metric)
         indices_source = tree.query(Xnd, k=K, return_distance=False)
         # Drop the actual point itself
@@ -229,32 +252,5 @@ class SDBM(DBMInterface):
         # reshaping the errors to be in the shape of the 2d space
         errors = errors.reshape((resolution, resolution))
         return errors
-    
-    def get_inverse_projection_errors(self, Xnd:np.ndarray):
-        """ Calculates the inverse projection errors of the given data.
 
-        Args:
-            Xnd (np.array): The nd inverse projection of the data.
-            
-        Returns:
-            errors (np.array): The inverse projection errors matrix of the given data.
-        
-        Example:
-            >>> from SDBM import SDBM
-            >>> classifier = ...
-            >>> Xnd = ...
-            >>> sdbm = SDBM(classifier)
-            >>> errors = sdbm.get_inverse_projection_errors(Xnd)
-            >>> plt.imshow(errors)
-            >>> plt.show()
-        """
-        self.console.log("Calculating the inverse projection errors of the given data")
-        errors = np.zeros(Xnd.shape[:2])
-        for i in range(Xnd.shape[0]):
-            for j in range(Xnd.shape[1]):
-                errors[i,j] = get_inv_proj_error(i,j, Xnd)
-                
-        # normalizing the errors to be in the range [0,1]
-        errors = (errors - np.min(errors)) / (np.max(errors) - np.min(errors))
-        return errors
     

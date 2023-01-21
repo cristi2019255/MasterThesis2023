@@ -45,7 +45,7 @@ def SDBM_usage_example():
     sdbm = SDBM(classifier=classifier)
     
     # use the SDBM to get the decision boundary map
-    img, img_confidence, _, _, _, _ = sdbm.generate_boundary_map(X_train, Y_train, 
+    img, img_confidence, _, _ = sdbm.generate_boundary_map(X_train, Y_train, 
                                                                 X_test, Y_test, 
                                                                 resolution=256)
     
@@ -71,5 +71,30 @@ def SDBM_usage_example():
         color_img[i,j] = COLORS_MAPPER[img[i,j]] + [img_confidence[i,j]]
     
     # plot the decision boundary map
+    plt.title("Decision boundary map")
+    plt.axis("off")
     plt.imshow(color_img)
     plt.show()
+    
+    # use the SDBM to get the inverse projection errors
+    img_inverse_projection_errors = sdbm.generate_inverse_projection_errors()
+    # plot the inverse projection errors
+    fig, ax = plt.subplots()
+    ax.set_title("Inverse projection errors")
+    ax.xaxis.set_visible(False)
+    ax.yaxis.set_visible(False)
+    img_ax = ax.imshow(img_inverse_projection_errors, cmap="Reds")
+    fig.colorbar(img_ax, ax=ax)
+    plt.show()
+    
+    # use the SDBM to get the projection errors
+    img_projection_errors = sdbm.generate_projection_errors()
+    # plot the projection errors
+    fig, ax = plt.subplots()
+    ax.set_title("Projection errors")
+    ax.xaxis.set_visible(False)
+    ax.yaxis.set_visible(False)
+    img_ax = ax.imshow(img_projection_errors, cmap="Reds")
+    fig.colorbar(img_ax, ax=ax)
+    plt.show()
+    

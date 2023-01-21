@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from math import sqrt
 import os
 import numpy as np
 from sklearn.neighbors import KDTree
@@ -92,6 +93,7 @@ class DBM(DBMInterface):
                               train_epochs:int=10, 
                               train_batch_size:int=128,
                               resolution:int=DBM_DEFAULT_RESOLUTION,
+                              use_fast_decoding:bool=True,
                               projection:str='t-SNE'                              
                               ):
         """ Generates a 2D boundary map of the classifier's decision boundary.
@@ -107,18 +109,18 @@ class DBM(DBMInterface):
             train_batch_size (int, optional): Train batch size. Defaults to 128.
             show_predictions (bool, optional): If set to true 10 prediction examples are shown. Defaults to True.
             resolution (int, optional): _description_. Defaults to DBM_DEFAULT_RESOLUTION.
+            use_fast_decoding (bool, optional): If set to true the fast decoding method is used. Defaults to True.
+            projection (str, optional): The projection method to be used. Defaults to 't-SNE'.
         
         Returns:
             img (np.array): A 2D numpy array with the decision boundary map, each element is an integer representing the class of the corresponding point.
             img_confidence (np.array): A 2D numpy array with the decision boundary map, each element is a float representing the confidence of the classifier for the corresponding point.
-            img_projection_errors (np.array): A 2D numpy array with the decision boundary map, each element is a float representing the error of the projection for the corresponding point.
-            img_inverse_projection_errors (np.array): A 2D numpy array with the decision boundary map, each element is a float representing the error of the inverse projection for the corresponding point.
             X2d_train (np.array): A 2D matrix representing the projection of the training data set, each element is an integer representing the class of the corresponding point.
             X2d_test (np.array): A 2D matrix representing the projection of the testing data set, each element is an integer representing the class of the corresponding point.
         
         Example:
             >>> dbm = DBM(classifier)
-            >>> img, img_confidence, img_projection_errors, img_inverse_projection_errors, X2d_train, X2d_test = dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
+            >>> img, img_confidence, X2d_train, X2d_test = dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
             >>> plt.imshow(img)
             >>> plt.show()
         """
@@ -152,7 +154,7 @@ class DBM(DBMInterface):
             np.save(f, img_confidence)        
         """
         
-        img, img_confidence, space2d, spaceNd = self._get_img_dbm_((min_x, max_x, min_y, max_y), resolution)
+        img, img_confidence, _, spaceNd = self._get_img_dbm_((min_x, max_x, min_y, max_y), resolution)
         
         save_img_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map")
         save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map_confidence")
@@ -179,13 +181,77 @@ class DBM(DBMInterface):
         for [i,j] in X2d_test:
             img[i,j] = -2
             img_confidence[i,j] = 1
-        
-        img_projection_errors = self.get_projection_errors((min_x, max_x, min_y, max_y), Xnd, X2d, resolution) 
-        
-        img_inverse_projection_errors = self.get_inverse_projection_errors(spaceNd.reshape((resolution, resolution, -1)))
-        
-        return (img, img_confidence, img_projection_errors, img_inverse_projection_errors, X2d_train, X2d_test)
+            
+        self.resolution = resolution
+        self.space_boundaries = (min_x, max_x, min_y, max_y)
+        self.Xnd = Xnd
+        self.X2d = X2d
+        self.spaceNd = spaceNd
     
+        return (img, img_confidence, X2d_train, X2d_test)
+    
+    def generate_projection_errors(self, boundaries: tuple = None, Xnd: np.ndarray = None, X2d: np.ndarray = None, resolution: int = None):
+        """ Calculates the projection errors of the given data.
+
+        Args:
+            boundaries ((float,float,float,float)): The boundaries of the 2D space. (min_x, max_x, min_y, max_y)
+            Xnd (np.array): The data to be projected.
+            X2d (np.array): The 2D projection of the data.
+            resolution (int): The resolution of the 2D space.
+        Returns:
+            errors (np.ndarray): The projection errors matrix of the given data. (resolution x resolution)
+        """
+        if resolution is None:
+            if self.resolution is None:
+                self.console.error("The resolution of the 2D space is not set, try to call the method 'generate_boundary_map' first.")
+                raise Exception("The resolution of the 2D space is not set, try to call the method 'generate_boundary_map' first.")
+            resolution = self.resolution
+        if boundaries is None:
+            if self.space_boundaries is None:
+                self.console.error("The boundaries of the 2D space are not set, try to call the method 'generate_boundary_map' first.")
+                raise Exception("The boundaries of the 2D space are not set, try to call the method 'generate_boundary_map' first.")
+            boundaries = self.space_boundaries
+        if Xnd is None:
+            if self.Xnd is None:
+                self.console.error("The nD data is not set, try to call the method 'generate_boundary_map' first.")
+                raise Exception("The nD data is not set, try to call the method 'generate_boundary_map' first.")
+            Xnd = self.Xnd
+        if X2d is None:
+            if self.X2d is None:
+                self.console.error("The 2D data is not set, try to call the method 'generate_boundary_map' first.")
+                raise Exception("The 2D data is not set, try to call the method 'generate_boundary_map' first.")
+            X2d = self.X2d
+        
+        assert len(Xnd) == len(X2d)
+        
+        self.console.log("Calculating the projection errors of the given data")
+        errors = np.zeros((resolution,resolution))
+        min_x, max_x, min_y, max_y = boundaries
+        
+        K = 10
+        metric = "euclidean"
+        
+        self.console.log("Started computing the 2D tree")
+        tree = KDTree(X2d, metric=metric)
+        indices_embedded = tree.query(X2d, k=K, return_distance=False)
+        # Drop the actual point itself
+        indices_embedded = indices_embedded[:, 1:]
+        self.console.log("Finished computing the 2D tree")
+        
+        self.console.log("Started computing the nD tree")
+        tree = KDTree(Xnd, metric=metric)
+        indices_source = tree.query(Xnd, k=K, return_distance=False)
+        # Drop the actual point itself
+        indices_source = indices_source[:, 1:]
+        self.console.log("Finished computing the nD tree")
+        
+        for k in range(X2d.shape[0]):
+            x, y = X2d[k]
+            i, j = int((x - min_x) / (max_x - min_x) * (resolution - 1)), int((y - min_y) / (max_y - min_y) * (resolution - 1)) 
+            errors[i,j] = get_proj_error(indices_source[k], indices_embedded[k])
+        
+        return errors
+     
     def _predict2dspace_(self, X2d: np.ndarray):
         """ Predicts the labels for the given 2D data set.
 
@@ -202,62 +268,7 @@ class DBM(DBMInterface):
         predicted_labels = np.array([np.argmax(p) for p in predictions])
         predicted_confidence = np.array([np.max(p) for p in predictions])
         return predicted_labels, predicted_confidence, spaceNd
-    
-    def get_projection_errors(self, boundaries: tuple, Xnd: np.ndarray, X2d: np.ndarray, resolution: int):
-        """ Calculates the projection errors of the given data.
-
-        Args:
-            boundaries ((float,float,float,float)): The boundaries of the 2D space. (min_x, max_x, min_y, max_y)
-            Xnd (np.array): The data to be projected.
-            X2d (np.array): The 2D projection of the data.
-            resolution (int): The resolution of the 2D space.
-        Returns:
-            errors (np.ndarray): The projection errors matrix of the given data. (resolution x resolution)
-        """
-        self.console.log("Calculating the projection errors of the given data")
-        errors = np.zeros((resolution,resolution))
-        min_x, max_x, min_y, max_y = boundaries
-        
-        K = 10
-        metric = "euclidean"
-        tree = KDTree(X2d, metric=metric)
-        indices_embedded = tree.query(X2d, k=K, return_distance=False)
-        # Drop the actual point itself
-        indices_embedded = indices_embedded[:, 1:]
-        self.console.log("Finished computing the 2D tree")
-        
-        tree = KDTree(Xnd, metric=metric)
-        indices_source = tree.query(Xnd, k=K, return_distance=False)
-        # Drop the actual point itself
-        indices_source = indices_source[:, 1:]
-        self.console.log("Finished computing the nD tree")
-        
-        for k in range(X2d.shape[0]):
-            x, y = X2d[k]
-            i, j = int((x - min_x) / (max_x - min_x) * (resolution - 1)), int((y - min_y) / (max_y - min_y) * (resolution - 1)) 
-            errors[i,j] = get_proj_error(indices_source[k], indices_embedded[k])
-        
-        return errors
-    
-    def get_inverse_projection_errors(self, Xnd: np.ndarray):
-        """ Calculates the inverse projection errors of the given data.
-
-        Args:
-            Xnd (np.array): The nd inverse projection of the data.
-        
-        Returns:
-            errors (np.ndarray): The inverse projection errors matrix of the given data. (resolution x resolution)
-        """
-        self.console.log("Calculating the inverse projection errors of the given data")
-        errors = np.zeros(Xnd.shape[:2])
-        for i in range(Xnd.shape[0]):
-            for j in range(Xnd.shape[1]):
-                errors[i,j] = get_inv_proj_error(i,j, Xnd)
-                
-        # normalizing the errors to be in the range [0,1]
-        errors = (errors - np.min(errors)) / (np.max(errors) - np.min(errors))
-        return errors
-        
+ 
     def __transform_2d__(self, X: np.ndarray, projection:str='t-SNE', data_name:str="training"):
         """ Transforms the given data to 2D using a projection method.
 

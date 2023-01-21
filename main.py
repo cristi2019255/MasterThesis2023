@@ -13,11 +13,13 @@
 # limitations under the License.
     
 from examples import DBM_usage_example, SDBM_usage_example
+from tests.DBM.test import test_dbm, test_projection_errors
 
 def main():
     DBM_usage_example()
     #SDBM_usage_example()
     #test_projection_errors()
+    #test_dbm()
 
 if __name__ == '__main__':
     main()
