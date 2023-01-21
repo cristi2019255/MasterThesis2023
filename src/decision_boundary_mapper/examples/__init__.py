@@ -12,27 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from setuptools import setup, find_packages
-
-setup(
-    name='decision-boundary-mapper',
-    version='0.2',
-    license='MIT',
-    author="Cristian Grosu",
-    author_email='c.grosu@students.uu.nl',
-    packages=find_packages('src'),
-    package_dir={'': 'src'},
-    url='https://github.com/cristi2019255/MasterThesis2023',
-    keywords='Decision Boundary Mapper',
-    install_requires=[
-          'keras',
-          'matplotlib',
-          'numpy',
-          'Pillow',
-          'PySimpleGUI',
-          'scikit_learn',
-          'tensorflow',
-          'termcolor',
-      ],
-
-)
+from .DBM_usage_example import DBM_usage_example
+from .SDBM_usage_example import SDBM_usage_example

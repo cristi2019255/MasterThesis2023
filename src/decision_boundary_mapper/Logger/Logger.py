@@ -16,7 +16,7 @@
 from datetime import datetime
 from termcolor import colored
 
-from src.Logger.LoggerInterface import LoggerInterface
+from .LoggerInterface import LoggerInterface
 
 class Logger(LoggerInterface):
     """ A console logger

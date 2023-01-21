@@ -16,8 +16,8 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 
-from src.DBM import DBM
-from src.utils import import_mnist_dataset
+from decision_boundary_mapper.DBM import DBM
+from decision_boundary_mapper.utils import import_mnist_dataset
 
 
 def DBM_usage_example():

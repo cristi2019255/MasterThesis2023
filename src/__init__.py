@@ -12,7 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from src.GUI import GUI
-from src.DBM import DBM, SDBM, DBMInterface
-from src.Logger import Logger, LoggerInterface, LoggerGUI
-from src.examples import DBM_usage_example, SDBM_usage_example
+from .decision_boundary_mapper import Logger, LoggerGUI, LoggerInterface, DBM, SDBM, GUI, DBM_usage_example, SDBM_usage_example

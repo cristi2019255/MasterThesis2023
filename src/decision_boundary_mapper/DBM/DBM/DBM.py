@@ -16,12 +16,13 @@ import os
 import numpy as np
 from sklearn.neighbors import KDTree
 
-from src.DBM.DBM.invNN import DEFAULT_MODEL_PATH, invNN
-from src.DBM.DBM.projections import PROJECTION_METHODS
-from src.DBM.DBMInterface import DBMInterface
-from src.DBM.DBMInterface import DBM_DEFAULT_RESOLUTION
-from src.DBM.tools import get_proj_error
-from src.Logger import LoggerInterface
+from .invNN import DEFAULT_MODEL_PATH, invNN
+from .projections import PROJECTION_METHODS
+
+
+from decision_boundary_mapper.DBM.DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
+from decision_boundary_mapper.DBM.tools import get_proj_error
+from decision_boundary_mapper.Logger import LoggerInterface
 
 class DBM(DBMInterface):
     """

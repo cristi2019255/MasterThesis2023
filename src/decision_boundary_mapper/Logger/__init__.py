@@ -12,5 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from src.DBM.SDBM.SDBM import SDBM
-from src.DBM.SDBM.Autoencoder import Autoencoder
+from .Logger import Logger
+from .LoggerGUI import LoggerGUI
+from .LoggerInterface import LoggerInterface

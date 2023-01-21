@@ -12,5 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from src.DBM.DBM.DBM import DBM
-from src.DBM.SDBM.SDBM import SDBM
+from .GUI import GUI

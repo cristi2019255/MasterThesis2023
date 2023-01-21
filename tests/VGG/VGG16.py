@@ -19,7 +19,7 @@ from tensorflow.keras.applications import VGG16
 from tensorflow.keras import models, layers
 from tensorflow.keras.models import Model
 from tensorflow.keras.callbacks import ModelCheckpoint
-from src.Logger import Logger
+from .Logger import Logger
 
 EPOCHS = 16
 BATCH_SIZE = 100

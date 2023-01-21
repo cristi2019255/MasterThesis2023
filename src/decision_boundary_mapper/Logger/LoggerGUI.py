@@ -15,7 +15,7 @@
 from datetime import datetime
 from termcolor import colored
 
-from src.Logger.LoggerInterface import LoggerInterface
+from .LoggerInterface import LoggerInterface
 
 class LoggerGUI(LoggerInterface):
     """ Logs the messages to the GUI.

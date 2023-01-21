@@ -12,6 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from src.Logger.Logger import Logger
-from src.Logger.LoggerGUI import LoggerGUI
-from src.Logger.LoggerInterface import LoggerInterface
+from .SDBM import SDBM

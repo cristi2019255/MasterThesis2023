@@ -16,7 +16,7 @@ import numpy as np
 from keras.datasets import mnist
 import os
 
-from src.Logger.Logger import Logger
+from decision_boundary_mapper.Logger import Logger
 
 def import_mnist_dataset():
     """Imports the MNIST dataset from keras.datasets.mnist

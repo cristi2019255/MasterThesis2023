@@ -16,7 +16,8 @@ import os
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
-from src.Logger import Logger, LoggerInterface
+
+from decision_boundary_mapper.Logger import Logger, LoggerInterface
 
 DEFAULT_MODEL_PATH = os.path.join("models", "SDBM")
 

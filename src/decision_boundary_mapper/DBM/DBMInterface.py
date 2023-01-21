@@ -16,9 +16,10 @@ import numpy as np
 from math import ceil, floor, sqrt
 from queue import PriorityQueue
 
-from src.utils import track_time_wrapper
-from src.DBM.tools import get_decode_pixel_priority, get_inv_proj_error
-from src.Logger import Logger, LoggerInterface
+from .tools import get_decode_pixel_priority, get_inv_proj_error
+
+from decision_boundary_mapper.utils import track_time_wrapper
+from decision_boundary_mapper.Logger import Logger, LoggerInterface
 
 DBM_DEFAULT_RESOLUTION = 256
 
