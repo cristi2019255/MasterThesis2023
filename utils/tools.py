@@ -14,6 +14,11 @@
 import time
 
 def track_time_wrapper(func):
+    """ Decorator that tracks the time it takes for a function to run.
+
+    Args:
+        func (python function): The function to be decorated.
+    """
     def wrapper(*args, **kwargs):
         start = time.time()
         result = func(*args, **kwargs)

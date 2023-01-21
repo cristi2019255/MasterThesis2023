@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from GUI.GUI import GUI
+from GUI import GUI
 
 if __name__ == '__main__':
     gui = GUI()

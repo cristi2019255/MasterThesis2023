@@ -14,10 +14,21 @@
 
 from datetime import datetime
 from termcolor import colored
-from utils.LoggerInterface import LoggerInterface
+from Logger.LoggerInterface import LoggerInterface
 
 class LoggerGUI(LoggerInterface):
-    def __init__(self, name="Logger", active=True, output=None, update_callback=lambda x: x):
+    """ Logs the messages to the GUI.
+    """
+    
+    def __init__(self, name:str="Logger", active:bool=True, output=None, update_callback=lambda x: x):
+        """ Initialize the logger
+
+        Args:
+            name (str, optional): Defaults to "Logger".
+            active (bool, optional): Defaults to True.
+            output (any, optional): The GUI reference where the logger should display messages. Defaults to None.
+            update_callback (python function, optional): The function that is called to update the GUI. Defaults to lambda x:x.
+        """
         super().__init__()
 
         self.active = active 
@@ -38,29 +49,29 @@ class LoggerGUI(LoggerInterface):
         self.print(f"[{self.name}] [INFO] [{time}] {sep}", "magenta")
 
 
-    def print(self, message, color='magenta'):
+    def print(self, message:str, color:str='magenta'):
         if self.active:
             self.output.print(message, text_color=color)
             self.update_callback()
             
-    def log(self, message):
+    def log(self, message:str):
         time = datetime.now().strftime("%H:%M:%S:%f")
         self.print(f"[{self.name}] [INFO] [{time}] {message}", "magenta")
     
-    def warn(self, message):
+    def warn(self, message:str):
         time = datetime.now().strftime("%H:%M:%S:%f")
         self.print(f"[{self.name}] [WARNING] [{time}] {message}", "yellow")
     
     
-    def error(self, message):
+    def error(self, message:str):
         time = datetime.now().strftime("%H:%M:%S:%f")
         self.print(f"[{self.name}] [ERROR] [{time}] {message}", "red")        
     
-    def debug(self, message):
+    def debug(self, message:str):
         time = datetime.now().strftime("%H:%M:%S:%f")
         self.print(f"[{self.name}] [DEBUG] [{time}] {message}","blue")
     
         
-    def success(self, message):
+    def success(self, message:str):
         time = datetime.now().strftime("%H:%M:%S:%f")
         self.print(f"[{self.name}] [SUCCESS] [{time}] {message}", "green")

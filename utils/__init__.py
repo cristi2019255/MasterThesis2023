@@ -12,21 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class LoggerInterface:
-    def log(self, message):
-        """ Log a message to the console
-        __param__ message: the message to log
-        """
-        pass
-        
-    def warn(self, message):
-        pass
-    
-    def error(self, message):
-        pass
-    
-    def debug(self, message):
-        pass
-        
-    def success(self, message):
-        pass
+from utils.dataReader import import_mnist_dataset, import_csv_dataset
+from utils.tools import track_time_wrapper

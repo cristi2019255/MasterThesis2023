@@ -15,10 +15,20 @@
 
 from datetime import datetime
 from termcolor import colored
-from utils.LoggerInterface import LoggerInterface
+from Logger.LoggerInterface import LoggerInterface
 
 class Logger(LoggerInterface):
-    def __init__(self, active=True, name="Logger"):
+    """ A console logger
+        Prints the messages to the default console
+    """
+    
+    def __init__(self, active:bool=True, name:str="Logger"):
+        """ Initialize the logger
+
+        Args:
+            active (bool, optional): Defaults to True.
+            name (str, optional): Defaults to "Logger".
+        """
         self.active = active
         self.name = name
         
@@ -29,30 +39,31 @@ class Logger(LoggerInterface):
         print(colored(f"[{self.name}] [INFO] [{time}] {sep}", "magenta"))
         
         
-    def log(self, message):
+    def log(self, message:str):
         """ Log a message to the console
-            __param__ message: the message to log
+            Args:
+                message (str): the message to log
         """
         if self.active:
             time = datetime.now().strftime("%H:%M:%S:%f")
             print(colored(f"[{self.name}] [INFO] [{time}] {message}", "magenta"))
     
-    def warn(self, message):
+    def warn(self, message:str):
         if self.active:
             time = datetime.now().strftime("%H:%M:%S:%f")
             print(colored(f"[{self.name}] [WARNING] [{time}] {message}", "yellow"))
     
-    def error(self, message):
+    def error(self, message:str):
         if self.active:
             time = datetime.now().strftime("%H:%M:%S:%f")
             print(colored(f"[{self.name}] [ERROR] [{time}] {message}", "red"))
     
-    def debug(self, message):
+    def debug(self, message:str):
         if self.active:
             time = datetime.now().strftime("%H:%M:%S:%f")
             print(colored(f"[{self.name}] [DEBUG] [{time}] {message}","blue"))
             
-    def success(self, message):
+    def success(self, message:str):
         if self.active:
             time = datetime.now().strftime("%H:%M:%S:%f")
             print(colored(f"[{self.name}] [SUCCESS] [{time}] {message}", "green"))

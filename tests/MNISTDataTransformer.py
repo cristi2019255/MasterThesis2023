@@ -12,17 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import numpy as np
-from utils.Logger import Logger
+from Logger import Logger
 from keras.utils.image_utils import img_to_array, array_to_img
 from tensorflow.keras.utils import to_categorical
-import os
 
 MNIST_DATA_FOLDER = os.path.join(os.getcwd(), "data", "MNIST")
 
 def transform_mnist_to_tf_dataset(X_train, Y_train, X_test, Y_test):
     console = Logger(name="MNIST dataset transformer")
-    
     
     # reshape data
     X_train = X_train.reshape(X_train.shape[0], 28, 28, 1)

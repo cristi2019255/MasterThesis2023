@@ -14,19 +14,26 @@
 
 import os
 import tensorflow as tf
-from utils.Logger import Logger
 import numpy as np
 import matplotlib.pyplot as plt
+from Logger import Logger, LoggerInterface
 
 DEFAULT_MODEL_PATH = os.path.join("models", "DBM")
 
 class invNN:
+    """
+        Inverse Projection Neural Network.
+        The network is composed of 2 parts:
+            1) The decoder part, i.e. The inverse projection 2D -> nD. (Sequential model 2 -> 32 -> 128 -> 512 -> nD) if is not provided by the user
+            2) The classifier part nD -> 1D (provided by the user).
+    """
+    
     def __init__(self, 
                  decoder = None, 
                  classifier = None, 
-                 logger = None, 
-                 load = False,
-                 folder_path = DEFAULT_MODEL_PATH):
+                 logger: LoggerInterface = None, 
+                 load: bool = False,
+                 folder_path: str = DEFAULT_MODEL_PATH):
         """
             Creates an inverse Projection Neural Network model.
             Decoder: The decoder part, i.e. The inverse projection 2D -> nD.
@@ -46,9 +53,11 @@ class invNN:
             
         self.pre_load = load
         
-    def load(self, folder_path):
+    def load(self, folder_path:str):
         """
-            Loads an autoencoder from the specified folder path. With the .h5 extension.
+            Loads an auto encoder from the specified folder path. With the .h5 extension.
+            Args:
+                folder_path (str): The path to the folder where the model is saved.
         """
         self.save_folder_path = folder_path
         try:
@@ -61,8 +70,13 @@ class invNN:
             self.console.error(f"Exception: {e}")
             raise e
     
-    def _build_(self, output_shape = (2,1)):
-        assert type(output_shape) == tuple, "Output shape must be a tuple"
+    def __build__(self, output_shape:tuple = (2,1)):
+        """Builds an invNN if not provided by the user (Sequential 2D -> 32 -> 128 -> 512 -> nD -> ... -> 1D)
+
+        Args:
+            output_shape (tuple, optional): _description_. Defaults to (2,1).
+        """
+        
         assert len(output_shape) == 2, "Output shape must be a 2D tuple"
         
         self.decoder = tf.keras.Sequential([
@@ -94,24 +108,23 @@ class invNN:
                                 loss={"decoder":"binary_crossentropy",
                                       "decoder_classifier": "sparse_categorical_crossentropy"}, 
                                 metrics=['accuracy'])
-                                          
-        
+                                             
     def summary(self):
         self.invNN.summary()
         
     def fit(self, 
-            x2d_train, xNd_train, y_train, 
-            x2d_test, xNd_test, y_test, 
-            epochs = 10, batch_size = 128):
+            x2d_train: np.ndarray, xNd_train: np.ndarray, y_train: np.ndarray, 
+            x2d_test: np.ndarray, xNd_test: np.ndarray, y_test: np.ndarray, 
+            epochs:int = 10, batch_size:int = 128):
         """ Fits the model to the specified data.
 
         Args:
-            x2d_train: Train input values (2D)
-            xNd_train: Train input values (nD)
-            y_train: Train target values
-            x2d_test: Test input values (2D)
-            xNd_test: Test input values (nD)
-            y_test: Test target values
+            x2d_train (np.ndarray): Train input values (2D)
+            xNd_train (np.ndarray): Train input values (nD)
+            y_train (np.ndarray): Train target values
+            x2d_test (np.ndarray): Test input values (2D)
+            xNd_test (np.ndarray): Test input values (nD)
+            y_test (np.ndarray): Test target values
             epochs (int, optional): The number of epochs. Defaults to 10.
             batch_size (int, optional): Data points used for one batch. Defaults to 128.
         """
@@ -119,7 +132,7 @@ class invNN:
             self.console.log("Model already loaded. Skipping build.")
         else:
             self.console.log("Building model according to the data shape.")
-            self._build_(xNd_train.shape[1:])
+            self.__build__(xNd_train.shape[1:])
             
         self.console.log("Fitting model...")
         self.invNN.fit(x2d_train, [xNd_train, y_train], 
@@ -144,7 +157,13 @@ class invNN:
         self.invNN.save(os.path.join(folder_path, "invNN.h5"))
         self.console.log(f"Model saved to {folder_path}")
         
-    def show_predictions(self, data, labels):
+    def show_predictions(self, data: np.ndarray, labels: np.ndarray):
+        """ Shows the predictions of the model. By taking first 20 data points and comparing them to the actual labels.
+
+        Args:
+            data (np.ndarray): Data set
+            labels (np.ndarray): Actual labels of the data points
+        """
         decoded = self.decoder.predict(data)
         decoded_labels = self.decoder_classifier.predict(data)
         predicted_labels = [np.argmax(label) for label in decoded_labels]
@@ -162,6 +181,6 @@ class invNN:
         
         plt.show()
     
-    def decode(self, data):
-        #self.console.log("Decoding data")
+    def decode(self, data: np.ndarray):
         return self.decoder.predict(data, verbose=0)
+    

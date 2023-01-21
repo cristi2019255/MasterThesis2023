@@ -14,11 +14,11 @@
 
 import os
 import numpy as np
-
 import tensorflow as tf
-from utils.Logger import Logger
-from tensorflow.keras.utils import plot_model
+from Logger import Logger
 import matplotlib.pyplot as plt
+from tensorflow.keras.utils import plot_model
+
 
 MODELS_FOLDER = os.path.join("models", "model")
 
@@ -106,9 +106,7 @@ def plot_history(model_name, show=True):
         plt.show()
         
     
-
 def predict(X_test, Y_test, model):
-    # TODO: update this function to work better
     console = Logger(name="Model predictor")
     plt.figure(figsize=(20,10))
     

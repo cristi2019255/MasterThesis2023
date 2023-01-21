@@ -15,10 +15,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from DBM.DBM.projections import PROJECTION_METHODS
-
-from utils.reader import import_mnist_dataset
-from utils.tools import track_time_wrapper
+from utils import import_mnist_dataset, track_time_wrapper
 
 COLORS_MAPPER = {
     0: [1,0,0], 
@@ -33,12 +30,12 @@ COLORS_MAPPER = {
     9: [0,0,0.5]
 }
 
-def test_dbm():
-    path_img_fast = os.path.join(os.getcwd(), "models", "DBM", "fast_boundary_map.npy")
-    path_img_real = os.path.join(os.getcwd(), "models", "DBM", "boundary_map.npy")
+def test_dbm(name="DBM"):
+    path_img_fast = os.path.join(os.getcwd(), "models", name, "boundary_map_fast.npy")
+    path_img_real = os.path.join(os.getcwd(), "models", name, "boundary_map.npy")
 
-    path_confidence_fast = os.path.join(os.getcwd(), "models", "DBM", "fast_boundary_map_confidence.npy")
-    path_confidence_real = os.path.join(os.getcwd(), "models", "DBM", "boundary_map_confidence.npy")
+    path_confidence_fast = os.path.join(os.getcwd(), "models", name, "boundary_map_confidence_fast.npy")
+    path_confidence_real = os.path.join(os.getcwd(), "models", name, "boundary_map_confidence.npy")
 
     with open(path_img_fast, "rb") as f:
         img1 = np.load(f)
@@ -70,7 +67,7 @@ def test_dbm():
     for (i, j), z in np.ndenumerate(img2):
         immg2[i,j] = COLORS_MAPPER[z] + [img2_conf[i,j]]
 
-    fig, [ax1, ax2, ax3, ax4] = plt.subplots(1, 4)
+    fig, [[ax1, ax2], [ax3, ax4]] = plt.subplots(nrows=2, ncols=2)
     ax1.imshow(img1)
     ax2.imshow(img2)
     ax3.imshow(immg1)
@@ -145,7 +142,3 @@ def test_projection_errors():
     img *= 255
     plt.imshow(img, cmap="hot")
     plt.show()
-    
-#test_dbm()
-test_projection_errors()
-

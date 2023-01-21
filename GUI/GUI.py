@@ -38,16 +38,16 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Disable tensorflow logs
 """
 
 import PySimpleGUI as sg
-from GUI.LoggerGUI import LoggerGUI
-from DBM.SDBM.SDBM import SDBM
-from DBM.DBM.DBM import DBM 
-from utils.Logger import Logger
-from PIL import Image, ImageTk
-from GUI.DBMPlotter import DBMPlotter
 import numpy as np
+from PIL import Image, ImageTk
 import tensorflow as tf
 from tensorflow.keras.utils import plot_model
-from utils.reader import import_csv_dataset, import_mnist_dataset
+
+from Logger import LoggerGUI, Logger
+from DBM import SDBM, DBM 
+from utils import import_csv_dataset, import_mnist_dataset
+from GUI.DBMPlotter import DBMPlotter
+
 
 DBM_TECHNIQUES = {
     "Autoencoder": SDBM,
@@ -210,13 +210,24 @@ class GUI:
                     visible=False,
                 ),
             ],
+            [
+                sg.Text("Use the fast algorithm for generating the Decision Boundary Mapper: ", background_color=BACKGROUND_COLOR, size=(60,1), key="-USE FAST DBM TEXT-", visible=True),
+                sg.Checkbox("", default=True, background_color=BACKGROUND_COLOR, key="-USE FAST DBM CHECKBOX-", visible=True),
+            ],
+            [
+                sg.Text("Compute projection errors: ", background_color=BACKGROUND_COLOR, size=(60,1), key="-PROJECTION ERRORS TEXT-", visible=True),
+                sg.Checkbox("", default=False, background_color=BACKGROUND_COLOR, key="-PROJECTION ERRORS CHECKBOX-", visible=True),
+            ],
+            [
+                sg.Text("Compute inverse projection errors: ", background_color=BACKGROUND_COLOR, size=(60,1), key="-INVERSE PROJECTION ERRORS TEXT-", visible=True),
+                sg.Checkbox("", default=True, background_color=BACKGROUND_COLOR, key="-INVERSE PROJECTION ERRORS CHECKBOX-", visible=True),
+            ],
             # ---------------------------------------------------------------------------------------------------
             [
                sg.Column([
                     [sg.Text("Classifier: ", background_color=BACKGROUND_COLOR, visible=False, key="-CLASSIFIER TEXT-")],
                     [sg.Image(key="-CLASSIFIER IMAGE-", size=(40, 40), visible=False, enable_events=True)],   
                 ], background_color=BACKGROUND_COLOR),
-               sg.VSeparator(),
                sg.Column([
                     [sg.Text("Decision boundary map: ", background_color=BACKGROUND_COLOR, visible=False, key="-DBM TEXT-")],
                     [sg.Text("Loading... ", background_color=BACKGROUND_COLOR, visible=False, key="-DBM IMAGE LOADING-")],
@@ -318,6 +329,7 @@ class GUI:
         X_test /= 255
         X_train, Y_train = X_train[:int(0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
         X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
+        
         self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
         self.num_classes = np.unique(self.Y_train).shape[0]
         
@@ -343,34 +355,39 @@ class GUI:
         
     def handle_get_decision_boundary_mapping_event(self, event, values):
         # update loading state
+        self.switch_visibility(["-DBM IMAGE-"], False)
         self.switch_visibility(["-DBM TEXT-", "-DBM IMAGE LOADING-"], True)
         
         dbm = DBM_TECHNIQUES[values["-DBM TECHNIQUE-"]](classifier = self.classifier, logger = self.dbm_logger)
         
+        projection_technique = None
         if values["-DBM TECHNIQUE-"] == "Inverse Projection":
             projection_technique = values["-PROJECTION TECHNIQUE-"]
-            dbm_info = dbm.generate_boundary_map(
-                                self.X_train, 
-                                self.Y_train, 
-                                self.X_test, 
-                                self.Y_test, 
-                                train_epochs=10, 
-                                train_batch_size=128,
-                                resolution=256,
-                                projection=projection_technique
-                                )
-        else:
-            dbm_info = dbm.generate_boundary_map(
+        use_decoding_fast = values["-USE FAST DBM CHECKBOX-"]
+        dbm_info = dbm.generate_boundary_map(
                                     self.X_train, 
                                     self.Y_train, 
                                     self.X_test, 
                                     self.Y_test, 
                                     train_epochs=10, 
                                     train_batch_size=128,
-                                    resolution=256
+                                    resolution=256,
+                                    use_fast_decoding=use_decoding_fast,
+                                    projection=projection_technique
                                     )
 
-        img, img_confidence, img_projection_errors, img_inverse_projection_errors, encoded_training_data, encoded_testing_data = dbm_info
+        img, img_confidence, encoded_training_data, encoded_testing_data = dbm_info
+        
+        # getting the projection errors
+        if values["-PROJECTION ERRORS CHECKBOX-"]:
+            img_projection_errors = dbm.generate_projection_errors()
+        else:
+            img_projection_errors = np.zeros((img.shape[0], img.shape[1]))
+        # getting the inverse projection errors
+        if values["-INVERSE PROJECTION ERRORS CHECKBOX-"]:
+            img_inverse_projection_errors = dbm.generate_inverse_projection_errors()
+        else:
+            img_inverse_projection_errors = np.zeros((img.shape[0], img.shape[1]))
         # ---------------------------------
         # update the GUI dbm attributes
         self.dbm_plotter = DBMPlotter(img = img,
