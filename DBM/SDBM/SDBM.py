@@ -78,7 +78,7 @@ class SDBM(DBMInterface):
                               X_test:np.ndarray, Y_test:np.ndarray,
                               train_epochs:int=10, train_batch_size:int=128,
                               resolution:int=DBM_DEFAULT_RESOLUTION,
-                              use_fast_decoding:bool=True,
+                              use_fast_decoding:bool=False,
                               projection:str = None # this parameter is not used in SDBM but is placed here to keep the same interface as DBM
                               ):
         """Generate the decision boundary map
@@ -91,7 +91,7 @@ class SDBM(DBMInterface):
                 train_epochs (int, optional): The number of epochs to train the autoencoder. Defaults to 10.
                 train_batch_size (int, optional): Defaults to 128.
                 resolution (int, optional): The resolution of the decision boundary map. Defaults to DBM_DEFAULT_RESOLUTION = 256.
-                use_fast_decoding (bool, optional): If True, a fast inference algorithm will be used to decode the 2D space and to generate the decision boundary map. Defaults to True.
+                use_fast_decoding (bool, optional): If True, a fast inference algorithm will be used to decode the 2D space and to generate the decision boundary map. Defaults to False.
                 projection (str, optional): The projection is not used in SDBM, is placed here just to match the DBM signature. Defaults to None.
                 
             Returns:
@@ -142,19 +142,16 @@ class SDBM(DBMInterface):
         # generate the 2D image in the encoded space
         self.console.log("Decoding the 2D space... 2D -> nD")
         
-        """
-        img, img_confidence = self._get_img_dbm_fast_((min_x, max_x, min_y, max_y), resolution)
-        
-        with open(os.path.join(DEFAULT_MODEL_PATH, "fast_boundary_map.npy"), 'wb') as f:
-            np.save(f, img)
-        with open(os.path.join(DEFAULT_MODEL_PATH, "fast_boundary_map_confidence.npy"), 'wb') as f:
-            np.save(f, img_confidence)
-        """
-        
-        img, img_confidence, space2d, spaceNd = self._get_img_dbm_((min_x, max_x, min_y, max_y), resolution)
-        
         save_img_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map")
         save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map_confidence")
+        
+        if use_fast_decoding:
+            img, img_confidence, space2d, spaceNd = self._get_img_dbm_fast_((min_x, max_x, min_y, max_y), resolution)
+            save_img_path += "_fast"
+            save_img_confidence_path += "_fast"
+        else:
+            img, img_confidence, space2d, spaceNd = self._get_img_dbm_((min_x, max_x, min_y, max_y), resolution)
+        
         with open(f"{save_img_path}.npy", 'wb') as f:
             np.save(f, img)
         with open(f"{save_img_confidence_path}.npy", 'wb') as f:

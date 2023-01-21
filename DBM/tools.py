@@ -36,6 +36,15 @@ def get_inv_proj_error(i:int,j:int, Xnd:np.ndarray):
     if j + 1 < Xnd.shape[1]:
         neighbors_nd.append(Xnd[i,j+1])
     
+    if i - 1 >= 0 and j - 1 >= 0:
+        neighbors_nd.append(Xnd[i-1,j-1])
+    if i - 1 >= 0 and j + 1 < Xnd.shape[1]:
+        neighbors_nd.append(Xnd[i-1,j+1])
+    if i + 1 < Xnd.shape[0] and j - 1 >= 0:
+        neighbors_nd.append(Xnd[i+1,j-1])
+    if i + 1 < Xnd.shape[0] and j + 1 < Xnd.shape[1]:
+        neighbors_nd.append(Xnd[i+1,j+1])
+    
     # calculating the error
     for neighbor_nd in neighbors_nd:
         error += np.linalg.norm(current_point_nd - neighbor_nd)

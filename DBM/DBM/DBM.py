@@ -93,7 +93,7 @@ class DBM(DBMInterface):
                               train_epochs:int=10, 
                               train_batch_size:int=128,
                               resolution:int=DBM_DEFAULT_RESOLUTION,
-                              use_fast_decoding:bool=True,
+                              use_fast_decoding:bool=False,
                               projection:str='t-SNE'                              
                               ):
         """ Generates a 2D boundary map of the classifier's decision boundary.
@@ -109,7 +109,7 @@ class DBM(DBMInterface):
             train_batch_size (int, optional): Train batch size. Defaults to 128.
             show_predictions (bool, optional): If set to true 10 prediction examples are shown. Defaults to True.
             resolution (int, optional): _description_. Defaults to DBM_DEFAULT_RESOLUTION.
-            use_fast_decoding (bool, optional): If set to true the fast decoding method is used. Defaults to True.
+            use_fast_decoding (bool, optional): If set to true the fast decoding method is used. Defaults to False.
             projection (str, optional): The projection method to be used. Defaults to 't-SNE'.
         
         Returns:
@@ -144,20 +144,16 @@ class DBM(DBMInterface):
         
         self.console.log("Decoding the 2D space... 2D -> nD")
         
-        """    
-        img, img_confidence = self._get_img_dbm_fast_((min_x, max_x, min_y, max_y), resolution)
-        save_img_path = os.path.join(DEFAULT_MODEL_PATH, "fast_boundary_map")
-        save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "fast_boundary_map_confidence")
-        with open(f"{save_img_path}.npy", 'wb') as f:
-            np.save(f, img)
-        with open(f"{save_img_confidence_path}.npy", 'wb') as f:
-            np.save(f, img_confidence)        
-        """
-        
-        img, img_confidence, _, spaceNd = self._get_img_dbm_((min_x, max_x, min_y, max_y), resolution)
-        
         save_img_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map")
         save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map_confidence")
+        
+        if use_fast_decoding:
+            img, img_confidence, _, spaceNd = self._get_img_dbm_fast_((min_x, max_x, min_y, max_y), resolution)
+            save_img_path += "_fast"
+            save_img_confidence_path += "_fast"
+        else:
+            img, img_confidence, _, spaceNd = self._get_img_dbm_((min_x, max_x, min_y, max_y), resolution)
+    
         with open(f"{save_img_path}.npy", 'wb') as f:
             np.save(f, img)
         with open(f"{save_img_confidence_path}.npy", 'wb') as f:
