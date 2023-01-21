@@ -106,9 +106,7 @@ def plot_history(model_name, show=True):
         plt.show()
         
     
-
 def predict(X_test, Y_test, model):
-    # TODO: update this function to work better
     console = Logger(name="Model predictor")
     plt.figure(figsize=(20,10))
     
