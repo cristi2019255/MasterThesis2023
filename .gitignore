@@ -137,3 +137,6 @@ data/
 # models folder for decision boundary mapping
 models/DBM
 models/SDBM
+
+# results folder
+results/
