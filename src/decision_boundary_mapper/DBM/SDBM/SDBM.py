@@ -18,10 +18,10 @@ from sklearn.neighbors import KDTree
 from math import sqrt
 
 from .Autoencoder import DEFAULT_MODEL_PATH, Autoencoder, build_autoencoder
+from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
+from ..tools import get_inv_proj_error, get_proj_error
 
-from decision_boundary_mapper.DBM.DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
-from decision_boundary_mapper.DBM.tools import get_inv_proj_error, get_proj_error
-from decision_boundary_mapper.Logger import LoggerInterface
+from ...Logger import LoggerInterface
 
 class SDBM(DBMInterface):
     """

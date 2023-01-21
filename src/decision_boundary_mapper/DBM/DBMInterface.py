@@ -18,8 +18,8 @@ from queue import PriorityQueue
 
 from .tools import get_decode_pixel_priority, get_inv_proj_error
 
-from decision_boundary_mapper.utils import track_time_wrapper
-from decision_boundary_mapper.Logger import Logger, LoggerInterface
+from ..utils import track_time_wrapper
+from ..Logger import Logger, LoggerInterface
 
 DBM_DEFAULT_RESOLUTION = 256
 

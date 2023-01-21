@@ -13,10 +13,13 @@
 # limitations under the License.
 
 from setuptools import setup, find_packages
+from shutil import rmtree
+# remove the old dist folder
+rmtree('dist', ignore_errors=True)
 
 setup(
     name='decision-boundary-mapper',
-    version='0.2',
+    version='0.2.1',
     license='MIT',
     author="Cristian Grosu",
     author_email='c.grosu@students.uu.nl',

@@ -15,3 +15,4 @@
 from .DBM import DBM
 from .SDBM import SDBM
 from .DBMInterface import DBMInterface
+from .tools import *

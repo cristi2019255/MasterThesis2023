@@ -18,7 +18,7 @@ from PIL import Image
 import numpy as np
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
 
-from decision_boundary_mapper.Logger import Logger
+from .. import Logger
 
 COLORS_MAPPER = {
     -2: [0,0,0], # setting original test data to black

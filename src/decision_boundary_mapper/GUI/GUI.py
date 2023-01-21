@@ -45,9 +45,9 @@ from tensorflow.keras.utils import plot_model
 
 from .DBMPlotter import DBMPlotter
 
-from decision_boundary_mapper import LoggerGUI, Logger
-from decision_boundary_mapper.DBM import SDBM, DBM 
-from decision_boundary_mapper.utils import import_csv_dataset, import_mnist_dataset
+from ..Logger import LoggerGUI, Logger
+from ..DBM import SDBM, DBM
+from ..utils import import_csv_dataset, import_mnist_dataset
 
 
 DBM_TECHNIQUES = {

@@ -20,9 +20,10 @@ from .invNN import DEFAULT_MODEL_PATH, invNN
 from .projections import PROJECTION_METHODS
 
 
-from decision_boundary_mapper.DBM.DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
-from decision_boundary_mapper.DBM.tools import get_proj_error
-from decision_boundary_mapper.Logger import LoggerInterface
+from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
+from ..tools import get_proj_error
+
+from ...Logger import LoggerInterface
 
 class DBM(DBMInterface):
     """
