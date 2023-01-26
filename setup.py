@@ -25,7 +25,7 @@ os.system("pdoc --html src/decision_boundary_mapper -o docs")
 
 setup(
     name='decision-boundary-mapper',
-    version='0.2.4',
+    version='0.2.7',
     license='MIT',
     author="Cristian Grosu",
     author_email='c.grosu@students.uu.nl',
@@ -34,17 +34,20 @@ setup(
     url='https://github.com/cristi2019255/MasterThesis2023',
     keywords='Decision Boundary Mapper',
     description='A tool for visualizing the decision boundary of a machine learning model.',
-    long_description=open('README_package.md').read(),
+    long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     install_requires=[
           'keras',
           'matplotlib',
+          'numba',
           'numpy',
           'Pillow',
           'PySimpleGUI',
           'scikit_learn',
           'tensorflow',
           'termcolor',
+          'umap',
+          'umap_learn',
       ],
 
 )

@@ -1,24 +1,66 @@
-# :mag: Decision Boundary Mapper  (MasterThesis2023)
+# Short Description
 
-This is the code repository for master thesis of Grosu Cristian for 2023 at Utrecht University
+This is the package provides functionality for visualizing the classifiers decision boundaries.
 
-## [:books: API Documentation](https://decisionboundarymapper.000webhostapp.com/)
+It is based on the work of Cristian Grosu for the master thesis project for 2023 at Utrecht University.
+If you use this package, please cite the following paper:
+[placeholder for the paper]
 
-## :scroll: Usage guide
+The package is available on PyPI and can be installed using pip: `pip install decision-boundary-mapper`
 
-If you are planning to use this repo in your project then simply install the package in your repository by running `pip install decision-boundary-mapper`
+## Documentation
 
-If you want to use the functionalities directly from this repo the follow the next flow:
+See more details at `https://decisionboundarymapper.000webhostapp.com/`
 
-1. Run the following command to install the needed dependencies: `pip install -r requirements.txt`
-2. Run the following command to start the application `python3 mainGUI.py`
-3. Run the following script to get an example of how the Decision Boundary Mapper works `python3 main.py`
+## Usage exmaples
 
-## :dart: Tasks to be done (This is for internal use only)
+1. This package comes with a simple GUI that allows you to visualize the decision boundaries of a classifier. The GUI is based on the `PySimpleGUI` package and can be started by running the following code:
 
-1. Think about a way of how to upload the data to the GUI faster
+```python
+from decision_boundary_mapper import GUI
 
-This is not really an issue
+GUI().start()
+```
 
-2. Projection errors are taking too long to be generated
-   I do not even know if the way they are computed now is the correct way ...
+2. The package comes with two examples of complete pipelines for visualizing the decision boundaries of a classifier.
+Both examples use `MNIST` (handwritten digits) dataset.
+The first example `DBM_usage_example` uses `t-SNE` to project the data from the `nD` space to the `2D` space, then neural network is trained to fit the inverse projection from `2D` to `nD` and the decision boundaries are visualized using the `2D` projection. The second example `DBM_usage_example_2` uses `UMAP` to project the data from the `nD` space to the `2D` space, then neural network is trained to fit the inverse projection from `2D` to `nD` and the decision boundaries are visualized using the `2D` projection. After which a simple classifier is used to color each point of the `2D` projection.
+The second example `SDM_usage_example` uses an Autoencoder Neural Network to project the data from the `nD` space to the `2D` space, then a simple classifier is used to color each point of the `2D` projection.
+The examples can be found in the `examples` folder.
+
+```python
+from decision_boundary_mapper import DBM_usage_example, SDM_usage_example
+
+DBM_usage_example() # run the first example
+SDM_usage_example() # run the second example
+```
+
+3. The package main functionality comes in two classes `DBM` (i.e. learns inverse projection when a 2D projection is given) and `SDBM` (i.e. learns both the projection and the inverse projection).
+The classes can be used as follows:
+
+```python
+from decision_boundary_mapper import DBM, SDBM
+from matplotlib import pyplot as plt
+
+# load the data
+...
+X_train, X_test, y_train, y_test = load_data() 
+...
+# create a simple neural network
+...
+classifier = ... # for compatibility with the package the classifier should be constructed using tensorflow.keras
+...
+
+dbm = DBM(classifier) # create a DBM object
+img, img_confidence, _, _ = dbm.generate_decision_boundary(X_train, y_train, X_test, y_test, resolution = 256) # generate the decision boundary
+
+sdbm = SDBM(classifier) # create a SDBM object
+img, img_confidence, _, _ = sdbm.generate_decision_boundary(X_train, y_train, X_test, y_test, resolution = 256) # generate the decision boundary
+...
+# visualize the decision boundaries
+plt.imshow(img)
+plt.show()
+
+```
+
+Created by Cristian Grosu for the master thesis project for 2023 at Utrecht University

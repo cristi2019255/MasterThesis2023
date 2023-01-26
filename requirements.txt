@@ -1,11 +1,15 @@
 keras==2.11.0
 matplotlib==3.5.1
+numba==0.56.2
 numpy==1.22.2
 opfython==1.0.12
 pandas==1.4.1
 Pillow==9.4.0
 PySimpleGUI==4.60.4
-scikit_learn==1.2.0
+scikit_learn==1.2.1
 seaborn==0.12.2
+setuptools==45.2.0
 tensorflow==2.11.0
 termcolor==2.2.0
+umap==0.1.1
+umap_learn==0.5.3

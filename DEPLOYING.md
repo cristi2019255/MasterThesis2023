@@ -16,7 +16,7 @@
 
 In order to deploy the python package follow the steps:
 
-1) Run `python3 steup.py sdist`
+1) Run `python3 setup.py sdist`
 2) Run `twine upload dist/*`
 3) Provide your credentails from pypi
 4) Download the package by running `pip install decision-boundary-mapper`
