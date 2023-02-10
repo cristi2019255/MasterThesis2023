@@ -87,18 +87,18 @@ class Autoencoder:
     
     def load(self, folder_path:str):
         """
-            Loads an autoencoder from the specified folder path. With the .h5 extension.
+            Loads an autoencoder from the specified folder path.
             Args:
                 folder_path (str): The folder path where the autoencoder is saved.
         """
         self.save_folder_path = folder_path
         try:
-            self.autoencoder_classifier = tf.keras.models.load_model(os.path.join(folder_path, "autoencoder_classifier.h5"), compile=False)
-            self.auto_encoder = tf.keras.models.load_model(os.path.join(folder_path, "auto_encoder.h5"), compile=False)
-            self.classifier = tf.keras.models.load_model(os.path.join(folder_path, "classifier.h5"), compile=False)
-            self.autoencoder = tf.keras.models.load_model(os.path.join(folder_path, "autoencoder.h5"), compile=False)
-            self.decoder = tf.keras.models.load_model(os.path.join(folder_path, "decoder.h5"), compile=False)
-            self.encoder = tf.keras.models.load_model(os.path.join(folder_path, "encoder.h5"), compile=False)
+            self.autoencoder_classifier = tf.keras.models.load_model(os.path.join(folder_path, "autoencoder_classifier"), compile=False)
+            self.auto_encoder = tf.keras.models.load_model(os.path.join(folder_path, "auto_encoder"), compile=False)
+            self.classifier = tf.keras.models.load_model(os.path.join(folder_path, "classifier"), compile=False)
+            self.autoencoder = tf.keras.models.load_model(os.path.join(folder_path, "autoencoder"), compile=False)
+            self.decoder = tf.keras.models.load_model(os.path.join(folder_path, "decoder"), compile=False)
+            self.encoder = tf.keras.models.load_model(os.path.join(folder_path, "encoder"), compile=False)
         except Exception as e:
             self.console.log("Autoencoder not found. Please check the path folder and make sure the autoencoder is saved there")        
             self.console.error(f"Exception: {e}")
