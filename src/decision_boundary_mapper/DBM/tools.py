@@ -22,34 +22,14 @@ def get_inv_proj_error(i:int,j:int, Xnd:np.ndarray):
             j (int): the column of the point
             Xnd (np.ndarray): the nD space
     """
-    error = 0
-    # getting the neighbours of the given point
-    neighbors_nd = []
-    current_point_nd = Xnd[i,j]
+    xl = Xnd[i-1,j] if i - 1 >= 0 else Xnd[i,j]
+    xr = Xnd[i+1,j] if i + 1 < Xnd.shape[0] else Xnd[i,j]
+    yl = Xnd[i,j-1] if j - 1 >= 0 else Xnd[i,j]
+    yr = Xnd[i,j+1] if j + 1 < Xnd.shape[1] else Xnd[i,j]
     
-    if i - 1 >= 0:
-        neighbors_nd.append(Xnd[i-1,j])
-    if i + 1 < Xnd.shape[0]:
-        neighbors_nd.append(Xnd[i+1,j])
-    if j - 1 >= 0:
-        neighbors_nd.append(Xnd[i,j-1])
-    if j + 1 < Xnd.shape[1]:
-        neighbors_nd.append(Xnd[i,j+1])
-    
-    if i - 1 >= 0 and j - 1 >= 0:
-        neighbors_nd.append(Xnd[i-1,j-1])
-    if i - 1 >= 0 and j + 1 < Xnd.shape[1]:
-        neighbors_nd.append(Xnd[i-1,j+1])
-    if i + 1 < Xnd.shape[0] and j - 1 >= 0:
-        neighbors_nd.append(Xnd[i+1,j-1])
-    if i + 1 < Xnd.shape[0] and j + 1 < Xnd.shape[1]:
-        neighbors_nd.append(Xnd[i+1,j+1])
-    
-    # calculating the error
-    for neighbor_nd in neighbors_nd:
-        error += np.linalg.norm(current_point_nd - neighbor_nd)
-    
-    error /= len(neighbors_nd)
+    dx = (xl - xr) / 2
+    dy = (yl - yr) / 2    
+    error = np.sqrt(np.linalg.norm(dx)**2 + np.linalg.norm(dy)**2)
     return error
 
 def get_proj_error(indices_source: np.ndarray, indices_embedding: np.ndarray):
