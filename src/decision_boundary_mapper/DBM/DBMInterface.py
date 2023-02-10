@@ -15,6 +15,7 @@
 import numpy as np
 from math import ceil, floor, sqrt
 from queue import PriorityQueue
+from scipy import interpolate
 
 from .tools import get_decode_pixel_priority, get_inv_proj_error
 
@@ -166,7 +167,7 @@ class DBMInterface:
         return (img, img_confidence, space2d, spaceNd)
     
     @track_time_wrapper
-    def _get_img_dbm_fast_(self, boundaries:tuple, resolution:int, computational_budget=None):
+    def _get_img_dbm_fast_(self, boundaries:tuple, resolution:int, computational_budget=None, confidence_interpolation_method:str="cubic"):
         """
         This function generates the 2D image of the boundary map. It uses a fast algorithm to generate the image.
         
@@ -176,6 +177,8 @@ class DBMInterface:
             boundaries (tuple): The boundaries of the 2D space (min_x, max_x, min_y, max_y)
             resolution (int): the resolution of the 2D image to be generated
             computational_budget (int, optional): The computational budget to be used. Defaults to None.
+            confidence_interpolation_method (str, optional): The interpolation method to be used for the confidence interpolation. Defaults to "cubic". 
+                                                             The options are: "nearest", "linear", "cubic"
         Returns:
             img, img_confidence: The 2D image of the boundary map and a image with the confidence for each pixel
             space2d, spaceNd: The 2D space points and the nD space points
@@ -190,6 +193,8 @@ class DBMInterface:
         if computational_budget is None:
             computational_budget = resolution * resolution
         
+        assert(computational_budget > INITIAL_RESOLUTION * INITIAL_RESOLUTION)
+        
         if (resolution % INITIAL_RESOLUTION != 0):
             self.console.warn(f"The required resolution is not a multiple of the initial resolution ({INITIAL_RESOLUTION} x {INITIAL_RESOLUTION})")
             self.console.log("The resolution will be set to the closest multiple of the initial resolution")
@@ -202,21 +207,21 @@ class DBMInterface:
         
         # ------------------------------------------------------------
         img = np.zeros((resolution, resolution))
-        img_confidence = np.zeros((resolution, resolution))
         priority_queue = PriorityQueue()
         # ------------------------------------------------------------
                 
         # ------------------------------------------------------------
         # generate the initial points
-        sparse_space = []
+        space2d = []
         for i in range(INITIAL_RESOLUTION):
             for j in range(INITIAL_RESOLUTION):
-                x = (i * window_size + window_size / 2) / resolution * (max_x - min_x) + min_x
-                y = (j * window_size + window_size / 2) / resolution * (max_y - min_y) + min_y                
-                sparse_space.append((x, y))
+                img_i = i * window_size + window_size / 2 - 0.5
+                img_j = j * window_size + window_size / 2 - 0.5
+                space2d.append((img_i / resolution * (max_x - min_x) + min_x, img_j / resolution * (max_y - min_y) + min_y))
         
-        predicted_labels, predicted_confidence, predicted_spaceNd = self._predict2dspace_(sparse_space)
+        predicted_labels, predicted_confidence, predicted_spaceNd = self._predict2dspace_(space2d)
         predicted_spaceNd = predicted_spaceNd.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION, -1))
+        # initialize the nD space
         img_space_nD = np.zeros((resolution, resolution, predicted_spaceNd.shape[-1]))
         
         computational_budget -= INITIAL_RESOLUTION * INITIAL_RESOLUTION
@@ -225,18 +230,34 @@ class DBMInterface:
         confidences = predicted_confidence.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION))
         spaceNd = predicted_spaceNd.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION, -1))
         
+        # fill the initial points in the 2D image
         for i in range(INITIAL_RESOLUTION):
             for j in range(INITIAL_RESOLUTION):
                 x0, x1, y0, y1 = i * window_size, (i+1) * window_size, j * window_size, (j+1) * window_size
                 img[x0:x1+ 1, y0:y1 + 1] = predictions[i,j]
-                img_confidence[x0:x1 + 1, y0:y1+ 1] = confidences[i,j]
                 img_space_nD[x0:x1 + 1, y0:y1 + 1] = spaceNd[i,j]
         # -------------------------------------
         
+        # collecting the indexes of the actual computed pixels in the 2D image and the confidence of each pixel
+        # creating an artificial border for the 2D confidence image
+        confidence_map = []
+        
+        if confidence_interpolation_method != "nearest":
+            border_indices = [(i * window_size + window_size / 2 - 0.5, 0) for i in range(INITIAL_RESOLUTION)] + \
+                            [(i * window_size + window_size / 2 - 0.5, resolution - 1) for i in range(INITIAL_RESOLUTION)] + \
+                            [(0, i * window_size + window_size / 2 - 0.5) for i in range(-1, INITIAL_RESOLUTION+1)] + \
+                            [(resolution - 1, i * window_size + window_size / 2 - 0.5) for i in range(-1, INITIAL_RESOLUTION + 1)]
+            
+            space2d_border = [(i / resolution * (max_x - min_x) + min_x, j / resolution * (max_y - min_y) + min_y) for (i,j) in border_indices]
+            _, confidences_border, _ = self._predict2dspace_(space2d_border)
+            computational_budget -= len(space2d_border)
+            confidence_map = [(i, j, conf) for (i,j),conf in zip(border_indices, confidences_border)]
+                    
         # analyze the initial points and generate the priority queue        
         for i in range(INITIAL_RESOLUTION):
             for j in range(INITIAL_RESOLUTION):
                 x, y = i * window_size + window_size / 2 - 0.5, j * window_size + window_size / 2 - 0.5
+                confidence_map.append((x,y,confidences[i,j]))
                 priority = get_decode_pixel_priority(img, x, y, window_size, predictions[i,j])
                 if priority != -1:
                     priority_queue.put((priority, (window_size, x, y)))
@@ -296,8 +317,11 @@ class DBMInterface:
             
             # fill the new image with the single points
             single_points_labels = predicted_labels[len(space2d):]
+            single_points_confidences  = predicted_confidence[len(space2d):]
+            
             for i in range(len(single_points_indices)):
                 new_img[single_points_indices[i]] = single_points_labels[i]
+                confidence_map.append((single_points_indices[i][0], single_points_indices[i][1], single_points_confidences[i]))
             
             predicted_labels = predicted_labels[:len(space2d)]
             
@@ -316,14 +340,13 @@ class DBMInterface:
                     # starting from the top left corner of the window
                     # ending at the bottom right corner of the window
                     # the +1 is because the range function is not inclusive
+                    confidence_map.append((x, y, conf))
                     if new_window_size >= 1:
                         x0, x1, y0, y1 = ceil(x-new_window_size), floor(x + new_window_size), ceil(y - new_window_size), floor(y + new_window_size)
                         new_img[x0:x1 + 1, y0:y1 + 1] = label
-                        img_confidence[x0:x1 + 1, y0:y1 + 1] = conf
                         img_space_nD[x0:x1 + 1, y0:y1 + 1] = pointNd
                     else:
                         new_img[int(x), int(y)] = label
-                        img_confidence[int(x), int(y)] = conf
                         img_space_nD[int(x), int(y)] = pointNd
                 
                 # update the priority queue after the window has been filled
@@ -335,6 +358,35 @@ class DBMInterface:
             # update the image        
             img = new_img
         
+        # generating the confidence image using interpolation based on the confidence map
+        img_confidence = self._generate_confidence_image_(confidence_map=confidence_map,
+                                                          resolution=resolution,
+                                                          method=confidence_interpolation_method)
+            
         img_space_2D = np.array([(i / resolution * (max_x - min_x) + min_x, j / resolution * (max_y - min_y) + min_y) for i in range(resolution) for j in range(resolution)])
         img_space_nD = img_space_nD.reshape((resolution * resolution, -1)) # flatten the array
         return img, img_confidence, img_space_2D, img_space_nD
+
+    def _generate_confidence_image_(self, confidence_map, resolution, method='cubic'):
+        """A private method that uses interpolation to generate the confidence value for the 2D space image
+           The confidence map is a list of tuples (x, y, confidence)
+           The confidence map represents a structured but non uniform grid of confidence values
+           Therefore usual rectangular interpolation methods are not suitable
+           For the interpolation we use the scipy.interpolate.griddata function with the cubic method
+        Args:
+            confidence_map (list): a list of tuples (x, y, confidence) where x and y are the coordinates of the pixel and confidence is the confidence value
+            resolution (int): the resolution of the image we want to generate (the image will be a square image)
+            method (str, optional): The method to be used for the interpolation. Defaults to 'cubic'. Available methods are: 'nearest', 'linear', 'cubic'
+
+        Returns:
+            np.array: an array of shape (resolution, resolution) containing the confidence values for the 2D space image
+        """
+        X, Y, Z = [], [], []
+        for (x, y, confidence) in confidence_map:
+            X.append(x)
+            Y.append(y)
+            Z.append(confidence)
+        X, Y, Z = np.array(X), np.array(Y), np.array(Z)
+        xi = np.linspace(0, resolution-1, resolution)
+        yi = np.linspace(0, resolution-1, resolution)
+        return interpolate.griddata((X, Y), Z, (xi[None,:], yi[:,None]), method=method).T
