@@ -62,10 +62,11 @@ class invNN:
         """
         self.save_folder_path = folder_path
         try:
-            self.classifier = tf.keras.models.load_model(os.path.join(folder_path, "classifier.h5"), compile=False)
-            self.decoder = tf.keras.models.load_model(os.path.join(folder_path, "decoder.h5"), compile=False)
-            self.decoder_classifier = tf.keras.models.load_model(os.path.join(folder_path, "decoder_classifier.h5"), compile=False)
-            self.invNN = tf.keras.models.load_model(os.path.join(folder_path, "invNN.h5"), compile=False)
+            self.classifier = tf.keras.models.load_model(os.path.join(folder_path, "classifier"), compile=False)
+            self.decoder = tf.keras.models.load_model(os.path.join(folder_path, "decoder"), compile=False)
+            self.decoder_classifier = tf.keras.models.load_model(os.path.join(folder_path, "decoder_classifier"), compile=False)
+            self.invNN = tf.keras.models.load_model(os.path.join(folder_path, "invNN"), compile=False)
+            self.console.log("Inverse projection NN loaded successfully")
         except Exception as e:
             self.console.log(f"Inverse projection NN not found. Please check the path folder {folder_path} and make sure the model is saved there")        
             self.console.error(f"Exception: {e}")
@@ -109,6 +110,15 @@ class invNN:
                                 loss={"decoder":"binary_crossentropy",
                                       "decoder_classifier": "sparse_categorical_crossentropy"}, 
                                 metrics=['accuracy'])
+        self.classifier.compile(optimizer=optimizer, 
+                                loss="sparse_categorical_crossentropy", 
+                                metrics=['accuracy'])
+        self.decoder.compile(optimizer=optimizer,
+                             loss="binary_crossentropy",
+                             metrics=['accuracy'])
+        self.decoder_classifier.compile(optimizer=optimizer,
+                                        loss="sparse_categorical_crossentropy",
+                                        metrics=['accuracy'])
                                              
     def summary(self):
         self.invNN.summary()
@@ -152,10 +162,10 @@ class invNN:
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
             
-        self.classifier.save(os.path.join(folder_path, "classifier.h5"))
-        self.decoder.save(os.path.join(folder_path, "decoder.h5"))
-        self.decoder_classifier.save(os.path.join(folder_path, "decoder_classifier.h5"))
-        self.invNN.save(os.path.join(folder_path, "invNN.h5"))
+        self.classifier.save(os.path.join(folder_path, "classifier"), save_format="tf")
+        self.decoder.save(os.path.join(folder_path, "decoder"), save_format="tf")
+        self.decoder_classifier.save(os.path.join(folder_path, "decoder_classifier"), save_format="tf")
+        self.invNN.save(os.path.join(folder_path, "invNN"), save_format="tf")
         self.console.log(f"Model saved to {folder_path}")
         
     def show_predictions(self, data: np.ndarray, labels: np.ndarray):

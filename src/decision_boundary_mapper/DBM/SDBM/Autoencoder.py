@@ -134,6 +134,17 @@ class Autoencoder:
                                 loss={"auto_encoder":"binary_crossentropy",
                                       "autoencoder_classifier": "sparse_categorical_crossentropy"}, 
                                 metrics=['accuracy'])
+        self.auto_encoder.compile(optimizer=optimizer,
+                                  loss="binary_crossentropy",
+                                  metrics=['accuracy'])
+        self.autoencoder_classifier.compile(optimizer=optimizer,
+                                            loss="sparse_categorical_crossentropy",
+                                            metrics=['accuracy'])
+        self.classifier.compile(optimizer=optimizer,
+                                loss="sparse_categorical_crossentropy",
+                                metrics=['accuracy'])
+        self.encoder.compile(optimizer=optimizer)
+        self.decoder.compile(optimizer=optimizer)
     
     def summary(self):
         self.autoencoder.summary()
@@ -161,19 +172,20 @@ class Autoencoder:
         
     def save(self):
         """
-            Saves the model to the specified folder path. With the .h5 extension.
+            Saves the model to the specified folder path.
         """       
         folder_path = self.save_folder_path 
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
             
-        self.auto_encoder.save(os.path.join(folder_path, "auto_encoder.h5"))
-        self.autoencoder_classifier.save(os.path.join(folder_path, "autoencoder_classifier.h5"))
-        self.autoencoder.save(os.path.join(folder_path, "autoencoder.h5"))
-        self.decoder.save(os.path.join(folder_path, "decoder.h5"))
-        self.encoder.save(os.path.join(folder_path, "encoder.h5"))
-        self.classifier.save(os.path.join(folder_path, "classifier.h5"))
-    
+        self.auto_encoder.save(os.path.join(folder_path, "auto_encoder"), save_format="tf")
+        self.autoencoder_classifier.save(os.path.join(folder_path, "autoencoder_classifier"), save_format="tf")
+        self.autoencoder.save(os.path.join(folder_path, "autoencoder"), save_format="tf")
+        self.decoder.save(os.path.join(folder_path, "decoder"), save_format="tf")
+        self.encoder.save(os.path.join(folder_path, "encoder"), save_format="tf")
+        self.classifier.save(os.path.join(folder_path, "classifier"), save_format="tf")
+        self.console.log(f"Autoencoder saved to {folder_path}")
+
     def show_predictions(self, data:np.ndarray, labels:np.ndarray):
         """Shows the predictions of the autoencoder. First 20 data points from the provided data input.
 
