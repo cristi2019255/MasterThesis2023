@@ -15,22 +15,28 @@
 import numpy as np
 from numba import jit
 
-def get_inv_proj_error(i:int,j:int, Xnd:np.ndarray):
+def get_inv_proj_error(i:int,j:int, Xnd:np.ndarray, w:int=1, h:int=1):
     """Calculates the inverse projection error for a given point in the image.
         Args:
             i (int): the row of the point
             j (int): the column of the point
             Xnd (np.ndarray): the nD space
     """
-    xl = Xnd[i-1,j] if i - 1 >= 0 else Xnd[i,j]
-    xr = Xnd[i+1,j] if i + 1 < Xnd.shape[0] else Xnd[i,j]
-    yl = Xnd[i,j-1] if j - 1 >= 0 else Xnd[i,j]
-    yr = Xnd[i,j+1] if j + 1 < Xnd.shape[1] else Xnd[i,j]
+    xl = Xnd[i,j-w] if j - w >= 0 else Xnd[i,j]
+    xr = Xnd[i,j+w] if j + w < Xnd.shape[1] else Xnd[i,j]
+    yl = Xnd[i-h,j] if i - h >= 0 else Xnd[i,j]
+    yr = Xnd[i+h,j] if i + h < Xnd.shape[0] else Xnd[i,j]
     
-    dx = (xl - xr) / 2
-    dy = (yl - yr) / 2    
-    error = np.sqrt(np.linalg.norm(dx)**2 + np.linalg.norm(dy)**2)
-    return error
+    dw = 2 * w
+    dh = 2 * h
+    if (j - w < 0) or (j + w >= Xnd.shape[1]):
+        dw = w
+    if (i - h < 0) or (i + h >= Xnd.shape[0]):
+        dh = h
+    
+    dx = (xl - xr) / dw
+    dy = (yl - yr) / dh    
+    return np.sqrt(np.linalg.norm(dx)**2 + np.linalg.norm(dy)**2)
 
 def get_proj_error(indices_source: np.ndarray, indices_embedding: np.ndarray):
     """Calculates the projection error for a given data point.
