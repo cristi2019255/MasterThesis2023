@@ -12,121 +12,86 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
+import os
 
-from ...Logger import Logger, LoggerInterface
+from ..NNinterface import NNinterface
+from ...Logger import LoggerInterface
 
-DEFAULT_MODEL_PATH = os.path.join("models", "DBM")
+DEFAULT_MODEL_PATH = os.path.join("tmp", "DBM")
+INVNN_NAME = "invNN"
+DECODER_NAME = "decoder"
 
-class invNN:
+class invNN(NNinterface):
     """
         Inverse Projection Neural Network.
         The network is composed of 2 parts:
-            1) The decoder part, i.e. The inverse projection 2D -> nD. (Sequential model 2 -> 32 -> 128 -> 512 -> nD) if is not provided by the user
+            1) The decoder part, i.e. The inverse projection 2D -> nD. (Sequential model 2 -> 32 -> 64 -> 128 -> 512 -> nD)
             2) The classifier part nD -> 1D (provided by the user).
     """
     
     def __init__(self, 
-                 decoder = None, 
                  classifier = None, 
                  logger: LoggerInterface = None, 
-                 load: bool = False,
                  folder_path: str = DEFAULT_MODEL_PATH):
         """
             Creates an inverse Projection Neural Network model.
-            Decoder: The decoder part, i.e. The inverse projection 2D -> nD.
             Classifier: The classifier part nD -> 1D.
         """
-        if logger is not None:
-            self.console = logger
-        else:
-            self.console = Logger(name="inverse Projection Neural Network")
+        super().__init__(folder_path = folder_path, classifier = classifier, nn_name=INVNN_NAME, logger=logger)
         
-        self.save_folder_path = folder_path
-        self.decoder = decoder
-        self.classifier = classifier
-        
-        if load:
-            self.load(folder_path)
-            
-        self.pre_load = load
-        
-    def load(self, folder_path:str):
-        """
-            Loads an auto encoder from the specified folder path. With the .h5 extension.
-            Args:
-                folder_path (str): The path to the folder where the model is saved.
-        """
-        self.save_folder_path = folder_path
-        try:
-            self.classifier = tf.keras.models.load_model(os.path.join(folder_path, "classifier"), compile=False)
-            self.decoder = tf.keras.models.load_model(os.path.join(folder_path, "decoder"), compile=False)
-            self.decoder_classifier = tf.keras.models.load_model(os.path.join(folder_path, "decoder_classifier"), compile=False)
-            self.invNN = tf.keras.models.load_model(os.path.join(folder_path, "invNN"), compile=False)
-            self.console.log("Inverse projection NN loaded successfully")
-        except Exception as e:
-            self.console.log(f"Inverse projection NN not found. Please check the path folder {folder_path} and make sure the model is saved there")        
-            self.console.error(f"Exception: {e}")
-            raise e
     
-    def __build__(self, output_shape:tuple = (2,1)):
-        """Builds an invNN if not provided by the user (Sequential 2D -> 32 -> 128 -> 512 -> nD -> ... -> 1D)
+    def __build__(self, output_shape:tuple = (2,2), show_summary:bool = False):
+        """Builds an invNN (Sequential 2D -> 32 -> 64 -> 128 -> 512 -> nD -> ... -> 1D)
 
         Args:
-            output_shape (tuple, optional): _description_. Defaults to (2,1).
+            output_shape (tuple, optional): The output shape of the Nd data. Defaults to (2,2).
+            show_summary (bool, optional): If True, the model summary will be printed. Defaults to False.
         """
         
         assert len(output_shape) == 2, "Output shape must be a 2D tuple"
         
+        CLASSIFIER_NAME = self.classifier.name
+        DECODER_LOSS = "mean_squared_error"
+        CLASSIFIER_LOSS = "sparse_categorical_crossentropy"
+        DECODER_LOSS_WEIGHT = 1.0
+        CLASSIFIER_LOSS_WEIGHT = 0.125
+                  
         self.decoder = tf.keras.Sequential([
-            tf.keras.layers.Dense(32, activation='relu'),
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dense(512, activation='relu'),
-            tf.keras.layers.Dense(output_shape[0] * output_shape[1], activation='linear'),
+            tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
+            tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform', bias_initializer=tf.keras.initializers.Constant(0.01)),
+            tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform', bias_initializer=tf.keras.initializers.Constant(0.01)),
+            tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform', bias_initializer=tf.keras.initializers.Constant(0.01)),
+            tf.keras.layers.Dense(output_shape[0] * output_shape[1], activation='sigmoid', kernel_initializer='he_uniform'),
             tf.keras.layers.Reshape(output_shape)
-        ], name="decoder")
-
-        self.decoder_classifier = tf.keras.Sequential([
-            self.decoder,
-            self.classifier
-        ], name="decoder_classifier")  
+        ], name=DECODER_NAME)
         
         input_layer = tf.keras.Input(shape=(2,), name="input")
                                              
-        decoder_classifier_output = self.decoder_classifier(input_layer)
         decoder_output = self.decoder(input_layer)
+        decoder_classifier_output = self.classifier(decoder_output)
+        
             
-        self.invNN = tf.keras.models.Model(inputs=input_layer, 
+        self.neural_network = tf.keras.models.Model(inputs=input_layer, 
                                             outputs=[decoder_output, 
                                                     decoder_classifier_output], 
-                                            name="invNN")
+                                            name=INVNN_NAME)
         
-        optimizer = tf.keras.optimizers.Adam()
-        
-        self.invNN.compile(optimizer=optimizer, 
-                                loss={"decoder":"binary_crossentropy",
-                                      "decoder_classifier": "sparse_categorical_crossentropy"}, 
-                                metrics=['accuracy'])
-        self.classifier.compile(optimizer=optimizer, 
-                                loss="sparse_categorical_crossentropy", 
-                                metrics=['accuracy'])
-        self.decoder.compile(optimizer=optimizer,
-                             loss="binary_crossentropy",
-                             metrics=['accuracy'])
-        self.decoder_classifier.compile(optimizer=optimizer,
-                                        loss="sparse_categorical_crossentropy",
-                                        metrics=['accuracy'])
-                                             
-    def summary(self):
-        self.invNN.summary()
+        self.neural_network.compile(optimizer=tf.keras.optimizers.Adam(), 
+                            loss={DECODER_NAME: DECODER_LOSS,
+                                  CLASSIFIER_NAME: CLASSIFIER_LOSS},
+                            loss_weights={DECODER_NAME: DECODER_LOSS_WEIGHT,
+                                          CLASSIFIER_NAME: CLASSIFIER_LOSS_WEIGHT},
+                            metrics={DECODER_NAME: "accuracy", 
+                                     CLASSIFIER_NAME: "accuracy"})
+        if show_summary:
+            self.neural_network.summary()
         
     def fit(self, 
             x2d_train: np.ndarray, xNd_train: np.ndarray, y_train: np.ndarray, 
             x2d_test: np.ndarray, xNd_test: np.ndarray, y_test: np.ndarray, 
-            epochs:int = 10, batch_size:int = 128):
+            epochs:int = 300, batch_size:int = 32):
         """ Fits the model to the specified data.
 
         Args:
@@ -136,62 +101,30 @@ class invNN:
             x2d_test (np.ndarray): Test input values (2D)
             xNd_test (np.ndarray): Test input values (nD)
             y_test (np.ndarray): Test target values
-            epochs (int, optional): The number of epochs. Defaults to 10.
-            batch_size (int, optional): Data points used for one batch. Defaults to 128.
+            epochs (int, optional): The number of epochs. Defaults to 300.
+            batch_size (int, optional): Data points used for one batch. Defaults to 32.
         """
-        if self.pre_load:
+        if self.neural_network is not None:
             self.console.log("Model already loaded. Skipping build.")
-        else:
-            self.console.log("Building model according to the data shape.")
-            self.__build__(xNd_train.shape[1:])
-            
-        self.console.log("Fitting model...")
-        self.invNN.fit(x2d_train, [xNd_train, y_train], 
-                            epochs=epochs, 
-                            batch_size=batch_size, 
-                            shuffle=True, 
-                            validation_data=(x2d_test, [xNd_test, y_test]))
-        self.console.log("Model fitted!")
-        self.save()
+            return
         
-    def save(self):
-        """
-            Saves the model to the specified folder path. With the .h5 extension.
-        """       
-        folder_path = self.save_folder_path 
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
+        self.console.log("Building model according to the data shape.")
+        self.__build__(output_shape=xNd_train.shape[1:], show_summary=True)
             
-        self.classifier.save(os.path.join(folder_path, "classifier"), save_format="tf")
-        self.decoder.save(os.path.join(folder_path, "decoder"), save_format="tf")
-        self.decoder_classifier.save(os.path.join(folder_path, "decoder_classifier"), save_format="tf")
-        self.invNN.save(os.path.join(folder_path, "invNN"), save_format="tf")
-        self.console.log(f"Model saved to {folder_path}")
-        
-    def show_predictions(self, data: np.ndarray, labels: np.ndarray):
-        """ Shows the predictions of the model. By taking first 20 data points and comparing them to the actual labels.
+        stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=0.00001, mode='min', patience=20, restore_best_weights=True)
+        checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=os.path.join(self.save_folder_path, "checkpoint.cpkt"),
+                                                                save_weights_only=True,
+                                                                verbose=1)
 
-        Args:
-            data (np.ndarray): Data set
-            labels (np.ndarray): Actual labels of the data points
-        """
-        decoded = self.decoder.predict(data)
-        decoded_labels = self.decoder_classifier.predict(data)
-        predicted_labels = [np.argmax(label) for label in decoded_labels]
-        
-        plt.figure(figsize=(20, 6))
-        
-        for i in range(1,20,2):
-            plt.subplot(2, 10, i)
-            plt.imshow(data[i], cmap='gray')
-            plt.axis('off')
-            plt.subplot(2, 10, i+1)
-            plt.imshow(decoded[i], cmap='gray')
-            plt.title(f"Predicted: {predicted_labels[i]} \n Actual: {labels[i]}", color='green' if predicted_labels[i] == labels[i] else 'red')
-            plt.axis('off')
-        
-        plt.show()
-    
-    def decode(self, data: np.ndarray):
-        return self.decoder.predict(data, verbose=0)
-    
+        self.console.log("Fitting model...")
+
+        hist = self.neural_network.fit(x2d_train, [xNd_train, y_train], 
+                                epochs=epochs, 
+                                batch_size=batch_size, 
+                                shuffle=True,
+                                validation_data=(x2d_test, [xNd_test, y_test]),
+                                callbacks=[stopping_callback, checkpoint_callback])
+
+        self.console.log("Model fitted!")
+        self.save(hist)    
+        self.show_predictions(dataNd=xNd_test, data2d=x2d_test, labels=y_test)

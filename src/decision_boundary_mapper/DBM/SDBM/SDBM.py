@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
 import numpy as np
 from sklearn.neighbors import KDTree
 from math import sqrt
 
-from .Autoencoder import DEFAULT_MODEL_PATH, Autoencoder, build_autoencoder
+from .Autoencoder import DEFAULT_MODEL_PATH, Autoencoder
 from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
-from ..tools import get_inv_proj_error, get_proj_error
+from ..tools import get_proj_error
 
 from ...Logger import LoggerInterface
 
@@ -46,7 +47,7 @@ class SDBM(DBMInterface):
     def fit(self, 
             X_train: np.ndarray, Y_train: np.ndarray, 
             X_test: np.ndarray, Y_test: np.ndarray, 
-            epochs:int=10, batch_size:int=128,
+            epochs:int=300, batch_size:int=32,
             load_folder:str = DEFAULT_MODEL_PATH):
         """Train an autoencoder on the training data (this will be used to reduce the dimensionality of the data (nD -> 2D) and decode the 2D space to nD)
 
@@ -55,30 +56,21 @@ class SDBM(DBMInterface):
             Y_train (np.ndarray): Training labels
             X_test (np.ndarray): Testing data
             Y_test (np.ndarray): Testing labels
-            epochs (int, optional): The number of epochs to train the autoencoder. Defaults to 10.
-            batch_size (int, optional): Defaults to 128.
+            epochs (int, optional): The number of epochs to train the autoencoder. Defaults to 300.
+            batch_size (int, optional): Defaults to 32.
             load_folder (str, optional): The folder path which contains a pre-trained autoencoder. Defaults to DEFAULT_MODEL_PATH.
 
         Returns:
             autoencoder (Autoencoder): The trained autoencoder
         """
-        try:
-            autoencoder = Autoencoder(folder_path = load_folder, load = True)
-            self.console.log("Loaded autoencoder from disk")
-        except Exception as e:
-            self.console.log("Could not load autoencoder from disk. Training a new one.")
-            data_shape = X_train.shape[1:]
-            autoencoder = build_autoencoder(self.classifier, data_shape, show_summary=True)
-            autoencoder.fit(X_train, Y_train, X_test, Y_test, epochs=epochs, batch_size=batch_size)
-        
-        self.autoencoder = autoencoder
-        self.classifier = autoencoder.classifier
+        autoencoder = Autoencoder(folder_path = load_folder, classifier=self.classifier)
+        autoencoder.fit(X_train, Y_train, X_test, Y_test, epochs, batch_size)        
         return autoencoder
     
     def generate_boundary_map(self, 
                               X_train:np.ndarray, Y_train:np.ndarray,
                               X_test:np.ndarray, Y_test:np.ndarray,
-                              train_epochs:int=10, train_batch_size:int=128,
+                              train_epochs:int=300, train_batch_size:int=32,
                               resolution:int=DBM_DEFAULT_RESOLUTION,
                               use_fast_decoding:bool=False,
                               projection:str = None # this parameter is not used in SDBM but is placed here to keep the same interface as DBM
@@ -90,8 +82,8 @@ class SDBM(DBMInterface):
                 Y_train (np.ndarray): Training labels
                 X_test (np.ndarray): Testing data
                 Y_test (np.ndarray): Testing labels
-                train_epochs (int, optional): The number of epochs to train the autoencoder. Defaults to 10.
-                train_batch_size (int, optional): Defaults to 128.
+                train_epochs (int, optional): The number of epochs to train the autoencoder. Defaults to 300.
+                train_batch_size (int, optional): Defaults to 32.
                 resolution (int, optional): The resolution of the decision boundary map. Defaults to DBM_DEFAULT_RESOLUTION = 256.
                 use_fast_decoding (bool, optional): If True, a fast inference algorithm will be used to decode the 2D space and to generate the decision boundary map. Defaults to False.
                 projection (str, optional): The projection is not used in SDBM, is placed here just to match the DBM signature. Defaults to None.
@@ -101,24 +93,26 @@ class SDBM(DBMInterface):
                 img_confidence (np.ndarray): The confidence map
                 encoded_training_data (np.ndarray): The 2D coordinates of the training data for each pixel of the decision boundary map
                 encdoded_testing_data (np.ndarray): The 2D coordinates of the testing data for each pixel of the decision boundary map
+                space_Nd (np.ndarray): The Nd coordinates of the decision boundary map
+                history (dict): The history of the training process
 
             Example:
                 >>> import SDBM
                 >>> classifier = build_classifier(...)
                 >>> sdbm = SDBM.SDBM(classifier)
-                >>> img, img_confidence, _, _ = sdbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
+                >>> img, img_confidence, _, _, space_Nd, history = sdbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
                 >>> plt.imshow(img)
                 >>> plt.show()
         """
         
         # first train the autoencoder if it is not already trained
         if self.autoencoder is None:
-            self.fit(X_train, 
-                    Y_train, 
-                    X_test, 
-                    Y_test, 
-                    epochs=train_epochs, 
-                    batch_size=train_batch_size)
+            self.autoencoder = self.fit(X_train, 
+                                        Y_train, 
+                                        X_test, 
+                                        Y_test, 
+                                        epochs=train_epochs, 
+                                        batch_size=train_batch_size)
 
         # encoder the train and test data and show the encoded data in 2D space
         self.console.log("Encoding the training data to 2D space")
@@ -126,18 +120,9 @@ class SDBM(DBMInterface):
         self.console.log("Encoding the testing data to 2D space")
         encoded_testing_data = self.autoencoder.encode(X_test)            
             
-        # getting the max and min values for the encoded data
-        min_x = min(np.min(encoded_training_data[:,0]), np.min(encoded_testing_data[:,0]))
-        max_x = max(np.max(encoded_training_data[:,0]), np.max(encoded_testing_data[:,0]))
-        min_y = min(np.min(encoded_training_data[:,1]), np.min(encoded_testing_data[:,1]))
-        max_y = max(np.max(encoded_training_data[:,1]), np.max(encoded_testing_data[:,1]))
-        
-        # transform the encoded data to be in the range [0, resolution]
-        encoded_training_data[:,0] = (encoded_training_data[:,0] - min_x) / (max_x - min_x) * (resolution - 1)
-        encoded_testing_data[:,0] = (encoded_testing_data[:,0] - min_x) / (max_x - min_x) * (resolution - 1)
-        encoded_training_data[:,1] = (encoded_training_data[:,1] - min_y) / (max_y - min_y) * (resolution - 1)
-        encoded_testing_data[:,1] = (encoded_testing_data[:,1] - min_y) / (max_y - min_y) * (resolution - 1)
-        
+        # transform the encoded data to be in the range [0, resolution)
+        encoded_testing_data *= (resolution -1)
+        encoded_training_data *= (resolution -1)
         encoded_training_data = encoded_training_data.astype(int)
         encoded_testing_data = encoded_testing_data.astype(int)
         
@@ -148,11 +133,11 @@ class SDBM(DBMInterface):
         save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map_confidence")
         
         if use_fast_decoding:
-            img, img_confidence, space2d, spaceNd = self._get_img_dbm_fast_((min_x, max_x, min_y, max_y), resolution)
+            img, img_confidence, spaceNd = self._get_img_dbm_fast_(resolution)
             save_img_path += "_fast"
             save_img_confidence_path += "_fast"
         else:
-            img, img_confidence, space2d, spaceNd = self._get_img_dbm_((min_x, max_x, min_y, max_y), resolution)
+            img, img_confidence, spaceNd = self._get_img_dbm_(resolution)
         
         with open(f"{save_img_path}.npy", 'wb') as f:
             np.save(f, img)
@@ -167,9 +152,12 @@ class SDBM(DBMInterface):
             img_confidence[i,j] = 1
         
         self.spaceNd = spaceNd
-        self.space2d = space2d
+        self.space2d = np.array([(i/resolution, j/resolution) for i in range(resolution) for j in range(resolution)])
         
-        return (img, img_confidence, encoded_training_data, encoded_testing_data)
+        with open(os.path.join(DEFAULT_MODEL_PATH, "history.json"), 'r') as f:
+            history = json.load(f)
+        
+        return (img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, history)
     
     def _predict2dspace_(self, X2d:np.ndarray):
         """ Predicts the labels for the given 2D data set.
@@ -182,8 +170,7 @@ class SDBM(DBMInterface):
             predicted_confidence (np.array): The predicted probabilities for the given 2D data set
             spaceNd (np.array): The decoded nD space
         """
-        spaceNd = self.autoencoder.decode(X2d)
-        predictions = self.classifier.predict(spaceNd, verbose=0)
+        spaceNd, predictions = self.autoencoder.decode(X2d, verbose=0)
         predicted_labels = np.array([np.argmax(p) for p in predictions])
         predicted_confidence = np.array([np.max(p) for p in predictions])
         return predicted_labels, predicted_confidence, spaceNd
@@ -207,18 +194,17 @@ class SDBM(DBMInterface):
             >>> plt.imshow(errors)
             >>> plt.show()
         """
-        if Xnd is None:
-            if self.spaceNd is None:
-                self.console.error("No nD data provided and no data stored in the SDBM object.")
-                raise ValueError("No nD data provided and no data stored in the SDBM object.")
-            Xnd = self.spaceNd
         if X2d is None:
             if self.space2d is None:
                 self.console.error("No 2D data provided and no data stored in the SDBM object.")
                 raise ValueError("No 2D data provided and no data stored in the SDBM object.")
             X2d = self.space2d
+        if Xnd is None:
+            if self.spaceNd is None:
+                self.console.error("No nD data provided and no data stored in the SDBM object.")
+                raise ValueError("No nD data provided and no data stored in the SDBM object.")
+            Xnd = self.spaceNd.reshape((X2d.shape[0], -1))
             
-        Xnd = Xnd.reshape((Xnd.shape[0], -1))
         X2d = X2d.reshape((X2d.shape[0], -1))
         
         assert len(X2d) == len(Xnd)

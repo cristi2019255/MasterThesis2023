@@ -41,22 +41,22 @@ def DBM_usage_example():
     classifier = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(num_classes, activation=tf.nn.softmax)
-    ])
+    ], name = "classifier")
     
     # create the DBM
     dbm = DBM(classifier=classifier)
     
     # use the DBM to get the decision boundary map, if you don't have the 2D projection of the data
     # the DBM will get it for you, you just need to specify the projection method you would like to use (t-SNE, PCA or UMAP)
-    img, img_confidence, _, _ = dbm.generate_boundary_map(X_train, Y_train, 
-                                                          X_test, Y_test, 
-                                                          resolution=256,
-                                                          projection="t-SNE")
+    img, img_confidence, _, _, _, _ = dbm.generate_boundary_map(X_train, Y_train, 
+                                                                X_test, Y_test, 
+                                                                resolution=256,
+                                                                projection="t-SNE")
     
     # if you have the 2D projection of the data, you can use the following function to get the decision boundary map
     """
     X2d_train, X2d_test = None, None # get the 2D projection of the data by yourself
-    img, img_confidence, _, _ = dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test,
+    img, img_confidence, _, _, _, _ = dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test,
                                                           X2d_train=X2d_train, X2d_test=X2d_test, 
                                                           resolution=100)
     """                                                                  
@@ -95,7 +95,7 @@ def DBM_usage_example():
     ax.set_title("Inverse projection errors")
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
-    img_ax = ax.imshow(img_inverse_projection_errors, cmap="Reds")
+    img_ax = ax.imshow(img_inverse_projection_errors)
     fig.colorbar(img_ax, ax=ax)
     plt.show()
                                                            
@@ -106,7 +106,7 @@ def DBM_usage_example():
     ax.set_title("Projection errors")
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
-    img_ax = ax.imshow(img_projection_errors, cmap="Reds")
+    img_ax = ax.imshow(img_projection_errors)
     fig.colorbar(img_ax, ax=ax)
     plt.show()
     

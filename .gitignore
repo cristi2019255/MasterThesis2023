@@ -142,3 +142,5 @@ models/SDBM
 # results folder
 results/
 
+# tmp folder
+tmp/

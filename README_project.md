@@ -22,3 +22,8 @@ This is not really an issue
 
 2. Projection errors are taking too long to be generated
    I do not even know if the way they are computed now is the correct way ...
+
+3.TODO:
+change back the generate_fast_dbm method so it uses fixed nd data, no interpolation used for spaceNd
+update the functions descriptions in DBM folder
+see if Autoencoder results make sense
