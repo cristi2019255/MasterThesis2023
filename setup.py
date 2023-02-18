@@ -25,7 +25,7 @@ os.system("pdoc --html src/decision_boundary_mapper -o docs")
 
 setup(
     name='decision-boundary-mapper',
-    version='0.3.1',
+    version='0.3.2',
     license='MIT',
     author="Cristian Grosu",
     author_email='c.grosu@students.uu.nl',
@@ -37,6 +37,7 @@ setup(
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     install_requires=[
+          'dask',
           'keras',
           'matplotlib',
           'numba',
@@ -48,8 +49,5 @@ setup(
           'tensorflow',
           'termcolor',
           'umap',
-          'umap_learn',
-          'pydot',
       ],
-
 )
