@@ -161,11 +161,13 @@ class DBM(DBMInterface):
         with open(f"{save_img_confidence_path}.npy", 'wb') as f:
             np.save(f, img_confidence)        
 
-        X2d = np.concatenate((X2d_train, X2d_test), axis=0)
-        Xnd = np.concatenate((Xnd_train.reshape((Xnd_train.shape[0],-1)), Xnd_test.reshape((Xnd_test.shape[0],-1))), axis=0)
+        self.resolution = resolution   
+        self.spaceNd = spaceNd     
+        self.X2d = np.concatenate((X2d_train, X2d_test), axis=0)
+        self.Xnd = np.concatenate((Xnd_train.reshape((Xnd_train.shape[0],-1)), Xnd_test.reshape((Xnd_test.shape[0],-1))), axis=0)
         self.console.log("Map the 2D embedding of the data to the 2D image")
-        # transform the encoded data to be in the range [0, resolution)
         
+        # transform the encoded data to be in the range [0, resolution)
         X2d_train *= (resolution - 1)
         X2d_test *= (resolution - 1)
         X2d_train = X2d_train.astype(int)
@@ -178,11 +180,7 @@ class DBM(DBMInterface):
             img[i,j] = -2
             img_confidence[i,j] = 1
             
-        self.resolution = resolution
-        self.Xnd = Xnd
-        self.X2d = X2d
-        self.spaceNd = spaceNd
-    
+        
         with open(os.path.join(DEFAULT_MODEL_PATH, projection, "history.json"), 'r') as f:
             history = json.load(f)
         

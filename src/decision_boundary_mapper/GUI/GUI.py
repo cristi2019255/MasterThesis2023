@@ -417,11 +417,7 @@ class GUI:
         
         # getting the projection errors
         if values["-PROJECTION ERRORS CHECKBOX-"]:
-            x2d_test = encoded_testing_data / RESOLUTION
-            x2d_train = encoded_training_data / RESOLUTION
-            img_projection_errors = dbm.generate_projection_errors(Xnd = np.concatenate((self.X_train, self.X_test), axis=0), 
-                                                                   X2d = np.concatenate((x2d_train, x2d_test), axis=0),
-                                                                   resolution=256)
+            img_projection_errors = dbm.generate_projection_errors()
         else:
             img_projection_errors = np.zeros((img.shape[0], img.shape[1]))
         # getting the inverse projection errors

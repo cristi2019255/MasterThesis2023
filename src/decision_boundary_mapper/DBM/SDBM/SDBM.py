@@ -119,13 +119,6 @@ class SDBM(DBMInterface):
         encoded_training_data = self.autoencoder.encode(X_train)
         self.console.log("Encoding the testing data to 2D space")
         encoded_testing_data = self.autoencoder.encode(X_test)            
-            
-        # transform the encoded data to be in the range [0, resolution)
-        encoded_testing_data *= (resolution -1)
-        encoded_training_data *= (resolution -1)
-        encoded_training_data = encoded_training_data.astype(int)
-        encoded_testing_data = encoded_testing_data.astype(int)
-        
         # generate the 2D image in the encoded space
         self.console.log("Decoding the 2D space... 2D -> nD")
         
@@ -139,6 +132,18 @@ class SDBM(DBMInterface):
         else:
             img, img_confidence, spaceNd = self._get_img_dbm_(resolution)
         
+        self.resolution = resolution
+        self.spaceNd = spaceNd
+        self.X2d = np.concatenate((encoded_training_data, encoded_testing_data), axis=0)
+        self.Xnd = np.concatenate((X_train.reshape((X_train.shape[0],-1)), X_test.reshape((X_test.shape[0],-1))), axis=0)
+        
+        # transform the encoded data to be in the range [0, resolution)
+        encoded_testing_data *= (resolution -1)
+        encoded_training_data *= (resolution -1)
+        encoded_training_data = encoded_training_data.astype(int)
+        encoded_testing_data = encoded_testing_data.astype(int)
+        
+        
         with open(f"{save_img_path}.npy", 'wb') as f:
             np.save(f, img)
         with open(f"{save_img_confidence_path}.npy", 'wb') as f:
@@ -150,10 +155,6 @@ class SDBM(DBMInterface):
         for [i,j] in encoded_testing_data:
             img[i,j] = -2
             img_confidence[i,j] = 1
-        
-        self.resolution = resolution
-        self.spaceNd = spaceNd
-        self.space2d = np.array([(i/resolution, j/resolution) for i in range(resolution) for j in range(resolution)])
         
         with open(os.path.join(DEFAULT_MODEL_PATH, "history.json"), 'r') as f:
             history = json.load(f)
@@ -201,16 +202,16 @@ class SDBM(DBMInterface):
                 raise Exception("The resolution of the 2D space is not set, try to call the method 'generate_boundary_map' first.")
             resolution = self.resolution
         if X2d is None:
-            if self.space2d is None:
+            if self.X2d is None:
                 self.console.error("No 2D data provided and no data stored in the SDBM object.")
                 raise ValueError("No 2D data provided and no data stored in the SDBM object.")
-            X2d = self.space2d
+            X2d = self.X2d
         if Xnd is None:
-            if self.spaceNd is None:
+            if self.Xnd is None:
                 self.console.error("No nD data provided and no data stored in the SDBM object.")
                 raise ValueError("No nD data provided and no data stored in the SDBM object.")
-            Xnd = self.spaceNd.reshape((X2d.shape[0], -1))
-                  
+            Xnd = self.Xnd
+            
         X2d = X2d.reshape((X2d.shape[0], -1))
         Xnd = Xnd.reshape((Xnd.shape[0], -1))
         
