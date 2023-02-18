@@ -384,7 +384,7 @@ def main():
     with open("test_tmp/trustworthiness_errors.npy", "wb") as f:
         np.save(f, proj_errors)
     """
-    """
+
     with open("test_tmp/continuity_errors.npy", "rb") as f:
         continuity_errors = np.load(f)
     with open("test_tmp/trustworthiness_errors.npy", "rb") as f:
@@ -397,10 +397,8 @@ def main():
             proj_errors[i,j] = (continuity_errors[i,j] + trustworthiness_errors[i,j]) / 2
             #proj_errors[i,j] = continuity_errors[i,j]
             #proj_errors[i,j] = trustworthiness_errors[i, j]
-    """
-    with open("zz.npy", "rb") as f:
-        proj_errors = np.load(f)
     
+
     min_proj_error = np.min(proj_errors)
     max_proj_error = np.max(proj_errors)
     
