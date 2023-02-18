@@ -23,6 +23,7 @@ from ..utils import track_time_wrapper
 from ..Logger import Logger, LoggerInterface
 
 DBM_DEFAULT_RESOLUTION = 256
+time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
 
 class DBMInterface:
     """ Decision Boundary Mapper Interface
@@ -137,7 +138,7 @@ class DBMInterface:
         errors = (errors - np.min(errors)) / (np.max(errors) - np.min(errors))
         return errors
     
-    @track_time_wrapper
+    @track_time_wrapper(logger=time_tracker_console)
     def _get_img_dbm_(self, resolution:int):
         """ This function generates the 2D image of the boundary map using the trained autoencoder and classifier.
 
@@ -160,7 +161,7 @@ class DBMInterface:
         img_space_Nd = spaceNd.reshape((resolution, resolution, -1))
         return (img, img_confidence, img_space_Nd)
     
-    @track_time_wrapper
+    @track_time_wrapper(logger=time_tracker_console)
     def _get_img_dbm_fast_(self, resolution:int, computational_budget=None, interpolation_method:str="cubic"):
         """
         This function generates the 2D image of the boundary map. It uses a fast algorithm to generate the image.

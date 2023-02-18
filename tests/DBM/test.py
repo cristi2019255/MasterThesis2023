@@ -90,7 +90,7 @@ def compute_trustworthiness(indices_source, indices_embedded):
 
 SAMPLES_LIMIT = 5000
 np.random.seed(42)
-@track_time_wrapper
+@track_time_wrapper()
 def test_projection_errors():
     (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
         

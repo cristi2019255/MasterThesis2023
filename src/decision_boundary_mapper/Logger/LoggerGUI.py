@@ -21,7 +21,7 @@ class LoggerGUI(LoggerInterface):
     """ Logs the messages to the GUI.
     """
     
-    def __init__(self, name:str="Logger", active:bool=True, output=None, update_callback=lambda x: x):
+    def __init__(self, name:str="Logger", active:bool=True, output=None, update_callback=lambda x: x, info_color:str="magenta", show_init:bool=True):
         """ Initialize the logger
 
         Args:
@@ -34,20 +34,22 @@ class LoggerGUI(LoggerInterface):
 
         self.active = active 
         self.name = name
-        
+        self.info_color = info_color
+    
         if output is not None:
             self.output = output
             self.update_callback = update_callback
         else:
             print("No output provided for LoggerGUI. LoggerGUI will not print anything.")
             self.active = False
+        
+        if show_init and self.active:    
+            sep = "=" * 40
+            time = datetime.now().strftime("%H:%M:%S:%f")
             
-        sep = "=" * 40
-        time = datetime.now().strftime("%H:%M:%S:%f")
-    
-        self.print(f"[{self.name}] [INFO] [{time}] {sep}", "magenta")
-        self.print(f"[{self.name}] [INFO] [{time}] {self.name} initialized", "magenta")
-        self.print(f"[{self.name}] [INFO] [{time}] {sep}", "magenta")
+            self.print(f"[{self.name}] [INFO] [{time}] {sep}", self.info_color)
+            self.print(f"[{self.name}] [INFO] [{time}] {self.name} initialized", self.info_color)
+            self.print(f"[{self.name}] [INFO] [{time}] {sep}", self.info_color)
 
 
     def print(self, message:str, color:str='magenta'):
@@ -57,7 +59,7 @@ class LoggerGUI(LoggerInterface):
             
     def log(self, message:str):
         time = datetime.now().strftime("%H:%M:%S:%f")
-        self.print(f"[{self.name}] [INFO] [{time}] {message}", "magenta")
+        self.print(f"[{self.name}] [INFO] [{time}] {message}", self.info_color)
     
     def warn(self, message:str):
         time = datetime.now().strftime("%H:%M:%S:%f")

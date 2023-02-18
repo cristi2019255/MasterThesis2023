@@ -12,17 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import time
+from .. import LoggerInterface
 
-def track_time_wrapper(func):
+def track_time_wrapper(logger: LoggerInterface = None):
     """ Decorator that tracks the time it takes for a function to run.
 
     Args:
-        func (python function): The function to be decorated.
+        logger (LoggerInterface): The logger to use. If None, prints to stdout.
     """
-    def wrapper(*args, **kwargs):
-        start = time.time()
-        result = func(*args, **kwargs)
-        end = time.time()
-        print(f"{func.__name__} took {end-start} seconds")
-        return result
-    return wrapper
+    def function_wrapper(func):
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            result = func(*args, **kwargs)
+            end = time.time()
+            if logger is None:
+                print(f"{func.__name__} took {end-start} seconds")
+            else:
+                logger.log(f"{func.__name__} took {end-start} seconds")
+            return result
+        return wrapper
+    return function_wrapper
