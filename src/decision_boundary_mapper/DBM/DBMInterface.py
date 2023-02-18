@@ -16,6 +16,7 @@ import numpy as np
 from math import ceil, floor, sqrt
 from queue import PriorityQueue
 from scipy import interpolate
+import dask.array as da
 
 from .tools import get_decode_pixel_priority, get_inv_proj_error
 
@@ -113,6 +114,7 @@ class DBMInterface:
         """
         pass
     
+    @track_time_wrapper(logger=time_tracker_console)
     def generate_inverse_projection_errors(self, Xnd: np.ndarray = None):
         """ Calculates the inverse projection errors of the given data.
 
@@ -380,3 +382,34 @@ class DBMInterface:
         xi = np.linspace(0, resolution-1, resolution)
         yi = np.linspace(0, resolution-1, resolution)
         return interpolate.griddata((X, Y), Z, (xi[None,:], yi[:,None]), method=method)
+
+    @track_time_wrapper(logger=time_tracker_console)
+    def _generate_interpolation_rbf_(self, sparse_map, resolution, function='linear'):
+        """A private method that uses interpolation to generate the values for the 2D space image
+           The sparse map is a list of tuples (x, y, data) where x, y and data are in the range [0, 1]
+        
+        Args:
+            sparse_map (np.ndarray): a list of tuples (x, y, data) where x and y are the coordinates of the pixel and data is the data value
+            resolution (int): the resolution of the image we want to generate (the image will be a square image)
+            function (str, optional): Defaults to 'euclidean'.
+        """
+        X, Y, Z = [], [], []
+        for (x, y, z) in sparse_map:
+            X.append(x)
+            Y.append(y)
+            Z.append(z)
+
+        rbf = interpolate.Rbf(X, Y, Z, function=function) 
+        ti = np.linspace(0, 1, resolution)
+        xx, yy = np.meshgrid(ti, ti)
+        # using dask to parallelize the computation of the rbf function
+        # the rbf function is applied to each pixel of the image
+        # the image is divided into chunks and each chunk is processed in parallel
+        # the result is then merged together
+        # the number of chunks is equal to the number of cores
+        cores = 4
+        ix = da.from_array(xx, chunks=(1, cores))
+        iy = da.from_array(yy, chunks=(1, cores))
+        iz = da.map_blocks(rbf, ix, iy)
+        zz = iz.compute()
+        return zz

@@ -20,52 +20,42 @@ import dask.array as da
 jet = cm = plt.get_cmap('jet')
 plt.axes().set_aspect('equal')
 
-with open("continuity_sparse_map.npy", "rb") as f:
-    continuity_errors_sparse = np.load(f)
-with open("trustworthiness_sparse_map.npy", "rb") as f:
-    trustworthiness_errors_sparse = np.load(f)
+with open("sparse_map.npy", "rb") as f:
+    sparse_map = np.load(f)
 
-def euclidean_norm_numpy(a, b):
-    return np.linalg.norm(a - b, axis=0)
-
-resolution = 300
+resolution = 256
 X, Y, Z = [], [], []
-mapper = {}
-print(continuity_errors_sparse.shape)
 
-
-for (x, y, z) in continuity_errors_sparse:
-    if (x, y) in mapper:
-        mapper[(x, y)] = (mapper[(x, y)][0] + z, mapper[(x, y)][1] + 1)
-    else:
-        mapper[(x, y)] = (z, 1)
-
-for (x, y), (z, count) in mapper.items():
+for (x, y, z) in sparse_map:
     X.append(x)
     Y.append(y)
-    Z.append(z / count)
-
+    Z.append(z)
 
 x, y, z = X, Y, Z
 rbf = Rbf(x, y, z) 
 print("RBF computed.")
 
-ti = np.linspace(0, resolution - 1, resolution)
+ti = np.linspace(0, 1, resolution)
 xx, yy = np.meshgrid(ti, ti)
-n = xx.shape[1]
+n = 4 # number of cores
 ix = da.from_array(xx, chunks=(1, n))
 iy = da.from_array(yy, chunks=(1, n))
 iz = da.map_blocks(rbf, ix, iy)
 zz = iz.compute()
 print("Interpolation computed.")
 
+xx = xx * 256
+yy = yy * 256
 plt.pcolor(xx, yy, zz, cmap=jet)
 plt.colorbar()
 
 with open("zz.npy", "wb") as f:
     np.save(f, zz)
 
-#plot3 = plt.plot(x , y, 'ko', markersize=2)  # the original points.
+print(zz.shape)
+
+plt.show()
+plot3 = plt.plot(x , y, 'ko', markersize=2)  # the original points.
 plt.show()
 
 

@@ -244,11 +244,9 @@ class SDBM(DBMInterface):
         sparse_map = []
         for k in range(len(X2d)):
             x, y = X2d[k]
-            i, j = int(x * (resolution - 1)), int(y * (resolution - 1)) 
-            sparse_map.append( (i,j, get_proj_error(indices_source[k], indices_embedded[k], k=K)) )
-            #errors[i,j] = get_proj_error(indices_source[k], indices_embedded[k], k=K)
-        
-        errors = self._generate_interpolated_image_(sparse_map, resolution, method='nearest').T
+            sparse_map.append( (x, y, get_proj_error(indices_source[k], indices_embedded[k], k=K)) )
+            
+        errors = self._generate_interpolation_rbf_(sparse_map, resolution, function='linear').T
         
         return errors
 
