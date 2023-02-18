@@ -15,51 +15,67 @@
 import numpy as np
 from numba import jit
 
-def get_inv_proj_error(i:int,j:int, Xnd:np.ndarray):
+@jit
+def get_inv_proj_error(i:int,j:int, Xnd:np.ndarray, w:int=1, h:int=1):
     """Calculates the inverse projection error for a given point in the image.
         Args:
             i (int): the row of the point
             j (int): the column of the point
             Xnd (np.ndarray): the nD space
     """
-    error = 0
-    # getting the neighbours of the given point
-    neighbors_nd = []
-    current_point_nd = Xnd[i,j]
+    xl = Xnd[i,j-w] if j - w >= 0 else Xnd[i,j]
+    xr = Xnd[i,j+w] if j + w < Xnd.shape[1] else Xnd[i,j]
+    yl = Xnd[i-h,j] if i - h >= 0 else Xnd[i,j]
+    yr = Xnd[i+h,j] if i + h < Xnd.shape[0] else Xnd[i,j]
     
-    if i - 1 >= 0:
-        neighbors_nd.append(Xnd[i-1,j])
-    if i + 1 < Xnd.shape[0]:
-        neighbors_nd.append(Xnd[i+1,j])
-    if j - 1 >= 0:
-        neighbors_nd.append(Xnd[i,j-1])
-    if j + 1 < Xnd.shape[1]:
-        neighbors_nd.append(Xnd[i,j+1])
+    dw = 2 * w
+    dh = 2 * h
+    if (j - w < 0) or (j + w >= Xnd.shape[1]):
+        dw = w
+    if (i - h < 0) or (i + h >= Xnd.shape[0]):
+        dh = h
     
-    if i - 1 >= 0 and j - 1 >= 0:
-        neighbors_nd.append(Xnd[i-1,j-1])
-    if i - 1 >= 0 and j + 1 < Xnd.shape[1]:
-        neighbors_nd.append(Xnd[i-1,j+1])
-    if i + 1 < Xnd.shape[0] and j - 1 >= 0:
-        neighbors_nd.append(Xnd[i+1,j-1])
-    if i + 1 < Xnd.shape[0] and j + 1 < Xnd.shape[1]:
-        neighbors_nd.append(Xnd[i+1,j+1])
-    
-    # calculating the error
-    for neighbor_nd in neighbors_nd:
-        error += np.linalg.norm(current_point_nd - neighbor_nd)
-    
-    error /= len(neighbors_nd)
-    return error
+    dx = (xl - xr) / dw
+    dy = (yl - yr) / dh    
+    return np.sqrt(np.linalg.norm(dx)**2 + np.linalg.norm(dy)**2)
 
-def get_proj_error(indices_source: np.ndarray, indices_embedding: np.ndarray):
-    """Calculates the projection error for a given data point.
+@jit
+def get_proj_error(indices_source: np.ndarray, indices_embedding: np.ndarray, k: int=10):
+    """ Calculates the projection error for a given data point.
         Args:
             indices_source (np.ndarray): the indices of the point neighbors in the source (i.e. nD) space
             indices_embedding (np.ndarray): the indices of the point neighbors in the embedding (i.e. 2D) space
+            k (int): the number of neighbors to consider
     """
-    rank = np.sum(indices_source != indices_embedding)         
-    return rank / len(indices_source)
+    assert len(indices_source) == len(indices_embedding)
+    n = len(indices_source)
+    
+    continuity = 0.0
+    trustworthiness = 0.0
+    
+    # computing the continuity error
+    for i in range(k):
+        rank = 0
+        while indices_source[i] != indices_embedding[rank]:
+            rank += 1
+
+        if rank > k:
+            continuity += rank - k
+
+    continuity = 2 * continuity / (k * (2*n - 3*k - 1))
+    
+    # computing the trustworthiness error
+    for i in range(k):    
+        rank = 0
+        while indices_source[rank] != indices_embedding[i]:
+            rank += 1
+
+        if rank > k:
+            trustworthiness += rank - k
+
+    trustworthiness = 2 * trustworthiness / (k * (2*n - 3*k - 1))
+    
+    return (continuity + trustworthiness) / 2
 
 @jit
 def get_decode_pixel_priority(img, i, j, window_size, label):

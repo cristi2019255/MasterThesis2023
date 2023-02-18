@@ -40,13 +40,13 @@ def SDBM_usage_example():
     classifier = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(num_classes, activation=tf.nn.softmax)
-    ])
+    ], name="classifier")
     
     # create the DBM
     sdbm = SDBM(classifier=classifier)
     
     # use the SDBM to get the decision boundary map
-    img, img_confidence, _, _ = sdbm.generate_boundary_map(X_train, Y_train, 
+    img, img_confidence, _, _, _,_ = sdbm.generate_boundary_map(X_train, Y_train, 
                                                                 X_test, Y_test, 
                                                                 resolution=256)
     
@@ -84,7 +84,7 @@ def SDBM_usage_example():
     ax.set_title("Inverse projection errors")
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
-    img_ax = ax.imshow(img_inverse_projection_errors, cmap="Reds")
+    img_ax = ax.imshow(img_inverse_projection_errors)
     fig.colorbar(img_ax, ax=ax)
     plt.show()
     
@@ -95,7 +95,7 @@ def SDBM_usage_example():
     ax.set_title("Projection errors")
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
-    img_ax = ax.imshow(img_projection_errors, cmap="Reds")
+    img_ax = ax.imshow(img_projection_errors)
     fig.colorbar(img_ax, ax=ax)
     plt.show()
     

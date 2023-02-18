@@ -14,6 +14,7 @@
 
 import os
 from shutil import rmtree
+import matplotlib.pyplot as plt
 
 TITLE = "Classifiers visualization tool"
 WINDOW_SIZE = (1150, 650)
@@ -83,7 +84,7 @@ class GUI:
         self.classifier = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(self.num_classes, activation=tf.nn.softmax)
-        ])
+        ], name="classifier")
         input_shape = self.X_train.shape[1:]
         input_shape = (None, *input_shape)
         self.classifier.build(input_shape=input_shape)
@@ -115,8 +116,8 @@ class GUI:
         self.stop()
     
     def stop(self):
-        self.logger.log("Removing tmp folder...")
-        self.remove_tmp_folder()
+        #self.logger.log("Removing tmp folder...")
+        #self.remove_tmp_folder()
         self.logger.log("Closing the application...")
         self.window.close()
     
@@ -213,7 +214,7 @@ class GUI:
             ],
             [
                 sg.Text("Use the fast algorithm for generating the Decision Boundary Mapper: ", background_color=BACKGROUND_COLOR, size=(60,1), key="-USE FAST DBM TEXT-", visible=True),
-                sg.Checkbox("", default=True, background_color=BACKGROUND_COLOR, key="-USE FAST DBM CHECKBOX-", visible=True),
+                sg.Checkbox("", default=False, background_color=BACKGROUND_COLOR, key="-USE FAST DBM CHECKBOX-", visible=True),
             ],
             [
                 sg.Text("Compute projection errors: ", background_color=BACKGROUND_COLOR, size=(60,1), key="-PROJECTION ERRORS TEXT-", visible=True),
@@ -222,6 +223,10 @@ class GUI:
             [
                 sg.Text("Compute inverse projection errors: ", background_color=BACKGROUND_COLOR, size=(60,1), key="-INVERSE PROJECTION ERRORS TEXT-", visible=True),
                 sg.Checkbox("", default=True, background_color=BACKGROUND_COLOR, key="-INVERSE PROJECTION ERRORS CHECKBOX-", visible=True),
+            ],
+            [
+                sg.Text("Show Decision Boundary Mapper NN history: ", background_color=BACKGROUND_COLOR, size=(60,1), key="-DBM HISTORY TEXT-", visible=True),
+                sg.Checkbox("", default=False, background_color=BACKGROUND_COLOR, key="-DBM HISTORY CHECKBOX-", visible=True),
             ],
             # ---------------------------------------------------------------------------------------------------
             [
@@ -352,7 +357,7 @@ class GUI:
         if self.dbm_plotter is None:
             self.logger.warn("No image to show")
             return
-        self.dbm_plotter.plot()
+        self.dbm_plotter.show()
         
     def handle_get_decision_boundary_mapping_event(self, event, values):
         # update loading state
@@ -362,22 +367,53 @@ class GUI:
         dbm = DBM_TECHNIQUES[values["-DBM TECHNIQUE-"]](classifier = self.classifier, logger = self.dbm_logger)
         
         projection_technique = None
-        if values["-DBM TECHNIQUE-"] == "Inverse Projection":
-            projection_technique = values["-PROJECTION TECHNIQUE-"]
         use_decoding_fast = values["-USE FAST DBM CHECKBOX-"]
-        dbm_info = dbm.generate_boundary_map(
-                                    self.X_train, 
-                                    self.Y_train, 
-                                    self.X_test, 
-                                    self.Y_test, 
-                                    train_epochs=10, 
-                                    train_batch_size=128,
-                                    resolution=256,
-                                    use_fast_decoding=use_decoding_fast,
-                                    projection=projection_technique
-                                    )
+        show_dbm_history = values["-DBM HISTORY CHECKBOX-"]
+        
+        RESOLUTION = 256
+        
+        if values["-DBM TECHNIQUE-"] == "Inverse Projection":
+            DEFAULT_MODEL_FOLDER = os.path.join("tmp", "DBM")
+            projection_technique = values["-PROJECTION TECHNIQUE-"]
+            
+            if not os.path.exists(os.path.join(DEFAULT_MODEL_FOLDER, projection_technique, "train_2d.npy")):
+                X_train_2d = None
+            else:
+                with open(os.path.join(DEFAULT_MODEL_FOLDER, projection_technique, "train_2d.npy"), "rb") as f:
+                    X_train_2d = np.load(f)
+            if not os.path.exists(os.path.join(DEFAULT_MODEL_FOLDER, projection_technique, "test_2d.npy")):
+                X_test_2d = None
+            else:
+                with open(os.path.join(DEFAULT_MODEL_FOLDER, projection_technique, "test_2d.npy"), "rb") as f:
+                    X_test_2d = np.load(f)
+               
+            dbm_info = dbm.generate_boundary_map(
+                                        self.X_train, 
+                                        self.Y_train, 
+                                        self.X_test, 
+                                        self.Y_test, 
+                                        X2d_train=X_train_2d,
+                                        X2d_test=X_test_2d,
+                                        resolution=RESOLUTION,
+                                        use_fast_decoding=use_decoding_fast,
+                                        projection=projection_technique
+                                        )
+        else:
+            dbm_info = dbm.generate_boundary_map(
+                                        self.X_train, 
+                                        self.Y_train, 
+                                        self.X_test, 
+                                        self.Y_test, 
+                                        resolution=RESOLUTION,
+                                        use_fast_decoding=use_decoding_fast,
+                                        projection=projection_technique
+                                        )
 
-        img, img_confidence, encoded_training_data, encoded_testing_data = dbm_info
+        img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history = dbm_info
+        
+        if show_dbm_history:
+            self.handle_show_dbm_history(training_history)
+        
         
         # getting the projection errors
         if values["-PROJECTION ERRORS CHECKBOX-"]:
@@ -394,14 +430,14 @@ class GUI:
         self.dbm_plotter = DBMPlotter(img = img,
                                       img_confidence = img_confidence,
                                       img_projection_errors = img_projection_errors, 
-                                      img_inverse_projection_errors = img_inverse_projection_errors,
-                                      num_classes = self.num_classes, 
+                                      img_inverse_projection_errors = img_inverse_projection_errors,                                       
                                       encoded_train = encoded_training_data, 
                                       encoded_test = encoded_testing_data,
                                       X_train = self.X_train,
                                       Y_train = self.Y_train,
                                       X_test = self.X_test,
-                                      Y_test = self.Y_test)
+                                      Y_test = self.Y_test,
+                                      spaceNd=spaceNd)
         
         # ---------------------------------
         # update the dbm image
@@ -414,3 +450,23 @@ class GUI:
         
         self.switch_visibility(["-DBM IMAGE LOADING-"], False)
         self.switch_visibility(["-DBM IMAGE-"], True)
+        
+    def handle_show_dbm_history(self, training_history):
+        # this is for plotting the training history
+        fig, [ax1, ax2, ax3] = plt.subplots(1, 3, figsize=(20, 5))
+        ax1.set_title("Loss")
+        ax1.plot(training_history["loss"], label="loss")
+        ax1.plot(training_history["val_loss"], label="val_loss")
+        ax1.legend()
+        
+        ax2.set_title("Decoder Accuracy")
+        ax2.plot(training_history["decoder_accuracy"], label="decoder_accuracy")
+        ax2.plot(training_history["val_decoder_accuracy"], label="val_decoder_accuracy")
+        ax2.legend()
+        
+        ax3.set_title("Classifier Accuracy")
+        ax3.plot(training_history["classifier_accuracy"], label="classifier_accuracy")
+        ax3.plot(training_history["val_classifier_accuracy"], label="val_classifier_accuracy")
+        ax3.legend()
+        
+        plt.show()

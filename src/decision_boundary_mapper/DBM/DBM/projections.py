@@ -23,7 +23,7 @@ def transform_tsne(X: np.ndarray):
         X (np.ndarray): The data to be transformed
     """
     X_flat = X.reshape(X.shape[0], -1)
-    projection = TSNE(n_components=2, random_state=0)
+    projection = TSNE(n_components=2, random_state=0, learning_rate="auto", init="random")
     X2d = projection.fit_transform(X_flat)
     return X2d
 

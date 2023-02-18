@@ -23,7 +23,7 @@ class Logger(LoggerInterface):
         Prints the messages to the default console
     """
     
-    def __init__(self, active:bool=True, name:str="Logger"):
+    def __init__(self, active:bool=True, name:str="Logger", info_color:str="magenta", show_init:bool=True):
         """ Initialize the logger
 
         Args:
@@ -32,12 +32,14 @@ class Logger(LoggerInterface):
         """
         self.active = active
         self.name = name
+        self.info_color = info_color
         
-        sep = "=" * 40
-        time = datetime.now().strftime("%H:%M:%S:%f")
-        print(colored(f"[{self.name}] [INFO] [{time}] {sep}", "magenta"))
-        print(colored(f"[{self.name}] [INFO] [{time}] {self.name} initialized", "magenta"))
-        print(colored(f"[{self.name}] [INFO] [{time}] {sep}", "magenta"))
+        if show_init:    
+            sep = "=" * 40
+            time = datetime.now().strftime("%H:%M:%S:%f")
+            print(colored(f"[{self.name}] [INFO] [{time}] {sep}", self.info_color))
+            print(colored(f"[{self.name}] [INFO] [{time}] {self.name} initialized", self.info_color))
+            print(colored(f"[{self.name}] [INFO] [{time}] {sep}", self.info_color))
         
         
     def log(self, message:str):
@@ -47,7 +49,7 @@ class Logger(LoggerInterface):
         """
         if self.active:
             time = datetime.now().strftime("%H:%M:%S:%f")
-            print(colored(f"[{self.name}] [INFO] [{time}] {message}", "magenta"))
+            print(colored(f"[{self.name}] [INFO] [{time}] {message}", self.info_color))
     
     def warn(self, message:str):
         if self.active:
