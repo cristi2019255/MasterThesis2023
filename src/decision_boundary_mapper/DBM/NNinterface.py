@@ -19,8 +19,7 @@ import numpy as np
 import json
 import matplotlib.pyplot as plt
 
-from src.decision_boundary_mapper import Logger
-from src.decision_boundary_mapper.Logger import LoggerInterface
+from ..Logger import Logger, LoggerInterface
 
 
 class NNinterface:
