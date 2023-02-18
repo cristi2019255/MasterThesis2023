@@ -369,6 +369,9 @@ class GUI:
         projection_technique = None
         use_decoding_fast = values["-USE FAST DBM CHECKBOX-"]
         show_dbm_history = values["-DBM HISTORY CHECKBOX-"]
+        
+        RESOLUTION = 256
+        
         if values["-DBM TECHNIQUE-"] == "Inverse Projection":
             DEFAULT_MODEL_FOLDER = os.path.join("tmp", "DBM")
             projection_technique = values["-PROJECTION TECHNIQUE-"]
@@ -391,7 +394,7 @@ class GUI:
                                         self.Y_test, 
                                         X2d_train=X_train_2d,
                                         X2d_test=X_test_2d,
-                                        resolution=256,
+                                        resolution=RESOLUTION,
                                         use_fast_decoding=use_decoding_fast,
                                         projection=projection_technique
                                         )
@@ -401,7 +404,7 @@ class GUI:
                                         self.Y_train, 
                                         self.X_test, 
                                         self.Y_test, 
-                                        resolution=256,
+                                        resolution=RESOLUTION,
                                         use_fast_decoding=use_decoding_fast,
                                         projection=projection_technique
                                         )
@@ -414,7 +417,11 @@ class GUI:
         
         # getting the projection errors
         if values["-PROJECTION ERRORS CHECKBOX-"]:
-            img_projection_errors = dbm.generate_projection_errors()
+            x2d_test = encoded_testing_data / RESOLUTION
+            x2d_train = encoded_training_data / RESOLUTION
+            img_projection_errors = dbm.generate_projection_errors(Xnd = np.concatenate((self.X_train, self.X_test), axis=0), 
+                                                                   X2d = np.concatenate((x2d_train, x2d_test), axis=0),
+                                                                   resolution=256)
         else:
             img_projection_errors = np.zeros((img.shape[0], img.shape[1]))
         # getting the inverse projection errors

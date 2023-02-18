@@ -15,6 +15,7 @@
 import numpy as np
 from numba import jit
 
+@jit
 def get_inv_proj_error(i:int,j:int, Xnd:np.ndarray, w:int=1, h:int=1):
     """Calculates the inverse projection error for a given point in the image.
         Args:
@@ -38,14 +39,43 @@ def get_inv_proj_error(i:int,j:int, Xnd:np.ndarray, w:int=1, h:int=1):
     dy = (yl - yr) / dh    
     return np.sqrt(np.linalg.norm(dx)**2 + np.linalg.norm(dy)**2)
 
-def get_proj_error(indices_source: np.ndarray, indices_embedding: np.ndarray):
-    """Calculates the projection error for a given data point.
+@jit
+def get_proj_error(indices_source: np.ndarray, indices_embedding: np.ndarray, k: int=10):
+    """ Calculates the projection error for a given data point.
         Args:
             indices_source (np.ndarray): the indices of the point neighbors in the source (i.e. nD) space
             indices_embedding (np.ndarray): the indices of the point neighbors in the embedding (i.e. 2D) space
+            k (int): the number of neighbors to consider
     """
-    rank = np.sum(indices_source != indices_embedding)         
-    return rank / len(indices_source)
+    assert len(indices_source) == len(indices_embedding)
+    n = len(indices_source)
+    
+    continuity = 0.0
+    trustworthiness = 0.0
+    
+    # computing the continuity error
+    for i in range(k):
+        rank = 0
+        while indices_source[i] != indices_embedding[rank]:
+            rank += 1
+
+        if rank > k:
+            continuity += rank - k
+
+    continuity = 2 * continuity / (k * (2*n - 3*k - 1))
+    
+    # computing the trustworthiness error
+    for i in range(k):    
+        rank = 0
+        while indices_source[rank] != indices_embedding[i]:
+            rank += 1
+
+        if rank > k:
+            trustworthiness += rank - k
+
+    trustworthiness = 2 * trustworthiness / (k * (2*n - 3*k - 1))
+    
+    return (continuity + trustworthiness) / 2
 
 @jit
 def get_decode_pixel_priority(img, i, j, window_size, label):

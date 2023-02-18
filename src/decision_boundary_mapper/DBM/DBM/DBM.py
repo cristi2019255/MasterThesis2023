@@ -192,8 +192,8 @@ class DBM(DBMInterface):
         """ Calculates the projection errors of the given data.
 
         Args:
-            Xnd (np.array): The data to be projected.
-            X2d (np.array): The 2D projection of the data.
+            Xnd (np.array): The data to be projected. The data must be in range [0,1].
+            X2d (np.array): The 2D projection of the data. The data must be in range [0,1].
             resolution (int): The resolution of the 2D space.
         Returns:
             errors (np.ndarray): The projection errors matrix of the given data. (resolution x resolution)
@@ -216,30 +216,37 @@ class DBM(DBMInterface):
         
         assert len(Xnd) == len(X2d)
         
+        X2d = X2d.reshape((X2d.shape[0], -1))
+        Xnd = Xnd.reshape((Xnd.shape[0], -1))
+        
         self.console.log("Calculating the projection errors of the given data")
         errors = np.zeros((resolution,resolution))
         
-        K = 10
+        K = 10 # Number of nearest neighbors to consider
         metric = "euclidean"
         
-        self.console.log("Started computing the 2D tree")
         tree = KDTree(X2d, metric=metric)
-        indices_embedded = tree.query(X2d, k=K, return_distance=False)
+        self.console.log("Finished computing the 2D tree")
+        indices_embedded = tree.query(X2d, k=len(X2d), return_distance=False)
         # Drop the actual point itself
         indices_embedded = indices_embedded[:, 1:]
-        self.console.log("Finished computing the 2D tree")
+        self.console.log("Finished computing the 2D tree indices")
         
-        self.console.log("Started computing the nD tree")
         tree = KDTree(Xnd, metric=metric)
-        indices_source = tree.query(Xnd, k=K, return_distance=False)
+        self.console.log("Finished computing the nD tree")
+        indices_source = tree.query(Xnd, k=len(Xnd), return_distance=False)
         # Drop the actual point itself
         indices_source = indices_source[:, 1:]
-        self.console.log("Finished computing the nD tree")
+        self.console.log("Finished computing the nD tree indices")
         
-        for k in range(X2d.shape[0]):
+        sparse_map = []
+        for k in range(len(X2d)):
             x, y = X2d[k]
             i, j = int(x * (resolution - 1)), int(y * (resolution - 1)) 
-            errors[i,j] = get_proj_error(indices_source[k], indices_embedded[k])
+            sparse_map.append( (i,j, get_proj_error(indices_source[k], indices_embedded[k], k=K)) )
+            #errors[i,j] = get_proj_error(indices_source[k], indices_embedded[k], k=K)
+        
+        errors = self._generate_interpolated_image_(sparse_map, resolution, method='nearest').T
         
         return errors
      
