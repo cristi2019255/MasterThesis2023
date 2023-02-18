@@ -52,10 +52,10 @@ classifier = ... # for compatibility with the package the classifier should be c
 ...
 
 dbm = DBM(classifier) # create a DBM object
-img, img_confidence, _, _ = dbm.generate_decision_boundary(X_train, y_train, X_test, y_test, resolution = 256) # generate the decision boundary
+img, img_confidence, _, _, _, _ = dbm.generate_decision_boundary(X_train, y_train, X_test, y_test, resolution = 256) # generate the decision boundary
 
 sdbm = SDBM(classifier) # create a SDBM object
-img, img_confidence, _, _ = sdbm.generate_decision_boundary(X_train, y_train, X_test, y_test, resolution = 256) # generate the decision boundary
+img, img_confidence, _, _, _, _ = sdbm.generate_decision_boundary(X_train, y_train, X_test, y_test, resolution = 256) # generate the decision boundary
 ...
 # visualize the decision boundaries
 plt.imshow(img)
