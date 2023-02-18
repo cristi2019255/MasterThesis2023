@@ -234,6 +234,8 @@ def get_continuity_errors(X_train_2d, X_train, resolution = 256):
         
         sparse_map.append((i,j,compute_continuity(indices_source[k], indices_embedded[k])))
 
+    with open('continuity_sparse_map.npy', "wb") as f:
+        np.save(f, sparse_map)
     
     proj_errors = _generate_interpolated_image_(sparse_map, resolution, method='nearest').T
     
@@ -270,7 +272,8 @@ def get_trustworthiness_errors(X_train_2d, X_train, resolution = 256):
         
         sparse_map.append((i,j,compute_trustworthiness(indices_source[k], indices_embedded[k])))
 
-
+    with open('trustworthiness_sparse_map.npy', "wb") as f:
+        np.save(f, sparse_map)
     
     proj_errors = _generate_interpolated_image_(sparse_map, resolution, method='nearest').T
     
@@ -357,8 +360,8 @@ def main():
     
     if not os.path.exists("test_tmp"):
         os.makedirs("test_tmp")
-        
-    """
+    
+    """   
     X_train, Y_train, X_test, Y_test, X_train_2d, X_test_2d = load_data()
     
     invNN = load_model(X_train, Y_train, X_test, Y_test, X_train_2d, X_test_2d)
@@ -367,7 +370,7 @@ def main():
     inv_proj_errors = get_inverse_projections_errors(decoded)
     
     save_workspace(inv_proj_errors, X_train, Y_train, X_test, Y_test, X_train_2d, X_test_2d, img, img_confidence, decoded)
-    """
+    """   
     
     inv_proj_errors, X_train, Y_train, X_test, Y_test, X_train_2d, X_test_2d, img, img_confidence, decoded = load_workspace()
 
@@ -381,7 +384,7 @@ def main():
     with open("test_tmp/trustworthiness_errors.npy", "wb") as f:
         np.save(f, proj_errors)
     """
-    
+    """
     with open("test_tmp/continuity_errors.npy", "rb") as f:
         continuity_errors = np.load(f)
     with open("test_tmp/trustworthiness_errors.npy", "rb") as f:
@@ -391,10 +394,17 @@ def main():
     proj_errors = np.zeros((resolution, resolution))
     for i in range(resolution):
         for j in range(resolution):
-            proj_errors[i,j] = continuity_errors[i,j] + trustworthiness_errors[i,j] / 2
+            proj_errors[i,j] = (continuity_errors[i,j] + trustworthiness_errors[i,j]) / 2
             #proj_errors[i,j] = continuity_errors[i,j]
             #proj_errors[i,j] = trustworthiness_errors[i, j]
+    """
+    with open("zz.npy", "rb") as f:
+        proj_errors = np.load(f)
     
+    min_proj_error = np.min(proj_errors)
+    max_proj_error = np.max(proj_errors)
+    
+    proj_errors = (proj_errors - min_proj_error) / (max_proj_error - min_proj_error)
     X_train_2d *= resolution - 1
     X_test_2d *= resolution - 1
     X_train_2d = X_train_2d.astype(int)
@@ -402,7 +412,7 @@ def main():
 
     dbm_plotter = DBMPlotter(img = img,
                             img_confidence = img_confidence,
-                            img_projection_errors = proj_errors,
+                            img_projection_errors = proj_errors.T,
                             img_inverse_projection_errors = inv_proj_errors,                            
                             encoded_train = X_train_2d, 
                             encoded_test = X_test_2d,
