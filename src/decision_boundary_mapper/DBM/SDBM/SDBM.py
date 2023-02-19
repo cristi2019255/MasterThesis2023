@@ -22,7 +22,10 @@ from .Autoencoder import DEFAULT_MODEL_PATH, Autoencoder
 from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
 from ..tools import get_proj_error
 
-from ...Logger import LoggerInterface
+from ...utils import track_time_wrapper
+from ...Logger import LoggerInterface, Logger
+time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
+
 
 class SDBM(DBMInterface):
     """
@@ -44,6 +47,7 @@ class SDBM(DBMInterface):
         super().__init__(classifier, logger)
         self.autoencoder = None
 
+    @track_time_wrapper(logger=time_tracker_console)
     def fit(self, 
             X_train: np.ndarray, Y_train: np.ndarray, 
             X_test: np.ndarray, Y_test: np.ndarray, 
@@ -177,6 +181,7 @@ class SDBM(DBMInterface):
         predicted_confidence = np.array([np.max(p) for p in predictions])
         return predicted_labels, predicted_confidence, spaceNd
     
+    @track_time_wrapper(logger=time_tracker_console)
     def generate_projection_errors(self, Xnd: np.ndarray = None, X2d: np.ndarray = None, resolution: int = None):
         """ Calculates the projection errors of the given data.
 

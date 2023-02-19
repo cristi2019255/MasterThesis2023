@@ -24,7 +24,10 @@ from .projections import PROJECTION_METHODS
 from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
 from ..tools import get_proj_error
 
-from ...Logger import LoggerInterface
+from ...utils import track_time_wrapper
+from ...Logger import LoggerInterface, Logger
+time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
+
 
 class DBM(DBMInterface):
     """
@@ -56,7 +59,8 @@ class DBM(DBMInterface):
         # creating a folder for the model
         if not os.path.exists(DEFAULT_MODEL_PATH):
            os.makedirs(DEFAULT_MODEL_PATH) 
-                                                  
+    
+    @track_time_wrapper(logger=time_tracker_console)                                             
     def fit(self, 
             X2d_train: np.ndarray, Xnd_train: np.ndarray, Y_train: np.ndarray,
             X2d_test: np.ndarray, Xnd_test: np.ndarray, Y_test: np.ndarray, 
@@ -186,6 +190,7 @@ class DBM(DBMInterface):
         
         return (img, img_confidence, X2d_train, X2d_test, spaceNd, history)
     
+    @track_time_wrapper(logger=time_tracker_console)
     def generate_projection_errors(self, Xnd: np.ndarray = None, X2d: np.ndarray = None, resolution: int = None):
         """ Calculates the projection errors of the given data.
 
