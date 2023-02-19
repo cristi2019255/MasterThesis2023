@@ -44,12 +44,12 @@ class LoggerGUI(LoggerInterface):
             self.active = False
         
         if show_init and self.active:    
-            sep = "=" * 40
+            sep = "=" * 30
             time = datetime.now().strftime("%H:%M:%S:%f")
             
-            self.print(f"[{self.name}] [INFO] [{time}] {sep}", self.info_color)
-            self.print(f"[{self.name}] [INFO] [{time}] {self.name} initialized", self.info_color)
-            self.print(f"[{self.name}] [INFO] [{time}] {sep}", self.info_color)
+            self.print(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color)
+            self.print(f"[INFO] [{time}] [{self.name}] {self.name} initialized", self.info_color)
+            self.print(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color)
 
 
     def print(self, message:str, color:str='magenta'):
@@ -59,22 +59,22 @@ class LoggerGUI(LoggerInterface):
             
     def log(self, message:str):
         time = datetime.now().strftime("%H:%M:%S:%f")
-        self.print(f"[{self.name}] [INFO] [{time}] {message}", self.info_color)
+        self.print(f"[INFO] [{time}] [{self.name}] {message}", self.info_color)
     
     def warn(self, message:str):
         time = datetime.now().strftime("%H:%M:%S:%f")
-        self.print(f"[{self.name}] [WARNING] [{time}] {message}", "yellow")
+        self.print(f"[WARNING] [{time}] [{self.name}] {message}", "yellow")
     
     
     def error(self, message:str):
         time = datetime.now().strftime("%H:%M:%S:%f")
-        self.print(f"[{self.name}] [ERROR] [{time}] {message}", "red")        
+        self.print(f"[ERROR] [{time}] [{self.name}] {message}", "red")        
     
     def debug(self, message:str):
         time = datetime.now().strftime("%H:%M:%S:%f")
-        self.print(f"[{self.name}] [DEBUG] [{time}] {message}","blue")
+        self.print(f"[DEBUG] [{time}] [{self.name}] {message}","blue")
     
         
     def success(self, message:str):
         time = datetime.now().strftime("%H:%M:%S:%f")
-        self.print(f"[{self.name}] [SUCCESS] [{time}] {message}", "green")
+        self.print(f"[SUCCESS] [{time}] [{self.name}] {message}", "green")

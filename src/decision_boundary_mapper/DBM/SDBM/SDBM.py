@@ -226,16 +226,19 @@ class SDBM(DBMInterface):
         K = 10 # Number of nearest neighbors to consider
         metric = "euclidean"
         
+        self.console.log("Computing the 2D tree")
         tree = KDTree(X2d, metric=metric)
         self.console.log("Finished computing the 2D tree")
+        self.console.log("Computing the 2D tree indices")
         indices_embedded = tree.query(X2d, k=len(X2d), return_distance=False)
         # Drop the actual point itself
         indices_embedded = indices_embedded[:, 1:]
         self.console.log("Finished computing the 2D tree indices")
         
-        
+        self.console.log("Computing the nD tree")
         tree = KDTree(Xnd, metric=metric)
         self.console.log("Finished computing the nD tree")
+        self.console.log("Computing the nD tree indices")
         indices_source = tree.query(Xnd, k=len(Xnd), return_distance=False)
         # Drop the actual point itself
         indices_source = indices_source[:, 1:]

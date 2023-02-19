@@ -139,7 +139,7 @@ class Autoencoder(NNinterface):
         self.decoder = self.neural_network.get_layer(DECODER_NAME)
         self.classifier = self.neural_network.get_layer(self.classifier.name)
             
-        self.show_predictions(dataNd=x_test, labels=y_test)
+        #self.show_predictions(dataNd=x_test, labels=y_test)
             
     def encode(self, data:np.ndarray, verbose:int = 0):
         """ Encodes the data using the encoder part of the autoencoder.

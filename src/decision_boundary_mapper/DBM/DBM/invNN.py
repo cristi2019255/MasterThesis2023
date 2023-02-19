@@ -127,4 +127,4 @@ class invNN(NNinterface):
 
         self.console.log("Model fitted!")
         self.save(hist)    
-        self.show_predictions(dataNd=xNd_test, data2d=x2d_test, labels=y_test)
+        #self.show_predictions(dataNd=xNd_test, data2d=x2d_test, labels=y_test)
