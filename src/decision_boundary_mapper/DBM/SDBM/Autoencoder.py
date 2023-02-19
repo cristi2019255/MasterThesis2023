@@ -17,7 +17,7 @@ import tensorflow as tf
 import numpy as np
 
 from ..NNinterface import NNinterface
-from ...Logger import LoggerInterface
+from ...Logger import LoggerInterface, LoggerModel
 
 DEFAULT_MODEL_PATH = os.path.join("tmp", "SDBM")
 DECODER_NAME = "decoder"
@@ -120,9 +120,7 @@ class Autoencoder(NNinterface):
         self.__build__(input_shape=x_train.shape[1:], show_summary=True)
             
         stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=0.00001, mode='min', patience=20, restore_best_weights=True)
-        checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=os.path.join(self.save_folder_path, "checkpoint.cpkt"),
-                                                             save_weights_only=True,
-                                                             verbose=1)
+        logger_callback = LoggerModel(name=AUTOENCODER_NAME, show_init=False, epochs=epochs)
 
         self.console.log("Fitting model...")
         
@@ -131,7 +129,8 @@ class Autoencoder(NNinterface):
                             batch_size=batch_size, 
                             shuffle=True,
                             validation_data=(x_test, [x_test, y_test]),
-                            callbacks=[stopping_callback, checkpoint_callback])
+                            callbacks=[stopping_callback, logger_callback],
+                            verbose=0)
         
         self.console.log("Model fitted!")
         self.save(history)    
