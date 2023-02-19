@@ -24,6 +24,7 @@ import os
 from math import sqrt
 from sklearn.neighbors import KDTree
 from scipy import interpolate
+import time
 
 SAMPLES_LIMIT = 5000
 
@@ -355,15 +356,68 @@ def load_workspace():
     
     return inv_proj_errors, X_train, Y_train, X_test, Y_test, X_train_2d, X_test_2d, img, img_confidence, decoded
 
+
+from numba import njit, prange
+from umap.distances import named_distances
+
+@njit(parallel=True)
+def generate_indices(X, metric):
+    n_samples = X.shape[0]
+    dist_vector = np.zeros(n_samples, dtype=np.float64)
+    indices = np.zeros((n_samples, n_samples), dtype=np.int64)
+    
+    for i in prange(n_samples):
+        for j in prange(n_samples):
+            dist_vector[j] = metric(X[i], X[j])
+
+        indices[i] = np.argsort(dist_vector)
+    
+    return indices
+
 def main():
     resolution = 256
     
     if not os.path.exists("test_tmp"):
         os.makedirs("test_tmp")
     
-    """   
     X_train, Y_train, X_test, Y_test, X_train_2d, X_test_2d = load_data()
     
+    X_train = X_train.reshape((X_train.shape[0], -1))
+    X_test = X_test.reshape((X_test.shape[0], -1))
+    X = np.concatenate((X_train, X_test), axis=0)
+    
+    print("Strating KDTree query test")
+    """
+    start = time.time()
+    tree = KDTree(X, metric="euclidean")
+    end = time.time()
+    print("KDTree building time: ", end - start)
+    indx = tree.query(X, k=X.shape[0], return_distance=False)
+    end_2 = time.time()
+    print("KDTree query time: ", end_2 - end)
+    # ~ 35 - 36 seconds
+    
+    leaf_size = 5000
+    
+    start = time.time()
+    tree = KDTree(X, metric="euclidean", leaf_size=leaf_size)
+    end = time.time()
+    print("KDTree building time with leaf size ", leaf_size, end - start)
+    indx = tree.query(X, k=X.shape[0], return_distance=False)
+    end_2 = time.time()
+    print("KDTree query time with leaf size ", leaf_size, end_2 - end)
+    # ~ 29 - 30 seconds
+    """
+    
+    start = time.time()
+    indices = generate_indices(X, named_distances["euclidean"])
+    end = time.time()
+    print("Numba KDTree query time: ", end - start)
+    print(indices)
+    # ~ 9 seconds
+    
+    
+    """   
     invNN = load_model(X_train, Y_train, X_test, Y_test, X_train_2d, X_test_2d)
     img, img_confidence, decoded = get_dbm_img(invNN, X_train_2d, X_test_2d, resolution = resolution)
     
@@ -372,7 +426,7 @@ def main():
     save_workspace(inv_proj_errors, X_train, Y_train, X_test, Y_test, X_train_2d, X_test_2d, img, img_confidence, decoded)
     """   
     
-    inv_proj_errors, X_train, Y_train, X_test, Y_test, X_train_2d, X_test_2d, img, img_confidence, decoded = load_workspace()
+    #inv_proj_errors, X_train, Y_train, X_test, Y_test, X_train_2d, X_test_2d, img, img_confidence, decoded = load_workspace()
 
     """
     proj_errors = get_continuity_errors(X_train_2d, X_train)
@@ -385,6 +439,7 @@ def main():
         np.save(f, proj_errors)
     """
 
+    """
     with open("test_tmp/continuity_errors.npy", "rb") as f:
         continuity_errors = np.load(f)
     with open("test_tmp/trustworthiness_errors.npy", "rb") as f:
@@ -421,5 +476,5 @@ def main():
                             spaceNd = decoded)
 
     dbm_plotter.show()
-   
+    """
 main()

@@ -20,7 +20,7 @@ from math import sqrt
 
 from .Autoencoder import DEFAULT_MODEL_PATH, Autoencoder
 from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
-from ..tools import get_proj_error
+from ..tools import get_proj_error, generate_nd_indices_parallel, euclidean
 
 from ...utils import track_time_wrapper
 from ...Logger import LoggerInterface, Logger
@@ -240,14 +240,9 @@ class SDBM(DBMInterface):
         indices_embedded = indices_embedded[:, 1:]
         self.console.log("Finished computing the 2D tree indices")
         
-        self.console.log("Computing the nD tree")
-        tree = KDTree(Xnd, metric=metric)
-        self.console.log("Finished computing the nD tree")
-        self.console.log("Computing the nD tree indices")
-        indices_source = tree.query(Xnd, k=len(Xnd), return_distance=False)
-        # Drop the actual point itself
-        indices_source = indices_source[:, 1:]
-        self.console.log("Finished computing the nD tree indices")
+        self.console.log("Calculating the nD distance indices")
+        indices_source = generate_nd_indices_parallel(Xnd, metric=euclidean)
+        self.console.log("Finished computing the nD distance indices")
         
         sparse_map = []
         for k in range(len(X2d)):
