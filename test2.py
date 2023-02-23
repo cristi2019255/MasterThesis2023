@@ -14,7 +14,6 @@
 
 from src.decision_boundary_mapper.DBM.tools import get_inv_proj_error, get_proj_error
 from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset
-from src.decision_boundary_mapper.GUI.DBMPlotter import DBMPlotter
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -463,18 +462,5 @@ def main():
     X_train_2d = X_train_2d.astype(int)
     X_test_2d = X_test_2d.astype(int)
 
-    dbm_plotter = DBMPlotter(img = img,
-                            img_confidence = img_confidence,
-                            img_projection_errors = proj_errors.T,
-                            img_inverse_projection_errors = inv_proj_errors,                            
-                            encoded_train = X_train_2d, 
-                            encoded_test = X_test_2d,
-                            X_train = X_train,
-                            Y_train = Y_train,
-                            X_test = X_test,
-                            Y_test = Y_test,
-                            spaceNd = decoded)
-
-    dbm_plotter.show()
     """
 main()
