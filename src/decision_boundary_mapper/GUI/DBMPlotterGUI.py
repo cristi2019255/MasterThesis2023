@@ -106,31 +106,38 @@ class DBMPlotterGUI:
         self.spaceNd = spaceNd.reshape(spaceNd.shape[0], spaceNd.shape[1], X_train.shape[1], X_train.shape[2])
         self.color_img, self.legend = self._build_2D_image_(img, img_confidence)
         self.train_mapper, self.test_mapper = self._generate_encoded_mapping_()
-                
-    def _initialize_gui_(self):
+        self.inverse_projection_errors = self.dbm_model.generate_inverse_projection_errors()
+        
         # --------------------- Plotter related ---------------------                
         self.fig, self.dbm_ax, self.proj_errs_ax, self.inv_proj_errs_ax = self._build_plot_()        
         self._build_annotation_mapper_()
-        # --------------------- Plotter related ---------------------
         
+        ax_img = self.inv_proj_errs_ax.imshow(self.inverse_projection_errors)        
+        self.fig.colorbar(ax_img, ax=self.inv_proj_errs_ax)
+        self.fig.legend(handles=self.legend, borderaxespad=0. )
+        # --------------------- Plotter related ---------------------
+        self.proj_errs_computed = False    
+        
+        
+    def _initialize_gui_(self):        
         # --------------------- GUI related ---------------------
         self.window = self._build_GUI_()
         self.canvas, self.fig_agg = self._build_canvas_(self.fig, key = "-DBM CANVAS-")
         
-        self.draw_dbm_img()
-        
-        # --------------------- GUI related ---------------------
-        
+        self.draw_dbm_img()    
+        # --------------------- GUI related ---------------------        
             
-    def _get_GUI_layout_(self):                    
+    def _get_GUI_layout_(self):   
+        buttons = []
+           
+        if not self.proj_errs_computed: 
+            buttons.append(sg.Button('Compute Projection Errors', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)))             
+      
         layout = [                                  
                   [
                       [sg.Canvas(key='-DBM CANVAS-', expand_x=True, expand_y=True, pad=(0,0))],                        
                   ], 
-                  [
-                      sg.Button('Compute Projection Errors', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),   
-                      sg.Button('Compute Inverse Projection Errors', font=APP_FONT, expand_x=True, key="-COMPUTE INVERSE PROJECTION ERRORS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))
-                  ],                       
+                  buttons,                  
                 ]
         return layout
         
@@ -163,7 +170,6 @@ class DBMPlotterGUI:
     def handle_event(self, event, values):
         EVENTS = {
             "-COMPUTE PROJECTION ERRORS-": self.handle_compute_projection_errors_event,
-            "-COMPUTE INVERSE PROJECTION ERRORS-": self.handle_compute_inverse_projection_errors_event,
         }
         
         EVENTS[event](event, values)    
@@ -226,14 +232,9 @@ class DBMPlotterGUI:
         ax = fig.add_subplot(121)
         ax1 = fig.add_subplot(222)
         ax2 = fig.add_subplot(224)
-        ax.xaxis.set_visible(False)
-        ax.yaxis.set_visible(False)
-        ax1.xaxis.set_visible(False)
-        ax1.yaxis.set_visible(False)
-        ax2.xaxis.set_visible(False)
-        ax2.yaxis.set_visible(False)
-        ax1.set_visible(False)
-        ax2.set_visible(False)    
+        ax.set_axis_off()
+        ax1.set_axis_off()
+        ax2.set_axis_off()       
         return fig, ax, ax1, ax2
     
     def _build_canvas_(self, fig, key):        
@@ -351,49 +352,41 @@ class DBMPlotterGUI:
              
         # update the figure
         self.dbm_ax.set_title("Decision Boundary Mapper")
+        self.proj_errs_ax.set_title("Projection Errors")
+        self.inv_proj_errs_ax.set_title("Inverse Projection Errors")
+        
         self.dbm_ax.imshow(self.color_img)
-        self.fig.legend(handles=self.legend, borderaxespad=0. )
+        self.inv_proj_errs_ax.imshow(self.inverse_projection_errors)
+        
+        if not self.proj_errs_computed:
+            self.proj_errs_warning_text = self.proj_errs_ax.text(0.5, 0.5, "To compute projection errors you should click the button.\nThis might take about 30 seconds", transform=self.proj_errs_ax.transAxes, ha="center")
+        
+        
         # draw the figure to the canvas
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig)    
     
     def _draw_projection_errors_img_(self, projection_errors):
         # clear the figure
-        #self.proj_errs_fig.clf()
         self.fig_agg.get_tk_widget().forget()
         
-        # update the figure
-        self.proj_errs_ax.set_title("Projection Errors")
+        # update the figure        
+        self.proj_errs_warning_text.set_visible(False)
         ax_img = self.proj_errs_ax.imshow(projection_errors)
-        
-        self.proj_errs_ax.set_visible(True)
+                
         self.fig.colorbar(ax_img, ax=self.proj_errs_ax)        
         self.fig.set_size_inches(1, 1)        
         
         # draw the figure to the canvas
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig) 
-        
-    def _draw_inverse_projection_errors_img_(self, inverse_projection_errors):
-        # clear the figure
-        #self.inv_proj_errs_fig.clf()
-        self.fig_agg.get_tk_widget().forget()
-        
-        # update the figure
-        self.inv_proj_errs_ax.set_title("Inverse Projection Errors")
-        ax_img = self.inv_proj_errs_ax.imshow(inverse_projection_errors)
-            
-        self.inv_proj_errs_ax.set_visible(True)
-        self.fig.colorbar(ax_img, ax=self.inv_proj_errs_ax)        
-        self.fig.set_size_inches(1, 1) 
-        
-        # draw the figure to the canvas
-        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig) 
-        
-    def handle_compute_projection_errors_event(self, event, values):
+
+    def _set_loading_proj_errs_state_(self):
         self.window['-COMPUTE PROJECTION ERRORS-'].update(visible=False, disabled=True)        
+        self.proj_errs_warning_text.set_text("Computing projection errors...\nPlease wait...")
+        self.fig_agg.get_tk_widget().forget()
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig) 
+
+    def handle_compute_projection_errors_event(self, event, values):
+        self._set_loading_proj_errs_state_()
         projection_errors = self.dbm_model.generate_projection_errors()
+        self.proj_errs_computed = True
         self._draw_projection_errors_img_(projection_errors)
-        
-    def handle_compute_inverse_projection_errors_event(self, event, values):
-        self.window['-COMPUTE INVERSE PROJECTION ERRORS-'].update(visible=False, disabled=True)
-        inverse_projection_errors = self.dbm_model.generate_inverse_projection_errors()
-        self._draw_inverse_projection_errors_img_(inverse_projection_errors)
