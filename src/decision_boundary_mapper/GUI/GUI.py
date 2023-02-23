@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import io
 from shutil import rmtree
 import matplotlib.pyplot as plt
 from src.decision_boundary_mapper.GUI.DBMPlotterGUI import DBMPlotterGUI
@@ -69,7 +70,7 @@ class GUI:
         # --------------- DBM ---------------
         self.dbm_plotter_gui = None
         self.dbm_logger = LoggerGUI(name = "DBM logger", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
-        
+    
     def create_tmp_folder(self):
         if not os.path.exists(TMP_FOLDER):
             os.makedirs(TMP_FOLDER)
@@ -89,19 +90,18 @@ class GUI:
         file = os.path.join(TMP_FOLDER, "classifier.png")
         plot_model(self.classifier, to_file=file, show_shapes=True, show_layer_names=True, show_layer_activations=True)    
         img = Image.open(file)
-        img.thumbnail((300, 300), Image.ANTIALIAS)
-        # Convert im to ImageTk.PhotoImage after window finalized
-        image = ImageTk.PhotoImage(image=img)
-        self.window["-CLASSIFIER IMAGE-"].update(data=image)
+        
+        img.thumbnail((256, 256), Image.ANTIALIAS)           
+        image = ImageTk.PhotoImage(img)     
+        self.window["-CLASSIFIER IMAGE-"].update(data = image)
         self.switch_visibility(["-CLASSIFIER IMAGE-", "-CLASSIFIER TEXT-"], True)
         self.window.refresh()
     
     def build(self):
         window = sg.Window(TITLE, 
                            layout=self._get_layout(), 
-                           size=WINDOW_SIZE, 
-                           
-                           resizable=True,
+                           size=WINDOW_SIZE,                            
+                           resizable=False,
                            )
         window.finalize()
         return window
@@ -112,7 +112,7 @@ class GUI:
             
             if event == "Exit" or event == sg.WIN_CLOSED:
                 break
-        
+            
             self.handle_event(event, values)
         
         self.stop()
@@ -139,76 +139,75 @@ class GUI:
         
         EVENTS[event](event, values)
         
-    def _get_layout(self):        
-        
+    def _get_layout(self):                
         data_files_list_column = [
             [
-                sg.Text(size= (15, 1), text = "Data Folder"),
-                sg.In(size=(25, 1), enable_events=True, key="-FOLDER-", background_color=WHITE_COLOR, text_color=BLACK_COLOR,),
-                sg.FolderBrowse(button_text="Browse folder", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), initial_folder=os.getcwd(), size = (22,1)),
+                sg.Text(text = "Data Folder"),
+                sg.In(enable_events=True, key="-FOLDER-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True),
+                sg.FolderBrowse(button_text="Browse folder", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), initial_folder=os.getcwd()),
             ],
             [
-               sg.Text("Choose the data file from the list: "),
+               sg.Text("Choose the data file from the list: ", expand_x=True),
             ],
             [   
-               sg.Text(key="-TOUT-", size=(70, 1)),            
+               sg.Text(key="-TOUT-", expand_x=True),            
             ],
             [
                 sg.Listbox(
-                    values=[], enable_events=True, size=(70, 10), key="-FILE LIST-", background_color=WHITE_COLOR, text_color=BLACK_COLOR,
+                    values=[], enable_events=True, key="-FILE LIST-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True, expand_y=True
                 )
             ],
             [
-                sg.Button("Upload train data for DBM", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), size = (30,1), key = "-UPLOAD TRAIN DATA BTN-"),
-                sg.Button("Upload test data for DBM", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), size = (30,1), key = "-UPLOAD TEST DATA BTN-"),
+                sg.Button("Upload train data for DBM", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, key = "-UPLOAD TRAIN DATA BTN-"),
+                sg.Button("Upload test data for DBM", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, key = "-UPLOAD TEST DATA BTN-"),
             ],
             [   
-               sg.Text("Training data file: ", key="-TRAIN DATA FILE-",  size=(70, 1)),            
+               sg.Text("Training data file: ", key="-TRAIN DATA FILE-",  expand_x=True),            
             ],
             [   
-               sg.Text("Training data shape: ", key="-TRAIN DATA SHAPE-",  size=(70, 1)),            
+               sg.Text("Training data shape: ", key="-TRAIN DATA SHAPE-", expand_x=True),            
             ],
             [   
-               sg.Text("Testing data file: ", key="-TEST DATA FILE-",  size=(70, 1)),            
+               sg.Text("Testing data file: ", key="-TEST DATA FILE-", expand_x=True),            
             ],
             [   
-               sg.Text("Testing data shape: ", key="-TEST DATA SHAPE-",  size=(70, 1)),            
+               sg.Text("Testing data shape: ", key="-TEST DATA SHAPE-", expand_x=True),            
             ],
             [
-                sg.Button("Upload MNIST Data set", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), size = (69,1), key = "-UPLOAD MNIST DATA BTN-"),
+                sg.Button("Upload MNIST Data set", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, key = "-UPLOAD MNIST DATA BTN-"),
             ],
             [
-                sg.Button("Show the Decision Boundary Mapping", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), size = (69,1), key = "-DBM BTN-"),
+                sg.Button("Show the Decision Boundary Mapping", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, key = "-DBM BTN-"),
             ],
             [
-                sg.Text("", size=(10,1))    
+                sg.Text("", expand_x=True)    
             ],
             [
-                sg.Text( RIGHTS_MESSAGE),
+                sg.Text(RIGHTS_MESSAGE, expand_x=True),
             ],
             [
-                sg.Text( RIGHTS_MESSAGE_2),
+                sg.Text(RIGHTS_MESSAGE_2, expand_x=True),
             ]
         ]
         
         results_column = [
             [
-                sg.Text("Which dbm technique would you like to use?",size=(60,1)),
+                sg.Text("Which dbm technique would you like to use?", size=(45,1)),
                 sg.Combo(
                     values=list(DBM_TECHNIQUES.keys()),
                     default_value=list(DBM_TECHNIQUES.keys())[0],
-                    size=(20, 1),
+                    expand_x=True,
                     key="-DBM TECHNIQUE-",
                     enable_events=True,
                     background_color=WHITE_COLOR, text_color=BLACK_COLOR,
                 ),
             ],
             [
-                sg.Text("Which Projection technique would you like to use?", size=(60,1), key="-PROJECTION TECHNIQUE TEXT-", visible=False),
+                sg.Text("Which Projection technique would you like to use?", size=(45,1), key="-PROJECTION TECHNIQUE TEXT-", visible=False),
                 sg.Combo(
                     values = PROJECTION_TECHNIQUES,
                     default_value = PROJECTION_TECHNIQUES[0],
-                    size=(20, 1),
+                    expand_x=True,
                     key="-PROJECTION TECHNIQUE-",
                     enable_events=True,
                     visible=False,
@@ -216,42 +215,42 @@ class GUI:
                 ),
             ],
             [
-                sg.Text("Use the fast algorithm for generating the Decision Boundary Mapper: ", size=(60,1), key="-USE FAST DBM TEXT-", visible=True),
+                sg.Text("Use the fast algorithm for generating the Decision Boundary Mapper: ", expand_x=True, key="-USE FAST DBM TEXT-", visible=True),
                 sg.Checkbox("", default=False,  key="-USE FAST DBM CHECKBOX-", visible=True),
             ],            
             [
-                sg.Text("Show Decision Boundary Mapper NN history: ",  size=(60,1), key="-DBM HISTORY TEXT-", visible=True),
+                sg.Text("Show Decision Boundary Mapper NN history: ", expand_x=True, key="-DBM HISTORY TEXT-", visible=True),
                 sg.Checkbox("", default=False,  key="-DBM HISTORY CHECKBOX-", visible=True),
             ],
-            # ---------------------------------------------------------------------------------------------------
+            # ---------------------------------------------------------------------------------------------------                        
             [
-               sg.Column([
-                    [sg.Text("Classifier: ",  visible=False, key="-CLASSIFIER TEXT-")],
-                    [sg.Image(key="-CLASSIFIER IMAGE-", size=(40, 40), visible=False, enable_events=True)],   
-                ]),
-               sg.Column([
-                    [sg.Text("Decision boundary map: ",  visible=False, key="-DBM TEXT-")],
-                    [sg.Text("Loading... ",  visible=False, key="-DBM IMAGE LOADING-")],
-                    [sg.Image(key="-DBM IMAGE-", size=(40, 40), visible=False, enable_events=True)],   
-                ]),
-            ],
+                sg.Column([
+                    [sg.Text("Classifier: ",  visible=False, expand_x=True, key="-CLASSIFIER TEXT-", justification='center')],
+                    [sg.Image(key="-CLASSIFIER IMAGE-", expand_x=True, expand_y=True, visible=False, enable_events=True)],                           
+                ], expand_x=True),
+                sg.Column([
+                    [sg.Text("Decision boundary map: ", visible=False, expand_x=True, key="-DBM TEXT-", justification='center')],
+                    [sg.Text("Loading... ",  visible=False, expand_x=True, key="-DBM IMAGE LOADING-", justification='center')],
+                    [sg.Image(key="-DBM IMAGE-", visible=False, expand_x=True, expand_y=True, enable_events=True)],                                           
+                ], expand_x=True),
+            ],            
             [
                 sg.HSeparator(),
             ],
             [
                 sg.Column([
                     [sg.Text("Logger: ")],
-                    [sg.Multiline("",size=(80, 20), key="-LOGGER-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_y=True, auto_size_text=True)],   
-                ]),    
+                    [sg.Multiline("",expand_x=True, expand_y=True, key="-LOGGER-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, auto_size_text=True)],   
+                ], expand_x=True, expand_y=True),    
             ]
         ]
         
         
         layout = [
             [
-                sg.Column(data_files_list_column),
-                sg.VSeparator(),
-                sg.Column(results_column),
+                sg.Column(data_files_list_column, expand_x=True, expand_y=True),   
+                sg.VSeparator(),             
+                sg.Column(results_column, expand_x=True, expand_y=True),
             ],
         ]
 
@@ -444,12 +443,11 @@ class GUI:
         # ---------------------------------
         # update the dbm image
         img = Image.fromarray(np.uint8(self.dbm_plotter_gui.color_img*255))
-        img.thumbnail((700, 700), Image.ANTIALIAS)
+        img.thumbnail((RESOLUTION, RESOLUTION), Image.ANTIALIAS)
         # Convert im to ImageTk.PhotoImage after window finalized
-        image = ImageTk.PhotoImage(image=img)
-        
+        image = ImageTk.PhotoImage(image=img)        
         self.window["-DBM IMAGE-"].update(data=image)
-        
+                    
         self.switch_visibility(["-DBM IMAGE LOADING-"], False)
         self.switch_visibility(["-DBM IMAGE-"], True)
         

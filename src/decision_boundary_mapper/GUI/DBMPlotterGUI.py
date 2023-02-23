@@ -66,7 +66,7 @@ def generate_color_mapper():
 # Generating initial settings
 COLORS_MAPPER = generate_color_mapper()
 APP_FONT = 'Helvetica 12'
-TITLE = "Decision Boundary Mapper"
+TITLE = "Decision Boundary Map & Errors"
 WINDOW_SIZE = (1550, 950)
 BLACK_COLOR = "#252526"
 BUTTON_PRIMARY_COLOR = "#007acc"
@@ -134,10 +134,12 @@ class DBMPlotterGUI:
             buttons.append(sg.Button('Compute Projection Errors', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)))             
       
         layout = [                                  
-                  [
-                      [sg.Canvas(key='-DBM CANVAS-', expand_x=True, expand_y=True, pad=(0,0))],                        
-                  ], 
-                  buttons,                  
+                    [
+                        [sg.Canvas(key='-DBM CANVAS-', expand_x=True, expand_y=True, pad=(0,0))],                        
+                    ], 
+                    buttons,    
+                    [sg.Text(RIGHTS_MESSAGE)],
+                    [sg.Text(RIGHTS_MESSAGE_2)]              
                 ]
         return layout
         
