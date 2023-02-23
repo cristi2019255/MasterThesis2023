@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import os
-import io
 from shutil import rmtree
 import matplotlib.pyplot as plt
 from src.decision_boundary_mapper.GUI.DBMPlotterGUI import DBMPlotterGUI
