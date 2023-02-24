@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import numpy as np
-from keras.datasets import mnist
+from keras.datasets import mnist, cifar10
 import os
 
 from .. import Logger
@@ -30,6 +30,20 @@ def import_mnist_dataset():
     console.log(f"Train set: {train_X.shape}")
     console.log(f"Test set: {test_X.shape}")
     return (train_X, train_y), (test_X, test_y)
+
+def import_cifar10_dataset():
+    """Imports the CIFAR10 dataset from keras.datasets.cifar10
+    
+    Returns:
+        (X_train, Y_train), (X_test, Y_test): The train and test sets
+    """
+    console = Logger(name="CIFAR10 dataset importer")    
+    (train_X, train_y), (test_X, test_y) = cifar10.load_data()
+    console.log("CIFAR10 dataset imported")
+    console.log(f"Train set: {train_X.shape}")
+    console.log(f"Test set: {test_X.shape}")
+    return (train_X, train_y), (test_X, test_y)
+
 
 def import_csv_dataset(file_path:str, labels_index:int = 0, headers:bool = False, 
                        separator:str=",", limit:int = None, shape:tuple = (28, 28)):        

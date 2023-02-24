@@ -54,11 +54,7 @@ class DBM(DBMInterface):
             logger (LoggerInterface, optional): The logger for outputting info messages. Defaults to console logging.
         """
         super().__init__(classifier, logger)
-        self.invNN = None
-        
-        # creating a folder for the model
-        if not os.path.exists(DEFAULT_MODEL_PATH):
-           os.makedirs(DEFAULT_MODEL_PATH) 
+        self.invNN = None       
     
     @track_time_wrapper(logger=time_tracker_console)                                             
     def fit(self, 
@@ -98,6 +94,7 @@ class DBM(DBMInterface):
                               train_batch_size:int=32,
                               resolution:int=DBM_DEFAULT_RESOLUTION,
                               use_fast_decoding:bool=False,
+                              load_folder:str=DEFAULT_MODEL_PATH,
                               projection:str='t-SNE'                              
                               ):
         """ Generates a 2D boundary map of the classifier's decision boundary.
@@ -114,6 +111,7 @@ class DBM(DBMInterface):
             show_predictions (bool, optional): If set to true 10 prediction examples are shown. Defaults to True.
             resolution (int, optional): _description_. Defaults to DBM_DEFAULT_RESOLUTION.
             use_fast_decoding (bool, optional): If set to true the fast decoding method is used. Defaults to False.
+            load_folder (str, optional): The folder in which the model will be stored or if exists loaded from. Defaults to DEFAULT_MODEL_PATH
             projection (str, optional): The projection method to be used. Defaults to 't-SNE'.
         
         Returns:
@@ -133,11 +131,15 @@ class DBM(DBMInterface):
             >>> plt.show()
         """
         assert projection in ['t-SNE', 'PCA', 'UMAP']
+                
+        # creating a folder for the model if not present
+        if not os.path.exists(os.path.join(load_folder, projection)):
+           os.makedirs(os.path.join(load_folder, projection)) 
         
         if X2d_train is None or X2d_test is None:
             Xnd_train_flatten = Xnd_train.reshape((Xnd_train.shape[0], -1))
             Xnd_test_flatten = Xnd_test.reshape((Xnd_test.shape[0], -1))
-            X2d_train, X2d_test = self.__transform_2d__(Xnd_train_flatten, Xnd_test_flatten, projection)
+            X2d_train, X2d_test = self.__transform_2d__(Xnd_train_flatten, Xnd_test_flatten, load_folder, projection)
         else:
             # Normalize the data to be in the range of [0,1]
             X2d_train, X2d_test = self.__normalize_2d__(X2d_train, X2d_test)
@@ -146,12 +148,12 @@ class DBM(DBMInterface):
             self.invNN = self.fit(X2d_train, Xnd_train, Y_train, 
                                   X2d_test, Xnd_test, Y_test, 
                                   train_epochs, train_batch_size,
-                                  load_folder=os.path.join(DEFAULT_MODEL_PATH, projection))   
+                                  load_folder=os.path.join(load_folder, projection))   
         
         self.console.log("Decoding the 2D space... 2D -> nD")
         
-        save_img_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map")
-        save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map_confidence")
+        save_img_path = os.path.join(os.path.join(load_folder, projection), "boundary_map")
+        save_img_confidence_path = os.path.join(os.path.join(load_folder, projection), "boundary_map_confidence")
         
         if use_fast_decoding:
             img, img_confidence, spaceNd = self._get_img_dbm_fast_(resolution)
@@ -185,7 +187,7 @@ class DBM(DBMInterface):
             img_confidence[i,j] = 1
             
         
-        with open(os.path.join(DEFAULT_MODEL_PATH, projection, "history.json"), 'r') as f:
+        with open(os.path.join(load_folder, projection, "history.json"), 'r') as f:
             history = json.load(f)
         
         return (img, img_confidence, X2d_train, X2d_test, spaceNd, history)
@@ -266,12 +268,13 @@ class DBM(DBMInterface):
         predicted_confidence = np.array([np.max(p) for p in predictions])
         return predicted_labels, predicted_confidence, spaceNd
  
-    def __transform_2d__(self, X_train: np.ndarray, X_test: np.ndarray, projection:str='t-SNE'):
+    def __transform_2d__(self, X_train: np.ndarray, X_test: np.ndarray, folder:str=DEFAULT_MODEL_PATH, projection:str='t-SNE'):
         """ Transforms the given data to 2D using a projection method.
 
         Args:
             X_train (np.ndarray): The training data.
             X_test (np.ndarray): The test data.
+            folder (str, optional): The folder where the 2D data will be stored. Defaults to DEFAULT_MODEL_PATH.
             projection (str, optional): The projection method to be used. Defaults to 't-SNE'.
             
         Returns:
@@ -289,15 +292,15 @@ class DBM(DBMInterface):
         # rescale to [0,1]
         X2d_train, X2d_test = self.__normalize_2d__(X2d_train, X2d_test)
         # ---------------------
-        if not os.path.exists(os.path.join(DEFAULT_MODEL_PATH, projection)):
-            os.makedirs(os.path.join(DEFAULT_MODEL_PATH, projection))
+        if not os.path.exists(os.path.join(folder, projection)):
+            os.makedirs(os.path.join(folder, projection))
             
-        file_path = os.path.join(DEFAULT_MODEL_PATH, projection, "train_2d.npy")
+        file_path = os.path.join(folder, projection, "train_2d.npy")
         self.console.log("Saving the 2D data to the disk: " + file_path)
         with open(file_path, 'wb') as f:
             np.save(f, X2d_train)
         
-        file_path = os.path.join(DEFAULT_MODEL_PATH, projection, "test_2d.npy")
+        file_path = os.path.join(folder, projection, "test_2d.npy")
         self.console.log("Saving the 2D data to the disk: " + file_path)
         with open(file_path, 'wb') as f:
             np.save(f, X2d_test)

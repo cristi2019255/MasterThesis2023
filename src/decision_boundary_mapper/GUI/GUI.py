@@ -24,7 +24,7 @@ from tensorflow.keras.utils import plot_model
 from .DBMPlotterGUI import DBMPlotterGUI
 from ..Logger import LoggerGUI, Logger
 from ..DBM import SDBM, DBM
-from ..utils import import_csv_dataset, import_mnist_dataset
+from ..utils import import_csv_dataset, import_mnist_dataset, import_cifar10_dataset
 
 sg.theme('DarkBlue1')
 TITLE = "Classifiers visualization tool"
@@ -69,6 +69,9 @@ class GUI:
         # --------------- DBM ---------------
         self.dbm_plotter_gui = None
         self.dbm_logger = LoggerGUI(name = "DBM logger", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
+        
+        # --------------- Data set ----------
+        self.dataset_name = "Dataset"
     
     def create_tmp_folder(self):
         if not os.path.exists(TMP_FOLDER):
@@ -134,6 +137,7 @@ class GUI:
             "-UPLOAD TRAIN DATA BTN-": self.handle_upload_train_data_event,
             "-UPLOAD TEST DATA BTN-": self.handle_upload_test_data_event,
             "-UPLOAD MNIST DATA BTN-": self.handle_upload_mnist_data_event,
+            "-UPLOAD CIFAR10 DATA BTN-": self.handle_upload_cifar10_data_event,
         }
         
         EVENTS[event](event, values)
@@ -174,6 +178,9 @@ class GUI:
             ],
             [
                 sg.Button("Upload MNIST Data set", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, key = "-UPLOAD MNIST DATA BTN-"),
+            ],
+            [
+                sg.Button("Upload CIFAR10 Data set", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, key = "-UPLOAD CIFAR10 DATA BTN-"),
             ],
             [
                 sg.Button("Show the Decision Boundary Mapping", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, key = "-DBM BTN-"),
@@ -329,10 +336,40 @@ class GUI:
         self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
         self.num_classes = np.unique(self.Y_train).shape[0]
         
+        self.dataset_name = "MNIST"
         self.window["-TRAIN DATA FILE-"].update("Training data: MNIST")
         self.window["-TRAIN DATA SHAPE-"].update(f"Training data shape: X {self.X_train.shape} Y {self.Y_train.shape}")
         
         self.window["-TEST DATA FILE-"].update("Testing data: MNIST")
+        self.window["-TEST DATA SHAPE-"].update(f"Testing data shape: X {self.X_test.shape} Y {self.Y_test.shape}")
+        
+        self.upload_classifier()
+    
+    def handle_upload_cifar10_data_event(self, event, values):
+        (X_train, Y_train), (X_test, Y_test) = import_cifar10_dataset()
+    
+        def rgb2gray(rgb):
+            return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
+
+        X_train, Y_train = X_train[:int(0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
+        X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
+
+        X_train = X_train.astype('float32')
+        X_test = X_test.astype('float32')
+        X_train = rgb2gray(X_train)
+        X_test = rgb2gray(X_test)
+        X_train /= 255
+        X_test /= 255
+        
+        self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
+        self.num_classes = np.unique(self.Y_train).shape[0]
+        
+        self.dataset_name = "CIFAR10"
+        
+        self.window["-TRAIN DATA FILE-"].update("Training data: CIFAR10")
+        self.window["-TRAIN DATA SHAPE-"].update(f"Training data shape: X {self.X_train.shape} Y {self.Y_train.shape}")
+        
+        self.window["-TEST DATA FILE-"].update("Testing data: CIFAR10")
         self.window["-TEST DATA SHAPE-"].update(f"Testing data shape: X {self.X_test.shape} Y {self.Y_test.shape}")
         
         self.upload_classifier()
@@ -381,9 +418,10 @@ class GUI:
         show_dbm_history = values["-DBM HISTORY CHECKBOX-"]
         
         RESOLUTION = 256
+        TMP_FOLDER = os.path.join("tmp", self.dataset_name)
         
         if values["-DBM TECHNIQUE-"] == "Inverse Projection":
-            DEFAULT_MODEL_FOLDER = os.path.join("tmp", "DBM")        
+            DEFAULT_MODEL_FOLDER = os.path.join(TMP_FOLDER, "DBM")        
             
             if not os.path.exists(os.path.join(DEFAULT_MODEL_FOLDER, projection_technique, "train_2d.npy")):
                 X_train_2d = None
@@ -405,6 +443,7 @@ class GUI:
                                         X2d_test=X_test_2d,
                                         resolution=RESOLUTION,
                                         use_fast_decoding=use_decoding_fast,
+                                        load_folder=DEFAULT_MODEL_FOLDER,
                                         projection=projection_technique
                                         )
         else:
@@ -415,6 +454,7 @@ class GUI:
                                         self.Y_test, 
                                         resolution=RESOLUTION,
                                         use_fast_decoding=use_decoding_fast,
+                                        load_folder=os.path.join(TMP_FOLDER, "SDBM"),
                                         projection=projection_technique
                                         )
 

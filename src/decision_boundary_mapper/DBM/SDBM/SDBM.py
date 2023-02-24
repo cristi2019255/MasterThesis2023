@@ -77,6 +77,7 @@ class SDBM(DBMInterface):
                               train_epochs:int=300, train_batch_size:int=32,
                               resolution:int=DBM_DEFAULT_RESOLUTION,
                               use_fast_decoding:bool=False,
+                              load_folder:str = DEFAULT_MODEL_PATH,
                               projection:str = None # this parameter is not used in SDBM but is placed here to keep the same interface as DBM
                               ):
         """Generate the decision boundary map
@@ -90,6 +91,7 @@ class SDBM(DBMInterface):
                 train_batch_size (int, optional): Defaults to 32.
                 resolution (int, optional): The resolution of the decision boundary map. Defaults to DBM_DEFAULT_RESOLUTION = 256.
                 use_fast_decoding (bool, optional): If True, a fast inference algorithm will be used to decode the 2D space and to generate the decision boundary map. Defaults to False.
+                load_folder (str, optional): The folder path which contains a pre-trained autoencoder. Defaults to DEFAULT_MODEL_PATH.
                 projection (str, optional): The projection is not used in SDBM, is placed here just to match the DBM signature. Defaults to None.
                 
             Returns:
@@ -115,6 +117,7 @@ class SDBM(DBMInterface):
                                         Y_train, 
                                         X_test, 
                                         Y_test, 
+                                        load_folder=load_folder,
                                         epochs=train_epochs, 
                                         batch_size=train_batch_size)
 
@@ -126,8 +129,8 @@ class SDBM(DBMInterface):
         # generate the 2D image in the encoded space
         self.console.log("Decoding the 2D space... 2D -> nD")
         
-        save_img_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map")
-        save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map_confidence")
+        save_img_path = os.path.join(load_folder, "boundary_map")
+        save_img_confidence_path = os.path.join(load_folder, "boundary_map_confidence")
         
         if use_fast_decoding:
             img, img_confidence, spaceNd = self._get_img_dbm_fast_(resolution)
@@ -160,7 +163,7 @@ class SDBM(DBMInterface):
             img[i,j] = -2
             img_confidence[i,j] = 1
         
-        with open(os.path.join(DEFAULT_MODEL_PATH, "history.json"), 'r') as f:
+        with open(os.path.join(load_folder, "history.json"), 'r') as f:
             history = json.load(f)
         
         return (img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, history)

@@ -57,13 +57,18 @@ class invNN(NNinterface):
         CLASSIFIER_LOSS = "sparse_categorical_crossentropy"
         DECODER_LOSS_WEIGHT = 1.0
         CLASSIFIER_LOSS_WEIGHT = 0.125
-                  
+        
+        # computing the output size
+        output_size = 1
+        for i in range(len(output_shape)):
+            output_size *= output_shape[i]
+            
         self.decoder = tf.keras.Sequential([
             tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
             tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform', bias_initializer=tf.keras.initializers.Constant(0.01)),
             tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform', bias_initializer=tf.keras.initializers.Constant(0.01)),
             tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform', bias_initializer=tf.keras.initializers.Constant(0.01)),
-            tf.keras.layers.Dense(output_shape[0] * output_shape[1], activation='sigmoid', kernel_initializer='he_uniform'),
+            tf.keras.layers.Dense(output_size, activation='sigmoid', kernel_initializer='he_uniform'),
             tf.keras.layers.Reshape(output_shape)
         ], name=DECODER_NAME)
         
