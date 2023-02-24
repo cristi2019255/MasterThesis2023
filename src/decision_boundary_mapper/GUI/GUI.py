@@ -183,7 +183,7 @@ class GUI:
                 sg.Button("Upload CIFAR10 Data set", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, key = "-UPLOAD CIFAR10 DATA BTN-"),
             ],
             [
-                sg.Button("Show the Decision Boundary Mapping", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, key = "-DBM BTN-"),
+                sg.Button("Show the Decision Boundary Mapping", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, visible=False, key = "-DBM BTN-"),
             ],
             [
                 sg.Text("", expand_x=True)    
@@ -232,7 +232,7 @@ class GUI:
             [
                 sg.Column([
                     [sg.Text("Classifier: ",  visible=False, expand_x=True, key="-CLASSIFIER TEXT-", justification='center')],
-                    [sg.Image(key="-CLASSIFIER IMAGE-", expand_x=True, expand_y=True, visible=False, enable_events=True)],                           
+                    [sg.Image(key="-CLASSIFIER IMAGE-", expand_x=True, expand_y=True, visible=False, enable_events=False)],                           
                 ], expand_x=True),
                 sg.Column([
                     [sg.Text("Decision boundary map: ", visible=False, expand_x=True, key="-DBM TEXT-", justification='center')],
@@ -306,6 +306,7 @@ class GUI:
             
             self.num_classes = np.unique(self.Y_train).shape[0]
             self.upload_classifier()
+            self.switch_visibility(["-DBM BTN-"], True)
         
             self.window["-TRAIN DATA FILE-"].update("Training data file: " + filename)
             self.window["-TRAIN DATA SHAPE-"].update(f"Training data shape: X {self.X_train.shape} Y {self.Y_train.shape}")
@@ -344,6 +345,7 @@ class GUI:
         self.window["-TEST DATA SHAPE-"].update(f"Testing data shape: X {self.X_test.shape} Y {self.Y_test.shape}")
         
         self.upload_classifier()
+        self.switch_visibility(["-DBM BTN-"], True)
     
     def handle_upload_cifar10_data_event(self, event, values):
         (X_train, Y_train), (X_test, Y_test) = import_cifar10_dataset()
@@ -373,6 +375,8 @@ class GUI:
         self.window["-TEST DATA SHAPE-"].update(f"Testing data shape: X {self.X_test.shape} Y {self.Y_test.shape}")
         
         self.upload_classifier()
+        self.switch_visibility(["-DBM BTN-"], True)
+    
     
     def switch_visibility(self, elements, visible):
         for x in elements:
@@ -388,6 +392,7 @@ class GUI:
         
     def handle_show_dbm_history(self, training_history):
         # this is for plotting the training history
+        plt.close()
         fig, [ax1, ax2, ax3] = plt.subplots(1, 3, figsize=(20, 5))
         ax1.set_title("Loss")
         ax1.plot(training_history["loss"], label="loss")
