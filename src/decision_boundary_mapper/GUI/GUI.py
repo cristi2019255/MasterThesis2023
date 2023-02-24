@@ -15,13 +15,13 @@
 import os
 from shutil import rmtree
 import matplotlib.pyplot as plt
-from src.decision_boundary_mapper.GUI.DBMPlotterGUI import DBMPlotterGUI
 import PySimpleGUI as sg
 import numpy as np
 from PIL import Image, ImageTk
 import tensorflow as tf
 from tensorflow.keras.utils import plot_model
 
+from .DBMPlotterGUI import DBMPlotterGUI
 from ..Logger import LoggerGUI, Logger
 from ..DBM import SDBM, DBM
 from ..utils import import_csv_dataset, import_mnist_dataset
