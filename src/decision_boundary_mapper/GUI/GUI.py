@@ -34,6 +34,7 @@ BUTTON_PRIMARY_COLOR = "#007acc"
 WHITE_COLOR = "#ffffff"
 RIGHTS_MESSAGE = "© 2023 Cristian Grosu. All rights reserved."
 RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"
+APP_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "main_icon.png")
 
 DEFAULT_DBM_IMAGE_PATH = os.path.join(os.getcwd(), "results", "MNIST", "2D_boundary_mapping.png") # unused
 TMP_FOLDER = os.path.join(os.getcwd(), "tmp")
@@ -102,7 +103,8 @@ class GUI:
     def build(self):
         window = sg.Window(TITLE, 
                            layout=self._get_layout(), 
-                           size=WINDOW_SIZE,                            
+                           size=WINDOW_SIZE,  
+                           icon=APP_ICON_PATH,                          
                            resizable=False,
                            )
         window.finalize()
@@ -112,10 +114,13 @@ class GUI:
         while True:
             event, values = self.window.read()
             
-            if event == "Exit" or event == sg.WIN_CLOSED:
+            if event == "Exit" or event == sg.WIN_CLOSED:                
                 break
             
             self.handle_event(event, values)
+        
+        if self.dbm_plotter_gui is not None:
+            self.dbm_plotter_gui.stop()
         
         self.stop()
     
