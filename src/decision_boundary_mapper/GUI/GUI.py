@@ -486,7 +486,8 @@ class GUI:
                                             Y_train = self.Y_train,
                                             X_test = self.X_test,
                                             Y_test = self.Y_test,
-                                            spaceNd=spaceNd
+                                            spaceNd=spaceNd,
+                                            main_gui=self, # reference to the main GUI
                                             )
         
         # ---------------------------------

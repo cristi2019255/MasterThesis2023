@@ -26,10 +26,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from math import sqrt
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
+import matplotlib.figure as figure
 from PIL import Image
 import numpy as np
 import PySimpleGUI as sg
@@ -37,12 +39,19 @@ import os
 
 from .. import Logger, LoggerGUI
 
-def draw_figure_to_canvas(canvas, figure):
+def draw_figure_to_canvas(canvas, figure, canvas_toolbar):
+    if canvas.children:
+        for child in canvas.winfo_children():
+            child.destroy()
+    if canvas_toolbar.children:
+        for child in canvas_toolbar.winfo_children():
+            child.destroy()
     figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
     figure_canvas_agg.draw()
+    toolbar = NavigationToolbar2Tk(figure_canvas_agg, canvas_toolbar)        
+    toolbar.update()  
     figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
     return figure_canvas_agg
-
 
 def generate_color_mapper():
     colors_mapper = {
@@ -87,7 +96,9 @@ class DBMPlotterGUI:
                   Y_test,
                   encoded_train, 
                   encoded_test,                                      
-                  spaceNd, logger=None):
+                  spaceNd, 
+                  main_gui,
+                  logger=None):
         
         
         if logger is None:
@@ -103,7 +114,8 @@ class DBMPlotterGUI:
         self.X_test = X_test
         self.Y_test = Y_test
         self.encoded_train = encoded_train
-        self.encoded_test = encoded_test                                     
+        self.encoded_test = encoded_test  
+        self.main_gui = main_gui # reference to main window                                  
         self.spaceNd = spaceNd.reshape(spaceNd.shape[0], spaceNd.shape[1], X_train.shape[1], X_train.shape[2])
         self.color_img, self.legend = self._build_2D_image_(img, img_confidence)
         self.train_mapper, self.test_mapper = self._generate_encoded_mapping_()
@@ -133,7 +145,7 @@ class DBMPlotterGUI:
     def _initialize_gui_(self):        
         # --------------------- GUI related ---------------------
         self.window = self._build_GUI_()
-        self.canvas, self.fig_agg = self._build_canvas_(self.fig, key = "-DBM CANVAS-")
+        self.canvas, self.fig_agg, self.canvas_controls = self._build_canvas_(self.fig, key = "-DBM CANVAS-", controls_key="-CONTROLS CANVAS-")
         
         self.draw_dbm_img()    
         # --------------------- GUI related ---------------------        
@@ -146,9 +158,8 @@ class DBMPlotterGUI:
             buttons.append(sg.Button('Compute Projection Errors', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)))             
 
         layout = [                                  
-                    [
-                        [sg.Canvas(key='-DBM CANVAS-', expand_x=True, expand_y=True, pad=(0,0))],                        
-                    ], 
+                    [sg.Canvas(key='-DBM CANVAS-', expand_x=True, expand_y=True, pad=(0,0))],     
+                    [sg.Canvas(key='-CONTROLS CANVAS-', expand_x=True, pad=(0,0))],
                     [
                         sg.Column([
                             [sg.Button('Apply Updates', font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))],
@@ -184,6 +195,10 @@ class DBMPlotterGUI:
                 break
         
             self.handle_event(event, values)
+            
+            if event == "-APPLY CHANGES-":
+                # close the window after changes are applied so the user can see the changes in the main window
+                break
         
         self.stop()
     
@@ -253,7 +268,7 @@ class DBMPlotterGUI:
         return train_mapper, test_mapper
 
     def _build_plot_(self):                   
-        fig = plt.figure(figsize = (1, 1))
+        fig = figure.Figure(figsize = (1, 1))
         ax = fig.add_subplot(121)
         ax1 = fig.add_subplot(222)
         ax2 = fig.add_subplot(224)
@@ -262,10 +277,11 @@ class DBMPlotterGUI:
         ax2.set_axis_off()       
         return fig, ax, ax1, ax2
     
-    def _build_canvas_(self, fig, key):        
+    def _build_canvas_(self, fig, key, controls_key):        
         canvas = self.window[key].TKCanvas
-        fig_agg = draw_figure_to_canvas(canvas, fig)
-        return canvas, fig_agg
+        canvas_controls = self.window[controls_key].TKCanvas
+        fig_agg = draw_figure_to_canvas(canvas, fig, canvas_controls)
+        return canvas, fig_agg, canvas_controls
     
     def _build_annotation_mapper_(self):
         """ Builds the annotation mapper.
@@ -339,7 +355,7 @@ class DBMPlotterGUI:
                 k = self.test_mapper[f"{i} {j}"]
                 if f"{i} {j}" in self.expert_updates_labels_mapper:
                     l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
-                    return self.X_train[k], f"Label {self.Y_test[k]} \nExpert label: {l}"  
+                    return self.X_test[k], f"Label {self.Y_test[k]} \nExpert label: {l}"  
                 return self.X_test[k], f"Label: {self.Y_test[k]}"       
             
             # search for the data point in the 
@@ -397,15 +413,18 @@ class DBMPlotterGUI:
        
             self.fig.canvas.draw_idle()
         
-        def onkey(event):      
-            DELTA = 1  
-            SHIFT_DELTA = 5                            
+        def onkey(event):                                           
             if self.current_selected_point is None:
                 return
             
             if event.key.isdigit():
                 self.current_selected_point_assigned_label = int(event.key)
                 return
+            
+            DELTA = 1  
+            SHIFT_DELTA = 5   
+            ARROW_HEAD_WIDTH, ARROW_HEAD_LENGTH = 0.5, 0.5
+            ARROW_HEAD_OFFSET = sqrt(ARROW_HEAD_WIDTH**2 + ARROW_HEAD_LENGTH**2) / 2
             
             (x, y) = self.current_selected_point.get_data()
             (initial_x, initial_y) = self.initial_selected_point.get_data()    
@@ -423,7 +442,10 @@ class DBMPlotterGUI:
                     # showing the fix of the position                    
                     self.current_selected_point = self.dbm_ax.plot(x, y, 'b^')[0]
                     self.initial_selected_point = self.dbm_ax.plot(initial_x, initial_y, 'r^')[0]
-                    self.arrow_selected_points = self.dbm_ax.arrow(initial_x[0], initial_y[0], x[0] - initial_x[0], y[0] - initial_y[0], head_width=0.5, head_length=0.5, fc='k', ec='k')
+                    dx, dy = x[0] - initial_x[0], y[0] - initial_y[0]
+                    dx = dx - ARROW_HEAD_OFFSET if dx > 0 else dx + ARROW_HEAD_OFFSET if dx < 0 else dx
+                    dy = dy - ARROW_HEAD_OFFSET if dy > 0 else dy + ARROW_HEAD_OFFSET if dy < 0 else dy
+                    self.arrow_selected_points = self.dbm_ax.arrow(initial_x[0], initial_y[0], dx, dy, head_width=ARROW_HEAD_WIDTH, head_length=ARROW_HEAD_LENGTH, fc='k', ec='k')
                     
                     if self.current_selected_point_assigned_label is not None:
                         self.updates_logger.log(f"Assigned label: {self.current_selected_point_assigned_label} to point: ({x[0]}, {y[0]})")                        
@@ -467,7 +489,10 @@ class DBMPlotterGUI:
                 self.arrow_selected_points.remove()
             # redraw the point in the new position and the arrow
             self.current_selected_point = self.dbm_ax.plot(x, y, 'bo', markersize=5)[0]  
-            self.arrow_selected_points = self.dbm_ax.arrow(initial_x[0], initial_y[0], x[0] - initial_x[0], y[0] - initial_y[0], head_width=1, head_length=1)
+            dx, dy = x[0] - initial_x[0], y[0] - initial_y[0]
+            dx = dx - ARROW_HEAD_OFFSET if dx > 0 else dx + ARROW_HEAD_OFFSET if dx < 0 else dx
+            dy = dy - ARROW_HEAD_OFFSET if dy > 0 else dy + ARROW_HEAD_OFFSET if dy < 0 else dy                              
+            self.arrow_selected_points = self.dbm_ax.arrow(initial_x[0], initial_y[0], dx, dy, head_width=ARROW_HEAD_WIDTH, head_length=ARROW_HEAD_LENGTH)
             self.fig.canvas.draw_idle()
         
         self.motion_event_cid = self.fig.canvas.mpl_connect('motion_notify_event', display_annotation)           
@@ -484,11 +509,7 @@ class DBMPlotterGUI:
         img.thumbnail((100, 100), Image.ANTIALIAS)
         img.show(title=f"Data point label: {label}")
     
-    def draw_dbm_img(self):
-        # clear the figure
-        #self.dbm_fig.clf()   
-        self.fig_agg.get_tk_widget().forget()
-             
+    def draw_dbm_img(self):             
         # update the figure
         self.dbm_ax.set_title("Decision Boundary Mapper")
         self.proj_errs_ax.set_title("Projection Errors")
@@ -499,15 +520,11 @@ class DBMPlotterGUI:
         
         if not self.proj_errs_computed:
             self.proj_errs_warning_text = self.proj_errs_ax.text(0.5, 0.5, "To compute projection errors you should click the button.\nThis might take about 30 seconds", transform=self.proj_errs_ax.transAxes, ha="center")
-        
-        
+               
         # draw the figure to the canvas
-        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig)    
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)    
     
-    def _draw_projection_errors_img_(self, projection_errors):
-        # clear the figure
-        self.fig_agg.get_tk_widget().forget()
-        
+    def _draw_projection_errors_img_(self, projection_errors):                
         # update the figure        
         self.proj_errs_warning_text.set_visible(False)
         ax_img = self.proj_errs_ax.imshow(projection_errors)
@@ -516,13 +533,12 @@ class DBMPlotterGUI:
         self.fig.set_size_inches(1, 1)        
         
         # draw the figure to the canvas
-        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig) 
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls) 
 
     def _set_loading_proj_errs_state_(self):
         self.window['-COMPUTE PROJECTION ERRORS-'].update(visible=False, disabled=True)        
         self.proj_errs_warning_text.set_text("Computing projection errors...\nPlease wait...")
-        self.fig_agg.get_tk_widget().forget()
-        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig) 
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls) 
 
     def handle_compute_projection_errors_event(self, event, values):
         self._set_loading_proj_errs_state_()
@@ -531,6 +547,9 @@ class DBMPlotterGUI:
         self._draw_projection_errors_img_(projection_errors)
 
     def handle_apply_changes_event(self, event, values):
+        self.updates_logger.log("Applying changes... This might take a couple of seconds, after this the window will be closed")
+        self.updates_logger.log("You can reopen the window from the main GUI (previous window)")
         # TODO: call the dbm_model refit method, but first implement it, and do some checks, i.e. don't do anything if less than 10 changes
+        # TODO: update the main GUI with the new model
         pass
     
