@@ -34,7 +34,6 @@ from PIL import Image
 import numpy as np
 import PySimpleGUI as sg
 import os
-from copy import deepcopy
 
 from .. import Logger, LoggerGUI
 
@@ -126,6 +125,7 @@ class DBMPlotterGUI:
         self.key_event_cid = None
         self.current_selected_point = None
         self.initial_selected_point = None
+        self.arrow_selected_points = None
         self.current_selected_point_assigned_label = None
         self.expert_updates_labels_mapper = {}
         self.expert_updates_positions_mapper = {}
@@ -172,6 +172,7 @@ class DBMPlotterGUI:
                            element_justification='center',
                            )
         window.finalize()
+        #window.maximize()
         return window
     
     def start(self):
@@ -329,7 +330,7 @@ class DBMPlotterGUI:
             if self.img[i,j] == -1:
                 k = self.train_mapper[f"{i} {j}"]
                 if f"{i} {j}" in self.expert_updates_labels_mapper:
-                    l = self.expert_updates_labels_mapper[f"{i} {j}"]
+                    l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
                     return self.X_train[k], f"Label {self.Y_train[k]} \nExpert label: {l}"  
                 return self.X_train[k], f"Label: {self.Y_train[k]}"
             
@@ -337,18 +338,17 @@ class DBMPlotterGUI:
             if self.img[i,j] == -2:
                 k = self.test_mapper[f"{i} {j}"]
                 if f"{i} {j}" in self.expert_updates_labels_mapper:
-                    l = self.expert_updates_labels_mapper[f"{i} {j}"]
+                    l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
                     return self.X_train[k], f"Label {self.Y_test[k]} \nExpert label: {l}"  
                 return self.X_test[k], f"Label: {self.Y_test[k]}"       
             
             # search for the data point in the 
             point = self.spaceNd[i,j]
             if f"{i} {j}" in self.expert_updates_labels_mapper:
-                l = self.expert_updates_labels_mapper[f"{i} {j}"]
+                l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
                 return point, f"Expert label {l}"            
             return point, None
-            
-        
+                    
         def onclick(event):
             """ Open the data point in a new window when clicked on a pixel in training or testing set based on mouse position."""
             if event.inaxes == None:
@@ -360,6 +360,30 @@ class DBMPlotterGUI:
             if self.img[i,j] >= 0 or self.img[i,j] < -2:
                 self.console.log("Data point not in training or testing set")
                 return
+                    
+            # check if clicked on a data point that already was updated, then remove the update
+            if f"{i} {j}" in self.expert_updates_labels_mapper:
+                (_, initial_point, new_point) = self.expert_updates_labels_mapper[f"{i} {j}"]
+                initial_point.remove()
+                new_point.remove()
+                del self.expert_updates_labels_mapper[f"{i} {j}"]                    
+                self.fig.canvas.draw_idle()
+                self.updates_logger.log(f"Removed updates for point: ({j}, {i})")
+                return
+            if f"{i} {j}" in self.expert_updates_positions_mapper:
+                (initial_point, arrow, new_point) = self.expert_updates_positions_mapper[f"{i} {j}"]                
+                initial_point.remove()
+                arrow.remove()
+                new_point.remove()
+                self.fig.canvas.draw_idle()
+                del self.expert_updates_positions_mapper[f"{i} {j}"]
+                self.updates_logger.log(f"Removed updates for point: ({j}, {i})")                            
+                return
+            
+            
+            # if clicked on a data point that was not updated, then add the update
+            self.current_selected_point = self.dbm_ax.plot(j, i, 'bo', markersize=5)[0]
+            self.initial_selected_point = self.dbm_ax.plot(j, i, 'ro', markersize=5)[0]
             
             # disable annotations on hover
             #if self.motion_event_cid is not None:
@@ -367,9 +391,6 @@ class DBMPlotterGUI:
             # disable on click event
             if self.click_event_cid is not None:
                 self.fig.canvas.mpl_disconnect(self.click_event_cid)
-                        
-            self.current_selected_point = self.dbm_ax.plot(j, i, 'bo', markersize=5)[0]
-            self.initial_selected_point = self.dbm_ax.plot(j, i, 'ro', markersize=5)[0]
             
             # enable key press events
             self.key_event_cid = self.fig.canvas.mpl_connect('key_press_event', onkey)
@@ -377,7 +398,8 @@ class DBMPlotterGUI:
             self.fig.canvas.draw_idle()
         
         def onkey(event):      
-            DELTA = 1                              
+            DELTA = 1  
+            SHIFT_DELTA = 5                            
             if self.current_selected_point is None:
                 return
             
@@ -386,49 +408,42 @@ class DBMPlotterGUI:
                 return
             
             (x, y) = self.current_selected_point.get_data()
+            (initial_x, initial_y) = self.initial_selected_point.get_data()    
             
-            if event.key == 'escape' or event.key == 'enter' or event.key == 'backspace':
-                (initial_x, initial_y) = self.initial_selected_point.get_data()                
+            if event.key == 'escape' or event.key == 'enter':                            
                 self.current_selected_point.remove()       
-                self.initial_selected_point.remove()                                
+                self.initial_selected_point.remove()  
+                if self.arrow_selected_points is not None:
+                    self.arrow_selected_points.remove()                              
                 
                 if event.key == 'escape':                    
                     self.updates_logger.log("Cancelled point move...")                    
                     
                 elif event.key == 'enter':
                     # showing the fix of the position                    
-                    self.current_selected_point = self.dbm_ax.plot(x, y, 'b+')[0]
-                    self.dbm_ax.plot(initial_x, initial_y, 'r+')
+                    self.current_selected_point = self.dbm_ax.plot(x, y, 'b^')[0]
+                    self.initial_selected_point = self.dbm_ax.plot(initial_x, initial_y, 'r^')[0]
+                    self.arrow_selected_points = self.dbm_ax.arrow(initial_x[0], initial_y[0], x[0] - initial_x[0], y[0] - initial_y[0], head_width=0.5, head_length=0.5, fc='k', ec='k')
                     
                     if self.current_selected_point_assigned_label is not None:
-                        self.updates_logger.log(f"Assigned label: {self.current_selected_point_assigned_label} to point: ({x[0]}, {y[0]})")
-                        self.expert_updates_labels_mapper[f"{y[0]} {x[0]}"] = self.current_selected_point_assigned_label
-                        self.expert_updates_labels_mapper[f"{initial_y[0]} {initial_x[0]}"] = self.current_selected_point_assigned_label                        
+                        self.updates_logger.log(f"Assigned label: {self.current_selected_point_assigned_label} to point: ({x[0]}, {y[0]})")                        
+                        self.expert_updates_labels_mapper[f"{initial_y[0]} {initial_x[0]}"] = (self.current_selected_point_assigned_label, self.initial_selected_point, self.current_selected_point)                        
                     if initial_x[0] != x[0] or initial_y[0] != y[0]: 
                         self.updates_logger.log(f"Moved point: ({initial_x[0]}, {initial_y[0]}) -> ({x[0]}, {y[0]})")                                                   
-                        self.expert_updates_positions_mapper[f"{initial_y[0]} {initial_x[0]}"] = (y[0], x[0])
-                elif event.key == 'backspace':
-                    if f"{y[0]} {x[0]}" in self.expert_updates_labels_mapper:
-                        del self.expert_updates_labels_mapper[f"{y[0]} {x[0]}"]
-                    if f"{y[0]} {x[0]}" in self.expert_updates_positions_mapper:
-                        new_y, new_x = self.expert_updates_positions_mapper[f"{y[0]} {x[0]}"]
-                        del self.expert_updates_positions_mapper[f"{y[0]} {x[0]}"]
-                        self.dbm_ax.plot(new_x, new_y, 'bx')
-                        self.updates_logger.log(f"Removed point: ({new_x}, {new_y})")
+                        self.expert_updates_positions_mapper[f"{initial_y[0]} {initial_x[0]}"] = (self.initial_selected_point, self.arrow_selected_points, self.current_selected_point)
                     
-                    self.dbm_ax.plot(initial_x, initial_y, 'rx')
-                    self.updates_logger.log(f"Removed point: ({x[0]}, {y[0]})")                    
-                
                 self.initial_selected_point = None    
                 self.current_selected_point = None
+                self.arrow_selected_points = None
                 self.current_selected_point_assigned_label = None
+               
                 self.motion_event_cid = self.fig.canvas.mpl_connect('motion_notify_event', display_annotation)                
                 self.click_event_cid = self.fig.canvas.mpl_connect('button_press_event', onclick)
                 self.fig.canvas.mpl_disconnect(self.key_event_cid)  
                 self.fig.canvas.draw_idle()  
                 return
             
-           
+            # update the position of the point
             if event.key == 'left':
                 x = x - DELTA
             if event.key == 'right':
@@ -437,10 +452,22 @@ class DBMPlotterGUI:
                 y = y - DELTA
             if event.key == 'down':
                 y = y + DELTA
+            if event.key == 'shift+left':
+                x = x - SHIFT_DELTA
+            if event.key == 'shift+right':
+                x = x + SHIFT_DELTA
+            if event.key == 'shift+up':
+                y = y - SHIFT_DELTA
+            if event.key == 'shift+down':
+                y = y + SHIFT_DELTA
             
             # remove the old point and plot the new one after the move
             self.current_selected_point.remove()    
-            self.current_selected_point = self.dbm_ax.plot(x, y, 'bo', markersize=5)[0]    
+            if self.arrow_selected_points is not None:
+                self.arrow_selected_points.remove()
+            # redraw the point in the new position and the arrow
+            self.current_selected_point = self.dbm_ax.plot(x, y, 'bo', markersize=5)[0]  
+            self.arrow_selected_points = self.dbm_ax.arrow(initial_x[0], initial_y[0], x[0] - initial_x[0], y[0] - initial_y[0], head_width=1, head_length=1)
             self.fig.canvas.draw_idle()
         
         self.motion_event_cid = self.fig.canvas.mpl_connect('motion_notify_event', display_annotation)           
