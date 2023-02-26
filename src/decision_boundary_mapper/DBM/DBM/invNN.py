@@ -143,13 +143,22 @@ class invNN(NNinterface):
             batch_size (int, optional): Defaults to 32.
         """
         self.console.log("Refitting model...")
-        decoder = self.neural_network.get_layer(DECODER_NAME)        
-        decoder.fit(X2d, Xnd, epochs=epochs, batch_size=batch_size, shuffle=True, verbose=0)
+        decoder = self.neural_network.get_layer(DECODER_NAME) 
+        logger_callback = LoggerModel(name=INVNN_NAME, show_init=False, epochs=epochs)       
+        decoder.fit(X2d, Xnd, 
+                    epochs=epochs, 
+                    batch_size=batch_size, 
+                    shuffle=True, 
+                    callbacks=[logger_callback],
+                    verbose=0)
         
+        # TODO: not refitting classifier for now, uncomment latter
         #if Y is not None:            
         #    classifier = self.neural_network.get_layer(self.classifier.name)
         #    classifier.fit(Xnd, Y, epochs=epochs, btach_size=batch_size, shuffle=True, verbose=0)
 
-        self.save()
+        # TODO: not saving for now, uncomment latter
+        #self.save()
+        
         self.console.log("Model refitted!")
         

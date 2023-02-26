@@ -79,7 +79,7 @@ class SDBM(DBMInterface):
             Xnd (np.ndarray): Training data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
             Y (np.ndarray): Training data set labels            
         """
-        epochs=3
+        epochs=3 #TODO: change and investigate what will be a good value for tihs 
         batch_size=32
         self.console.log("Refitting the model...")
         self.autoencoder.refit(X2d, Xnd, Y, epochs=epochs, batch_size=batch_size)

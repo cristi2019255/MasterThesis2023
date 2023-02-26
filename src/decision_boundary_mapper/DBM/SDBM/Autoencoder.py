@@ -24,6 +24,11 @@ DECODER_NAME = "decoder"
 ENCODER_NAME = "encoder"
 AUTOENCODER_NAME = "autoencoder"
 
+DECODER_LOSS = "mean_squared_error"
+CLASSIFIER_LOSS = "sparse_categorical_crossentropy"
+DECODER_LOSS_WEIGHT = 1.0
+CLASSIFIER_LOSS_WEIGHT = 0.125
+
 class Autoencoder(NNinterface):
     def __init__(self, 
                  classifier = None, 
@@ -71,11 +76,7 @@ class Autoencoder(NNinterface):
         
         input_layer = tf.keras.Input(shape=input_shape, name="input")
         
-        CLASSIFIER_NAME = self.classifier.name
-        DECODER_LOSS = "mean_squared_error"
-        CLASSIFIER_LOSS = "sparse_categorical_crossentropy"
-        DECODER_LOSS_WEIGHT = 1.0
-        CLASSIFIER_LOSS_WEIGHT = 0.125
+        CLASSIFIER_NAME = self.classifier.name        
         
         encoder_output = encoder(input_layer)
         decoder_output = decoder(encoder_output)
@@ -151,11 +152,25 @@ class Autoencoder(NNinterface):
             batch_size (int, optional): Defaults to 32.
         """
         self.console.log("Refitting model...")
-        self.decoder.fit(X2d, Xnd, epochs=epochs, batch_size=batch_size, shuffle=True, verbose=0)
+        logger_callback = LoggerModel(name=AUTOENCODER_NAME, show_init=False, epochs=epochs)
+        self.decoder.compile(optimizer=tf.keras.optimizers.Adam(), loss=DECODER_LOSS, metrics=["accuracy"])
+
+        self.console.log(X2d.shape)
+        self.console.log(Xnd.shape)
+        Xnd = Xnd.reshape((Xnd.shape[0], 28, 28))
+        self.decoder.fit(X2d, Xnd, 
+                         epochs=epochs, 
+                         batch_size=batch_size, 
+                         shuffle=True,
+                         callbacks=[logger_callback], 
+                         verbose=0)
         
+        # TODO: not refiting the classifier for now, uncomment latter
         #if Y is not None:
         #    self.classifier.fit(Xnd, Y, epochs=epochs, batch_size=batch_size, shuffle=True, verbose=0)
 
+        # TODO: not saving for now, uncomment latter
+        #self.save()
         self.console.log("Model refitted!")
          
            

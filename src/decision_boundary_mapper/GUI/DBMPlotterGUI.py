@@ -566,7 +566,7 @@ class DBMPlotterGUI:
         self.updates_logger.log("You can reopen the window from the main GUI (previous window)")
         
         # For the start lets do just the position changes (not the labels change)
-        #self.dbm_model.refit(X2d, Xnd, Y)
+        self.dbm_model.refit(X2d, Xnd, Y)
         
         # Updating the main GUI with the new model                
         dbm_info = self.dbm_model.generate_boundary_map(
@@ -601,9 +601,9 @@ class DBMPlotterGUI:
         """
         position_changes = {}
         label_changes = {}
-        X2d = np.array([])
-        Xnd = np.array([])
-        Y = np.array([]) # TODO: implement that label changes are also computed
+        X2d = []
+        Xnd = []
+        Y = [] # TODO: implement that label changes are also computed
         
         for pos in self.expert_updates_positions_mapper:
             (x,y) = self.expert_updates_positions_mapper[pos][0] # new position is stored as a tuple (x, y) at first position in the item
@@ -615,10 +615,11 @@ class DBMPlotterGUI:
                 k = self.test_mapper[pos]
                 xnd = self.X_test[k]
                 
-            X2d = np.append(X2d, [x, y])
-            Xnd = np.append(Xnd, xnd)
+            X2d.append([x, y])
+            Xnd.append(xnd)
             
         for pos in self.expert_updates_labels_mapper:
             label_changes[pos] = self.expert_updates_labels_mapper[pos][0] # new label is stored as a string/number at first position in the item
-                
+        
+        X2d, Xnd, Y = np.array(X2d), np.array(Xnd), np.array(Y)
         return position_changes, label_changes, X2d, Xnd, Y

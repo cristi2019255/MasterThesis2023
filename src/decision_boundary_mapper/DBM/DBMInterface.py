@@ -74,6 +74,16 @@ class DBMInterface:
         """
         pass
     
+    def refit(self, X2d:np.ndarray, Xnd:np.ndarray, Y:np.ndarray):
+        """ Refits the classifier on the given data set.
+
+        Args:
+            X2d (np.ndarray): 
+            Xnd (np.ndarray): 
+            Y (np.ndarray): 
+        """
+        pass
+    
     def generate_boundary_map(self, 
                               X_train:np.ndarray, Y_train:np.ndarray, 
                               X_test:np.ndarray, Y_test:np.ndarray,
