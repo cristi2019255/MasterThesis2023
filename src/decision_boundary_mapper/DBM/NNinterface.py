@@ -85,7 +85,7 @@ class NNinterface:
             self.console.log(f"NN not found. Please check the path folder {self.save_folder_path} and make sure the model is saved there")        
             raise e
     
-    def save(self, history):
+    def save(self, history = None):
         """
             Saves the model to the specified folder path. With the .tf extension.
         """       
@@ -95,6 +95,9 @@ class NNinterface:
             
         self.neural_network.save(os.path.join(folder_path, self.neural_network.name), save_format="tf")
         self.console.log(f"Model saved to {folder_path}")
+        
+        if history is None:
+            return
         
         with open(os.path.join(folder_path, "history.json"), "w") as f:
             f.write(json.dumps(history.history))

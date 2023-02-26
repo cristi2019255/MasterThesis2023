@@ -429,7 +429,7 @@ class GUI:
         
         RESOLUTION = 256
         TMP_FOLDER = os.path.join("tmp", self.dataset_name)
-        
+        save_folder = TMP_FOLDER
         if values["-DBM TECHNIQUE-"] == "Inverse Projection":
             DEFAULT_MODEL_FOLDER = os.path.join(TMP_FOLDER, "DBM")        
             
@@ -443,7 +443,7 @@ class GUI:
             else:
                 with open(os.path.join(DEFAULT_MODEL_FOLDER, projection_technique, "test_2d.npy"), "rb") as f:
                     X_test_2d = np.load(f)
-               
+            save_folder = os.path.join(DEFAULT_MODEL_FOLDER, projection_technique)
             dbm_info = dbm.generate_boundary_map(
                                         self.X_train, 
                                         self.Y_train, 
@@ -457,6 +457,7 @@ class GUI:
                                         projection=projection_technique
                                         )
         else:
+            save_folder = os.path.join(TMP_FOLDER, "SDBM")
             dbm_info = dbm.generate_boundary_map(
                                         self.X_train, 
                                         self.Y_train, 
@@ -464,7 +465,7 @@ class GUI:
                                         self.Y_test, 
                                         resolution=RESOLUTION,
                                         use_fast_decoding=use_decoding_fast,
-                                        load_folder=os.path.join(TMP_FOLDER, "SDBM"),
+                                        load_folder=save_folder,
                                         projection=projection_technique
                                         )
 
@@ -488,6 +489,8 @@ class GUI:
                                             Y_test = self.Y_test,
                                             spaceNd=spaceNd,
                                             main_gui=self, # reference to the main GUI
+                                            save_folder=save_folder,
+                                            projection_technique=projection_technique,
                                             )
         
         # ---------------------------------
@@ -500,4 +503,38 @@ class GUI:
                     
         self.switch_visibility(["-DBM IMAGE LOADING-"], False)
         self.switch_visibility(["-DBM IMAGE-"], True)
+    
+    def handle_changes_in_dbm_plotter(self, dbm_info, dbm_model, save_folder, projection_technique):
+        # update loading state
+        self.switch_visibility(["-DBM IMAGE-"], False)
+        self.switch_visibility(["-DBM TEXT-", "-DBM IMAGE LOADING-"], True)
         
+        RESOLUTION = 256  
+        img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history = dbm_info
+        self.dbm_plotter_gui = DBMPlotterGUI(
+                                            dbm_model = dbm_model,
+                                            img = img,
+                                            img_confidence = img_confidence,
+                                            encoded_train = encoded_training_data, 
+                                            encoded_test = encoded_testing_data,
+                                            X_train = self.X_train,
+                                            Y_train = self.Y_train,
+                                            X_test = self.X_test,
+                                            Y_test = self.Y_test,
+                                            spaceNd=spaceNd,
+                                            main_gui=self, # reference to the main GUI
+                                            save_folder=save_folder,
+                                            projection_technique=projection_technique,
+                                            )
+                      
+        # ---------------------------------
+        # update the dbm image
+        img = Image.fromarray(np.uint8(self.dbm_plotter_gui.color_img*255))
+        img.thumbnail((RESOLUTION, RESOLUTION), Image.ANTIALIAS)
+        # Convert im to ImageTk.PhotoImage after window finalized
+        image = ImageTk.PhotoImage(image=img)        
+        self.window["-DBM IMAGE-"].update(data=image)
+                    
+        self.switch_visibility(["-DBM IMAGE LOADING-"], False)
+        self.switch_visibility(["-DBM IMAGE-"], True)
+    

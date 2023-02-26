@@ -139,7 +139,26 @@ class Autoencoder(NNinterface):
         self.classifier = self.neural_network.get_layer(self.classifier.name)
             
         #self.show_predictions(dataNd=x_test, labels=y_test)
-            
+        
+    def refit(self, X2d, Xnd, Y = None, epochs:int=3, batch_size:int=32):
+        """Refits the model to the specified data.
+
+        Args:
+            X2d (np.ndarray): 
+            Xnd (np.ndarray): 
+            Y (np.ndarray): 
+            epochs (int, optional): Defaults to 3.
+            batch_size (int, optional): Defaults to 32.
+        """
+        self.console.log("Refitting model...")
+        self.decoder.fit(X2d, Xnd, epochs=epochs, batch_size=batch_size, shuffle=True, verbose=0)
+        
+        #if Y is not None:
+        #    self.classifier.fit(Xnd, Y, epochs=epochs, batch_size=batch_size, shuffle=True, verbose=0)
+
+        self.console.log("Model refitted!")
+         
+           
     def encode(self, data:np.ndarray, verbose:int = 0):
         """ Encodes the data using the encoder part of the autoencoder.
 

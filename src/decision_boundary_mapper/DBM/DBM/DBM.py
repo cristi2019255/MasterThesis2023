@@ -84,6 +84,20 @@ class DBM(DBMInterface):
                                   X2d_test, Xnd_test, Y_test, 
                                   epochs=epochs, batch_size=batch_size)
         return inverse_projection_NN
+    
+    def refit(self, X2d, Xnd, Y):
+        """ Refits the classifier on the given data set.
+
+        Args:
+            X2d (np.ndarray): Training data set 2D data got from the projection of the original data (e.g. PCA, t-SNE, UMAP)
+            Xnd (np.ndarray): Training data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
+            Y (np.ndarray): Training data set labels
+        """
+        epochs=3 
+        batch_size=32
+        self.console.log("Refitting the model...")
+        self.invNN.refit(X2d, Xnd, Y, epochs=epochs, batch_size=batch_size)
+        self.console.log("Model updated")
         
     def generate_boundary_map(self, 
                               Xnd_train: np.ndarray, Y_train: np.ndarray, 

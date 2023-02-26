@@ -26,8 +26,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 from math import sqrt
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
@@ -81,25 +81,22 @@ WINDOW_SIZE = (1550, 950)
 BLACK_COLOR = "#252526"
 BUTTON_PRIMARY_COLOR = "#007acc"
 WHITE_COLOR = "#ffffff"
-RIGHTS_MESSAGE = "© 2023 Cristian Grosu. All rights reserved."
+RIGHTS_MESSAGE_1 = "© 2023 Cristian Grosu. All rights reserved."
 RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"
+INFORMATION_CONTROLS_MESSAGE = "To change the position of a data point click on the data point, then use the arrow keys to move it. \nPress 'Enter' to confirm the new position. Press 'Esc' to cancel the movement.\nTo remove a change just click on the data point.\nAfter the changes are done press 'Apply Changes' to update the model. \nAfter the changes are applied the window will close.\nTo see the changes just reopen this window from the previous window."
 DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon.png")
 
 class DBMPlotterGUI:
     def __init__ (self, 
                   dbm_model,
-                  img, 
-                  img_confidence,
-                  X_train, 
-                  Y_train, 
-                  X_test, 
-                  Y_test,
-                  encoded_train, 
-                  encoded_test,                                      
-                  spaceNd, 
+                  img, img_confidence,
+                  X_train, Y_train, 
+                  X_test, Y_test,
+                  encoded_train, encoded_test, spaceNd, 
                   main_gui,
-                  logger=None):
-        
+                  save_folder,
+                  projection_technique,
+                  logger=None):        
         
         if logger is None:
             self.console = Logger(name="DBMPlotterGUI")
@@ -115,7 +112,9 @@ class DBMPlotterGUI:
         self.Y_test = Y_test
         self.encoded_train = encoded_train
         self.encoded_test = encoded_test  
-        self.main_gui = main_gui # reference to main window                                  
+        self.main_gui = main_gui # reference to main window  
+        self.save_folder = save_folder # folder where to save the changes made to the data by the user    
+        self.projection_technique = projection_technique # projection technique used to generate the DBM                            
         self.spaceNd = spaceNd.reshape(spaceNd.shape[0], spaceNd.shape[1], X_train.shape[1], X_train.shape[2])
         self.color_img, self.legend = self._build_2D_image_(img, img_confidence)
         self.train_mapper, self.test_mapper = self._generate_encoded_mapping_()
@@ -164,11 +163,12 @@ class DBMPlotterGUI:
                         sg.Column([
                             [sg.Button('Apply Updates', font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))],
                             buttons,
-                            [sg.Text(RIGHTS_MESSAGE)],
-                            [sg.Text(RIGHTS_MESSAGE_2)]           
+                            [sg.Text(INFORMATION_CONTROLS_MESSAGE, expand_x=True)],
+                            [sg.Text(RIGHTS_MESSAGE_1, expand_x=True)],
+                            [sg.Text(RIGHTS_MESSAGE_2, expand_x=True)],           
                         ], expand_x=True),
                         sg.Column([
-                            [sg.Multiline("",expand_x=True, size=(40,10), key="-LOGGER-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, auto_size_text=True)],                    
+                            [sg.Multiline("",expand_x=True, size=(50,10), key="-LOGGER-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, auto_size_text=True)],                    
                         ], expand_x=True),
                     ]                                                      
                 ]
@@ -387,7 +387,7 @@ class DBMPlotterGUI:
                 self.updates_logger.log(f"Removed updates for point: ({j}, {i})")
                 return
             if f"{i} {j}" in self.expert_updates_positions_mapper:
-                (initial_point, arrow, new_point) = self.expert_updates_positions_mapper[f"{i} {j}"]                
+                (_, initial_point, arrow, new_point) = self.expert_updates_positions_mapper[f"{i} {j}"]                
                 initial_point.remove()
                 arrow.remove()
                 new_point.remove()
@@ -452,7 +452,7 @@ class DBMPlotterGUI:
                         self.expert_updates_labels_mapper[f"{initial_y[0]} {initial_x[0]}"] = (self.current_selected_point_assigned_label, self.initial_selected_point, self.current_selected_point)                        
                     if initial_x[0] != x[0] or initial_y[0] != y[0]: 
                         self.updates_logger.log(f"Moved point: ({initial_x[0]}, {initial_y[0]}) -> ({x[0]}, {y[0]})")                                                   
-                        self.expert_updates_positions_mapper[f"{initial_y[0]} {initial_x[0]}"] = (self.initial_selected_point, self.arrow_selected_points, self.current_selected_point)
+                        self.expert_updates_positions_mapper[f"{initial_y[0]} {initial_x[0]}"] = ((x[0], y[0]), self.initial_selected_point, self.arrow_selected_points, self.current_selected_point)
                     
                 self.initial_selected_point = None    
                 self.current_selected_point = None
@@ -547,9 +547,78 @@ class DBMPlotterGUI:
         self._draw_projection_errors_img_(projection_errors)
 
     def handle_apply_changes_event(self, event, values):
+        num_changes = len(self.expert_updates_positions_mapper) + len(self.expert_updates_labels_mapper)
+        if num_changes == 0:
+            self.updates_logger.log("No changes to apply")
+            return
+        # TODO: uncomment this
+        #if num_changes < 10:
+        #    self.updates_logger.log("Less than 10 changes to apply, please apply more changes")
+        #    return
+        
+        self.console.log("Transforming changes...")
+        position_changes, label_changes, X2d, Xnd, Y = self.transform_changes()
+        
+        self.console.log("Saving changes to a local folder...")
+        self.save_changes(self.save_folder, position_changes=position_changes, label_changes=label_changes)
+        
         self.updates_logger.log("Applying changes... This might take a couple of seconds, after this the window will be closed")
         self.updates_logger.log("You can reopen the window from the main GUI (previous window)")
-        # TODO: call the dbm_model refit method, but first implement it, and do some checks, i.e. don't do anything if less than 10 changes
-        # TODO: update the main GUI with the new model
-        pass
+        
+        # For the start lets do just the position changes (not the labels change)
+        #self.dbm_model.refit(X2d, Xnd, Y)
+        
+        # Updating the main GUI with the new model                
+        dbm_info = self.dbm_model.generate_boundary_map(
+            self.X_train, 
+            self.Y_train, 
+            self.X_test, 
+            self.Y_test, 
+            resolution=len(self.img),
+            use_fast_decoding=False,
+            load_folder=self.save_folder,
+            projection=self.projection_technique                                        
+        )        
+        
+        self.main_gui.handle_changes_in_dbm_plotter(dbm_info, self.dbm_model, self.save_folder, self.projection_technique)
+        
     
+    def save_changes(self, folder:str="tmp", position_changes={}, label_changes={}):
+        if not os.path.exists(folder):
+            os.path.makedirs(folder)
+                        
+        with open(os.path.join(folder, "position_changes.json"), "w") as f:
+            json.dump(position_changes, f, indent=2)
+        
+        with open(os.path.join(folder, "label_changes.json"), "w") as f:
+            json.dump(label_changes, f, indent=2)
+    
+    def transform_changes(self):
+        """
+        Returns:
+            position_changes (dict): a dictionary with old position as key and the new position as value
+            label_changes (dict): a dictionary with old and new positions as key and the new label as value
+        """
+        position_changes = {}
+        label_changes = {}
+        X2d = np.array([])
+        Xnd = np.array([])
+        Y = np.array([]) # TODO: implement that label changes are also computed
+        
+        for pos in self.expert_updates_positions_mapper:
+            (x,y) = self.expert_updates_positions_mapper[pos][0] # new position is stored as a tuple (x, y) at first position in the item
+            position_changes[pos] = [int(x), int(y)]            
+            if pos in self.train_mapper:
+                k = self.train_mapper[pos]
+                xnd = self.X_train[k]
+            else:
+                k = self.test_mapper[pos]
+                xnd = self.X_test[k]
+                
+            X2d = np.append(X2d, [x, y])
+            Xnd = np.append(Xnd, xnd)
+            
+        for pos in self.expert_updates_labels_mapper:
+            label_changes[pos] = self.expert_updates_labels_mapper[pos][0] # new label is stored as a string/number at first position in the item
+                
+        return position_changes, label_changes, X2d, Xnd, Y
