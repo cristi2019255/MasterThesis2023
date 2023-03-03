@@ -49,8 +49,7 @@ class SDBM(DBMInterface):
 
     @track_time_wrapper(logger=time_tracker_console)
     def fit(self, 
-            X_train: np.ndarray, Y_train: np.ndarray, 
-            X_test: np.ndarray, Y_test: np.ndarray, 
+            X: np.ndarray, Y: np.ndarray,
             epochs:int=300, batch_size:int=32,
             load_folder:str = DEFAULT_MODEL_PATH):
         """Train an autoencoder on the training data (this will be used to reduce the dimensionality of the data (nD -> 2D) and decode the 2D space to nD)
@@ -67,8 +66,8 @@ class SDBM(DBMInterface):
         Returns:
             autoencoder (Autoencoder): The trained autoencoder
         """
-        autoencoder = Autoencoder(folder_path = load_folder, classifier=self.classifier)
-        autoencoder.fit(X_train, Y_train, X_test, Y_test, epochs, batch_size)        
+        autoencoder = Autoencoder(folder_path = load_folder)
+        autoencoder.fit(X, Y, epochs, batch_size)        
         return autoencoder
     
     def refit(self, X2d, Xnd, Y):
@@ -127,10 +126,9 @@ class SDBM(DBMInterface):
         
         # first train the autoencoder if it is not already trained
         if self.autoencoder is None:
-            self.autoencoder = self.fit(X_train, 
-                                        Y_train, 
-                                        X_test, 
-                                        Y_test, 
+            X = np.concatenate((X_train, X_test), axis=0)
+            Y = np.concatenate((Y_train, Y_test), axis=0)
+            self.autoencoder = self.fit(X, Y, 
                                         load_folder=load_folder,
                                         epochs=train_epochs, 
                                         batch_size=train_batch_size)
@@ -193,7 +191,8 @@ class SDBM(DBMInterface):
             predicted_confidence (np.array): The predicted probabilities for the given 2D data set
             spaceNd (np.array): The decoded nD space
         """
-        spaceNd, predictions = self.autoencoder.decode(X2d, verbose=0)
+        spaceNd = self.autoencoder.decode(X2d, verbose=0)
+        predictions = self.classifier.predict(spaceNd, verbose=0)
         predicted_labels = np.array([np.argmax(p) for p in predictions])
         predicted_confidence = np.array([np.max(p) for p in predictions])
         return predicted_labels, predicted_confidence, spaceNd

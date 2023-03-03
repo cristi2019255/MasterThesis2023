@@ -32,8 +32,7 @@ class NNinterface:
     """
     
     def __init__(self, 
-                 folder_path: str,
-                 classifier = None,
+                 folder_path: str,                 
                  nn_name: str = "invNN", 
                  logger: LoggerInterface = None):
         """ Initializes the NN interface.
@@ -51,13 +50,8 @@ class NNinterface:
             self.console = logger
         else:
             self.console = Logger(name=nn_name)
-        
-        if classifier is None:
-            self.console.error("Please provide a classifier.")
-            raise Exception("Please provide a classifier.")
-        
+                
         self.save_folder_path = folder_path
-        self.classifier = classifier
         self.nn_name = nn_name
         self.neural_network = None
         

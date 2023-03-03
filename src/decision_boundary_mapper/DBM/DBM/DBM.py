@@ -58,20 +58,15 @@ class DBM(DBMInterface):
     
     @track_time_wrapper(logger=time_tracker_console)                                             
     def fit(self, 
-            X2d_train: np.ndarray, Xnd_train: np.ndarray, Y_train: np.ndarray,
-            X2d_test: np.ndarray, Xnd_test: np.ndarray, Y_test: np.ndarray, 
+            X2d: np.ndarray, Xnd: np.ndarray,            
             epochs:int=300, batch_size:int=32, 
             load_folder:str=DEFAULT_MODEL_PATH):
         """ 
         Trains the classifier on the given data set.
 
         Args:
-            X2d_train (np.ndarray): Training data set 2D data got from the projection of the original data (e.g. PCA, t-SNE, UMAP)
-            Xnd_train (np.ndarray): Training data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
-            Y_train (np.ndarray): Training data set labels
-            X2d_test (np.ndarray): Testing data set 2D data got from the projection of the original data (e.g. PCA, t-SNE, UMAP)
-            Xnd_test (np.ndarray): Testing data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
-            Y_test (np.ndarray): Testing data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
+            X2d (np.ndarray): Training data set 2D data got from the projection of the original data (e.g. PCA, t-SNE, UMAP)
+            Xnd (np.ndarray): Training data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
             epochs (int, optional): The number of epochs for which the DBM is trained. Defaults to 300.
             batch_size (int, optional): Train batch size. Defaults to 32.
         
@@ -80,12 +75,12 @@ class DBM(DBMInterface):
         """
         
         inverse_projection_NN = invNN(classifier=self.classifier, folder_path=load_folder)
-        inverse_projection_NN.fit(X2d_train, Xnd_train, Y_train, 
-                                  X2d_test, Xnd_test, Y_test, 
-                                  epochs=epochs, batch_size=batch_size)
+        inverse_projection_NN.fit(X2d, Xnd,
+                                  epochs=epochs, 
+                                  batch_size=batch_size)
         return inverse_projection_NN
     
-    def refit(self, X2d, Xnd, Y):
+    def refit_invNN(self, X2d, Xnd):
         """ Refits the classifier on the given data set.
 
         Args:
@@ -96,7 +91,7 @@ class DBM(DBMInterface):
         epochs=3 
         batch_size=32
         self.console.log("Refitting the model...")
-        self.invNN.refit(X2d, Xnd, Y, epochs=epochs, batch_size=batch_size)
+        self.invNN.refit(X2d, Xnd, epochs=epochs, batch_size=batch_size)
         self.console.log("Model updated")
         
     def generate_boundary_map(self, 
@@ -159,8 +154,9 @@ class DBM(DBMInterface):
             X2d_train, X2d_test = self.__normalize_2d__(X2d_train, X2d_test)
             
         if self.invNN is None:
-            self.invNN = self.fit(X2d_train, Xnd_train, Y_train, 
-                                  X2d_test, Xnd_test, Y_test, 
+            X = np.concatenate((X2d_train, X2d_test), axis=0)
+            Y = np.concatenate((Xnd_train, Xnd_test), axis=0)
+            self.invNN = self.fit(X, Y,
                                   train_epochs, train_batch_size,
                                   load_folder=os.path.join(load_folder, projection))   
         
@@ -277,7 +273,8 @@ class DBM(DBMInterface):
             predicted_confidence (np.ndarray): The predicted probabilities for the given 2D data set
             spaceNd (np.ndarray): The decoded nD space
         """
-        spaceNd, predictions = self.invNN.decode(X2d, verbose=0)
+        spaceNd = self.invNN.decode(X2d, verbose=0)
+        predictions = self.classifier.predict(spaceNd, verbose=0)
         predicted_labels = np.array([np.argmax(p) for p in predictions])
         predicted_confidence = np.array([np.max(p) for p in predictions])
         return predicted_labels, predicted_confidence, spaceNd

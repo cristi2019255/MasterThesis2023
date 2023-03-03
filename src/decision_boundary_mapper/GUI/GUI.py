@@ -99,7 +99,7 @@ class GUI:
         self.window["-CLASSIFIER IMAGE-"].update(data = image)
         self.switch_visibility(["-CLASSIFIER IMAGE-", "-CLASSIFIER TEXT-"], True)
         self.window.refresh()
-    
+        
     def build(self):
         window = sg.Window(TITLE, 
                            layout=self._get_layout(), 
@@ -143,6 +143,7 @@ class GUI:
             "-UPLOAD TEST DATA BTN-": self.handle_upload_test_data_event,
             "-UPLOAD MNIST DATA BTN-": self.handle_upload_mnist_data_event,
             "-UPLOAD CIFAR10 DATA BTN-": self.handle_upload_cifar10_data_event,
+            "-FIT CLASSIFIER-": self.handle_fit_classifier,
         }
         
         EVENTS[event](event, values)
@@ -186,6 +187,9 @@ class GUI:
             ],
             [
                 sg.Button("Upload CIFAR10 Data set", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, key = "-UPLOAD CIFAR10 DATA BTN-"),
+            ],
+            [
+                sg.Button("Fit classifier", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, visible=True, key = "-FIT CLASSIFIER-"),
             ],
             [
                 sg.Button("Show the Decision Boundary Mapping", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, visible=False, key = "-DBM BTN-"),
@@ -382,7 +386,13 @@ class GUI:
         self.upload_classifier()
         self.switch_visibility(["-DBM BTN-"], True)
     
-    
+    def handle_fit_classifier(self, event, values):
+        if self.classifier is None:
+            self.logger.log("Classifier is not yet uploaded")
+            return
+        self.classifier.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+        self.classifier.fit(self.X_train, self.Y_train, epochs=5)        
+        
     def switch_visibility(self, elements, visible):
         for x in elements:
             self.window[x].update(visible=visible)

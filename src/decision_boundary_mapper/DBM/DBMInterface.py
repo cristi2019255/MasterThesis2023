@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import numpy as np
-from math import ceil, floor, sqrt
+from math import ceil, floor
 from queue import PriorityQueue
 from scipy import interpolate
 import dask.array as da
@@ -74,11 +74,10 @@ class DBMInterface:
         """
         pass
     
-    def refit(self, X2d:np.ndarray, Xnd:np.ndarray, Y:np.ndarray):
+    def refit_classifier(self, Xnd:np.ndarray, Y:np.ndarray):
         """ Refits the classifier on the given data set.
 
-        Args:
-            X2d (np.ndarray): 
+        Args:             
             Xnd (np.ndarray): 
             Y (np.ndarray): 
         """
