@@ -122,11 +122,9 @@ class DBMPlotterGUI:
         self.inverse_projection_errors = self.dbm_model.generate_inverse_projection_errors()
         
         # --------------------- Plotter related ---------------------                
-        self.fig, self.dbm_ax, self.proj_errs_ax, self.inv_proj_errs_ax = self._build_plot_()        
+        self.fig, self.ax = self._build_plot_()        
         self._build_annotation_mapper_()
         
-        ax_img = self.inv_proj_errs_ax.imshow(self.inverse_projection_errors)        
-        self.fig.colorbar(ax_img, ax=self.inv_proj_errs_ax)
         self.fig.legend(handles=self.legend, borderaxespad=0. )
         # --------------------- Plotter related ---------------------
         
@@ -136,12 +134,10 @@ class DBMPlotterGUI:
         self.click_event_cid = None
         self.key_event_cid = None
         self.current_selected_point = None
-        self.initial_selected_point = None
-        self.arrow_selected_points = None
         self.current_selected_point_assigned_label = None
-        self.expert_updates_labels_mapper = {}
-        self.expert_updates_positions_mapper = {}
-              
+        self.expert_updates_labels_mapper = {}        
+        self.stop_application = False    
+        
     def _initialize_gui_(self):        
         # --------------------- GUI related ---------------------
         self.window = self._build_GUI_()
@@ -151,6 +147,7 @@ class DBMPlotterGUI:
         # --------------------- GUI related ---------------------        
         self.updates_logger = LoggerGUI(name = "Updates logger", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
         self.dbm_model.console = self.updates_logger
+   
     def _get_GUI_layout_(self):   
         buttons = []
            
@@ -192,14 +189,10 @@ class DBMPlotterGUI:
         while True:
             event, values = self.window.read()
             
-            if event == "Exit" or event == sg.WIN_CLOSED:
+            if event == "Exit" or event == sg.WIN_CLOSED or self.stop_application:
                 break
         
-            self.handle_event(event, values)
-            
-            if event == "-APPLY CHANGES-":
-                # close the window after changes are applied so the user can see the changes in the main window
-                break
+            self.handle_event(event, values)            
         
         self.stop()
     
@@ -270,13 +263,9 @@ class DBMPlotterGUI:
 
     def _build_plot_(self):                   
         fig = figure.Figure(figsize = (1, 1))
-        ax = fig.add_subplot(121)
-        ax1 = fig.add_subplot(222)
-        ax2 = fig.add_subplot(224)
+        ax = fig.add_subplot(111)
         ax.set_axis_off()
-        ax1.set_axis_off()
-        ax2.set_axis_off()       
-        return fig, ax, ax1, ax2
+        return fig, ax
     
     def _build_canvas_(self, fig, key, controls_key):        
         canvas = self.window[key].TKCanvas
@@ -292,19 +281,12 @@ class DBMPlotterGUI:
         label = TextArea("Data point label: None")
 
         xybox=(50., 50.)
-        annImage = AnnotationBbox(image, (0,0), xybox=xybox, xycoords='data',boxcoords="offset points",  pad=0.1,  arrowprops=dict(arrowstyle="->"))
-        annImage_ax1 = AnnotationBbox(image, (0,0), xybox=xybox, xycoords='data', boxcoords="offset points",  pad=0.1,  arrowprops=dict(arrowstyle="->"))
-        annImage_ax2 = AnnotationBbox(image, (0,0), xybox=xybox, xycoords='data', boxcoords="offset points",  pad=0.1,  arrowprops=dict(arrowstyle="->"))
-
+        annImage = AnnotationBbox(image, (0,0), xybox=xybox, xycoords='data',boxcoords="offset points",  pad=0.1,  arrowprops=dict(arrowstyle="->"))        
         annLabels = AnnotationBbox(label, (0,0), xybox=xybox, xycoords='data', boxcoords="offset points",  pad=0.3,  arrowprops=dict(arrowstyle="->"))
 
-        self.dbm_ax.add_artist(annImage)
-        self.dbm_ax.add_artist(annLabels)
-        self.inv_proj_errs_ax.add_artist(annImage_ax1)
-        self.proj_errs_ax.add_artist(annImage_ax2)
+        self.ax.add_artist(annImage)
+        self.ax.add_artist(annLabels)
         annImage.set_visible(False)
-        annImage_ax1.set_visible(False)
-        annImage_ax2.set_visible(False)
         annLabels.set_visible(False)
 
         fig_width, fig_height = self.fig.get_size_inches() * self.fig.dpi
@@ -323,12 +305,8 @@ class DBMPlotterGUI:
             annLabels.xybox = (-50. * ws, 50. *hs)
             # make annotation box visible
             annImage.set_visible(True)
-            annImage_ax1.set_visible(True)
-            annImage_ax2.set_visible(True)
             # place it at the position of the event scatter point
             annImage.xy = (j, i)
-            annImage_ax1.xy = (j, i)
-            annImage_ax2.xy = (j, i)
             
             x_data, y_data = find_data_point(i,j)                            
             image.set_data(x_data)
@@ -380,27 +358,15 @@ class DBMPlotterGUI:
                     
             # check if clicked on a data point that already was updated, then remove the update
             if f"{i} {j}" in self.expert_updates_labels_mapper:
-                (_, initial_point, new_point) = self.expert_updates_labels_mapper[f"{i} {j}"]
-                initial_point.remove()
-                new_point.remove()
+                (_, point) = self.expert_updates_labels_mapper[f"{i} {j}"]
+                point.remove()
                 del self.expert_updates_labels_mapper[f"{i} {j}"]                    
                 self.fig.canvas.draw_idle()
                 self.updates_logger.log(f"Removed updates for point: ({j}, {i})")
                 return
-            if f"{i} {j}" in self.expert_updates_positions_mapper:
-                (_, initial_point, arrow, new_point) = self.expert_updates_positions_mapper[f"{i} {j}"]                
-                initial_point.remove()
-                arrow.remove()
-                new_point.remove()
-                self.fig.canvas.draw_idle()
-                del self.expert_updates_positions_mapper[f"{i} {j}"]
-                self.updates_logger.log(f"Removed updates for point: ({j}, {i})")                            
-                return
-            
             
             # if clicked on a data point that was not updated, then add the update
-            self.current_selected_point = self.dbm_ax.plot(j, i, 'bo', markersize=5)[0]
-            self.initial_selected_point = self.dbm_ax.plot(j, i, 'ro', markersize=5)[0]
+            self.current_selected_point = self.ax.plot(j, i, 'bo', markersize=5)[0]
             
             # disable annotations on hover
             #if self.motion_event_cid is not None:
@@ -422,42 +388,22 @@ class DBMPlotterGUI:
                 self.current_selected_point_assigned_label = int(event.key)
                 return
             
-            DELTA = 1  
-            SHIFT_DELTA = 5   
-            ARROW_HEAD_WIDTH, ARROW_HEAD_LENGTH = 0.5, 0.5
-            ARROW_HEAD_OFFSET = sqrt(ARROW_HEAD_WIDTH**2 + ARROW_HEAD_LENGTH**2) / 2
-            
             (x, y) = self.current_selected_point.get_data()
-            (initial_x, initial_y) = self.initial_selected_point.get_data()    
             
             if event.key == 'escape' or event.key == 'enter':                            
                 self.current_selected_point.remove()       
-                self.initial_selected_point.remove()  
-                if self.arrow_selected_points is not None:
-                    self.arrow_selected_points.remove()                              
                 
                 if event.key == 'escape':                    
                     self.updates_logger.log("Cancelled point move...")                    
                     
                 elif event.key == 'enter':
                     # showing the fix of the position                    
-                    self.current_selected_point = self.dbm_ax.plot(x, y, 'b^')[0]
-                    self.initial_selected_point = self.dbm_ax.plot(initial_x, initial_y, 'r^')[0]
-                    dx, dy = x[0] - initial_x[0], y[0] - initial_y[0]
-                    dx = dx - ARROW_HEAD_OFFSET if dx > 0 else dx + ARROW_HEAD_OFFSET if dx < 0 else dx
-                    dy = dy - ARROW_HEAD_OFFSET if dy > 0 else dy + ARROW_HEAD_OFFSET if dy < 0 else dy
-                    self.arrow_selected_points = self.dbm_ax.arrow(initial_x[0], initial_y[0], dx, dy, head_width=ARROW_HEAD_WIDTH, head_length=ARROW_HEAD_LENGTH, fc='k', ec='k')
-                    
+                    self.current_selected_point = self.ax.plot(x, y, 'b^')[0]                 
                     if self.current_selected_point_assigned_label is not None:
                         self.updates_logger.log(f"Assigned label: {self.current_selected_point_assigned_label} to point: ({x[0]}, {y[0]})")                        
-                        self.expert_updates_labels_mapper[f"{initial_y[0]} {initial_x[0]}"] = (self.current_selected_point_assigned_label, self.initial_selected_point, self.current_selected_point)                        
-                    if initial_x[0] != x[0] or initial_y[0] != y[0]: 
-                        self.updates_logger.log(f"Moved point: ({initial_x[0]}, {initial_y[0]}) -> ({x[0]}, {y[0]})")                                                   
-                        self.expert_updates_positions_mapper[f"{initial_y[0]} {initial_x[0]}"] = ((x[0], y[0]), self.initial_selected_point, self.arrow_selected_points, self.current_selected_point)
+                        self.expert_updates_labels_mapper[f"{y[0]} {x[0]}"] = (self.current_selected_point_assigned_label, self.current_selected_point)                        
                     
-                self.initial_selected_point = None    
                 self.current_selected_point = None
-                self.arrow_selected_points = None
                 self.current_selected_point_assigned_label = None
                
                 self.motion_event_cid = self.fig.canvas.mpl_connect('motion_notify_event', display_annotation)                
@@ -466,36 +412,6 @@ class DBMPlotterGUI:
                 self.fig.canvas.draw_idle()  
                 return
             
-            # update the position of the point
-            if event.key == 'left':
-                x = x - DELTA
-            if event.key == 'right':
-                x = x + DELTA
-            if event.key == 'up':
-                y = y - DELTA
-            if event.key == 'down':
-                y = y + DELTA
-            if event.key == 'shift+left':
-                x = x - SHIFT_DELTA
-            if event.key == 'shift+right':
-                x = x + SHIFT_DELTA
-            if event.key == 'shift+up':
-                y = y - SHIFT_DELTA
-            if event.key == 'shift+down':
-                y = y + SHIFT_DELTA
-            
-            # remove the old point and plot the new one after the move
-            self.current_selected_point.remove()    
-            if self.arrow_selected_points is not None:
-                self.arrow_selected_points.remove()
-            # redraw the point in the new position and the arrow
-            self.current_selected_point = self.dbm_ax.plot(x, y, 'bo', markersize=5)[0]  
-            dx, dy = x[0] - initial_x[0], y[0] - initial_y[0]
-            dx = dx - ARROW_HEAD_OFFSET if dx > 0 else dx + ARROW_HEAD_OFFSET if dx < 0 else dx
-            dy = dy - ARROW_HEAD_OFFSET if dy > 0 else dy + ARROW_HEAD_OFFSET if dy < 0 else dy                              
-            self.arrow_selected_points = self.dbm_ax.arrow(initial_x[0], initial_y[0], dx, dy, head_width=ARROW_HEAD_WIDTH, head_length=ARROW_HEAD_LENGTH)
-            self.fig.canvas.draw_idle()
-        
         self.motion_event_cid = self.fig.canvas.mpl_connect('motion_notify_event', display_annotation)           
         self.click_event_cid = self.fig.canvas.mpl_connect('button_press_event', onclick)
         
@@ -512,46 +428,25 @@ class DBMPlotterGUI:
     
     def draw_dbm_img(self):             
         # update the figure
-        self.dbm_ax.set_title("Decision Boundary Mapper")
-        self.proj_errs_ax.set_title("Projection Errors")
-        self.inv_proj_errs_ax.set_title("Inverse Projection Errors")
-        
-        self.dbm_ax.imshow(self.color_img)
-        self.inv_proj_errs_ax.imshow(self.inverse_projection_errors)
-        
-        if not self.proj_errs_computed:
-            self.proj_errs_warning_text = self.proj_errs_ax.text(0.5, 0.5, "To compute projection errors you should click the button.\nThis might take about 30 seconds", transform=self.proj_errs_ax.transAxes, ha="center")
-               
+        self.ax.set_title("Decision Boundary Mapper")        
+        self.ax.imshow(self.color_img)       
         # draw the figure to the canvas
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)    
+        self.window.refresh()
     
-    def _draw_projection_errors_img_(self, projection_errors):                
-        # update the figure        
-        self.proj_errs_warning_text.set_visible(False)
-        ax_img = self.proj_errs_ax.imshow(projection_errors)
-                
-        self.fig.colorbar(ax_img, ax=self.proj_errs_ax)        
-        self.fig.set_size_inches(1, 1)        
-        
-        # draw the figure to the canvas
-        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls) 
-
     def _set_loading_proj_errs_state_(self):
         self.window['-COMPUTE PROJECTION ERRORS-'].update(visible=False, disabled=True)        
-        self.proj_errs_warning_text.set_visible(True)
-        self.proj_errs_warning_text.set_text("Computing projection errors...\nPlease wait...")
+        self.updates_logger.log("Computing projection errors, please wait...")
         
-        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls) 
-        self.window.refresh()
-
     def handle_compute_projection_errors_event(self, event, values):
         self._set_loading_proj_errs_state_()
         projection_errors = self.dbm_model.generate_projection_errors()
         self.proj_errs_computed = True
-        self._draw_projection_errors_img_(projection_errors)
+        self.updates_logger.log("Finished computing projection errors.")
 
+    #todo: change these function according to todos
     def handle_apply_changes_event(self, event, values):
-        num_changes = len(self.expert_updates_positions_mapper) + len(self.expert_updates_labels_mapper)
+        num_changes = len(self.expert_updates_labels_mapper)
         if num_changes == 0:
             self.updates_logger.log("No changes to apply")
             return
@@ -561,16 +456,18 @@ class DBMPlotterGUI:
         #    return
         
         self.console.log("Transforming changes...")
-        position_changes, label_changes, X2d, Xnd, Y = self.transform_changes()
+        Xnd, Y, label_changes = self.transform_changes()
         
         self.console.log("Saving changes to a local folder...")
-        self.save_changes(self.save_folder, position_changes=position_changes, label_changes=label_changes)
+        self.save_changes(self.save_folder, label_changes=label_changes)
         
         self.updates_logger.log("Applying changes... This might take a couple of seconds, after this the window will be closed")
         self.updates_logger.log("You can reopen the window from the main GUI (previous window)")
         
         # For the start lets do just the position changes (not the labels change)
-        self.dbm_model.refit(X2d, Xnd, Y)
+        self.dbm_model.refit_classifier(Xnd, Y, save_folder=os.path.join(self.save_folder, "refit_classifier"))
+        
+        # TODO: update self.X_train, self.Y_train, self.X_test, self.Y_test with the new labels from Y
         
         # Updating the main GUI with the new model                
         dbm_info = self.dbm_model.generate_boundary_map(
@@ -586,13 +483,29 @@ class DBMPlotterGUI:
         
         if self.main_gui is not None and hasattr(self.main_gui, "handle_changes_in_dbm_plotter"):
             self.main_gui.handle_changes_in_dbm_plotter(dbm_info, self.dbm_model, self.save_folder, self.projection_technique)
-        
-    def save_changes(self, folder:str="tmp", position_changes={}, label_changes={}):
+            self.stop_application=True
+            return
+        else:
+            img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history = dbm_info
+            self.__init__(dbm_model = self.dbm_model,
+                          img = img,
+                          img_confidence = img_confidence,
+                          encoded_train = encoded_training_data, 
+                          encoded_test = encoded_testing_data,
+                          X_train = self.X_train, 
+                          Y_train = self.Y_train,
+                          X_test = self.X_test,
+                          Y_test = self.Y_test,
+                          spaceNd=spaceNd,
+                          save_folder=self.save_folder,
+                          projection_technique=self.projection_technique,
+                    )
+            self.draw_dbm_img()
+            return
+            
+    def save_changes(self, folder:str="tmp", label_changes={}):
         if not os.path.exists(folder):
-            os.path.makedirs(folder)
-                        
-        with open(os.path.join(folder, "position_changes.json"), "w") as f:
-            json.dump(position_changes, f, indent=2)
+            os.path.makedirs(folder)                        
         
         with open(os.path.join(folder, "label_changes.json"), "w") as f:
             json.dump(label_changes, f, indent=2)
@@ -602,28 +515,22 @@ class DBMPlotterGUI:
         Returns:
             position_changes (dict): a dictionary with old position as key and the new position as value
             label_changes (dict): a dictionary with old and new positions as key and the new label as value
-        """
-        position_changes = {}
-        label_changes = {}
-        X2d = []
+        """     
         Xnd = []
-        Y = [] # TODO: implement that label changes are also computed
+        Y = [] 
+        labels_changes = {}
         
-        for pos in self.expert_updates_positions_mapper:
-            (x,y) = self.expert_updates_positions_mapper[pos][0] # new position is stored as a tuple (x, y) at first position in the item
-            position_changes[pos] = [int(x), int(y)]            
+        for pos in self.expert_updates_labels_mapper:
             if pos in self.train_mapper:
                 k = self.train_mapper[pos]
                 xnd = self.X_train[k]
             else:
                 k = self.test_mapper[pos]
                 xnd = self.X_test[k]
-                
-            X2d.append([x, y])
-            Xnd.append(xnd)
             
-        for pos in self.expert_updates_labels_mapper:
-            label_changes[pos] = self.expert_updates_labels_mapper[pos][0] # new label is stored as a string/number at first position in the item
-        
-        X2d, Xnd, Y = np.array(X2d), np.array(Xnd), np.array(Y)
-        return position_changes, label_changes, X2d, Xnd, Y
+            Xnd.append(xnd)
+            Y.append(self.expert_updates_labels_mapper[pos][0])
+            labels_changes[pos] = self.expert_updates_labels_mapper[pos][0]
+            
+        Xnd, Y = np.array(Xnd), np.array(Y)
+        return Xnd, Y, labels_changes

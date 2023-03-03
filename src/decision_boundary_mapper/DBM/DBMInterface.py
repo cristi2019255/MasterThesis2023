@@ -74,14 +74,19 @@ class DBMInterface:
         """
         pass
     
-    def refit_classifier(self, Xnd:np.ndarray, Y:np.ndarray):
+    def refit_classifier(self, Xnd:np.ndarray, Y:np.ndarray, save_folder:str, epochs:int=2, batch_size:int=32):
         """ Refits the classifier on the given data set.
 
         Args:             
             Xnd (np.ndarray): 
             Y (np.ndarray): 
         """
-        pass
+        self.console.log(f"Refiting classifier for {epochs} epochs and batch size {batch_size}, please wait...")
+        self.classifier.fit(Xnd, Y, epochs=epochs, batch_size=batch_size, verbose=0)
+        self.console.log("Finished refitting classifier")
+        self.console.log("Saving a copy of the retrained classifier...")
+        self.classifier.save(save_folder, save_format="tf")
+        self.console.log("A copy of the retrained classifier was saved!")
     
     def generate_boundary_map(self, 
                               X_train:np.ndarray, Y_train:np.ndarray, 
