@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import numpy as np
-from keras.datasets import mnist, cifar10
+from keras.datasets import fashion_mnist, mnist, cifar10
 import os
 
 from .. import Logger
@@ -27,6 +27,20 @@ def import_mnist_dataset():
     console = Logger(name="MNIST dataset importer")
     (train_X, train_y), (test_X, test_y) = mnist.load_data()
     console.log("MNIST dataset imported")
+    console.log(f"Train set: {train_X.shape}")
+    console.log(f"Test set: {test_X.shape}")
+    return (train_X, train_y), (test_X, test_y)
+
+
+def import_fashion_mnist_dataset():
+    """Imports the FASHION MNIST dataset from keras.datasets.fashion_mnist
+
+    Returns:
+        (X_train, Y_train), (X_test, Y_test): The train and test sets
+    """
+    console = Logger(name="FASHION MNIST dataset importer")
+    (train_X, train_y), (test_X, test_y) = fashion_mnist.load_data()
+    console.log("FASHION MNIST dataset imported")
     console.log(f"Train set: {train_X.shape}")
     console.log(f"Test set: {test_X.shape}")
     return (train_X, train_y), (test_X, test_y)

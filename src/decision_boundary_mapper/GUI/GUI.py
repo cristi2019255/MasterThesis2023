@@ -24,7 +24,7 @@ from tensorflow.keras.utils import plot_model
 from .DBMPlotterGUI import DBMPlotterGUI
 from ..Logger import LoggerGUI, Logger
 from ..DBM import SDBM, DBM
-from ..utils import import_csv_dataset, import_mnist_dataset, import_cifar10_dataset
+from ..utils import import_csv_dataset, import_mnist_dataset, import_cifar10_dataset, import_fashion_mnist_dataset
 
 sg.theme('DarkBlue1')
 TITLE = "Classifiers visualization tool"
@@ -73,6 +73,11 @@ class GUI:
         
         # --------------- Data set ----------
         self.dataset_name = "Dataset"
+        self.X_train, self.Y_train = None, None
+        self.X_test, self.Y_test = None, None
+        
+        # --------------- Classifier --------
+        self.classifier = None
     
     def create_tmp_folder(self):
         if not os.path.exists(TMP_FOLDER):
@@ -81,25 +86,7 @@ class GUI:
     def remove_tmp_folder(self):
         if os.path.exists(TMP_FOLDER):
             rmtree(TMP_FOLDER)
-        
-    def upload_classifier(self):
-        self.classifier = tf.keras.models.Sequential([
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(self.num_classes, activation=tf.nn.softmax)
-        ], name="classifier")
-        input_shape = self.X_train.shape[1:]
-        input_shape = (None, *input_shape)
-        self.classifier.build(input_shape=input_shape)
-        file = os.path.join(TMP_FOLDER, "classifier.png")
-        plot_model(self.classifier, to_file=file, show_shapes=True, show_layer_names=True, show_layer_activations=True)    
-        img = Image.open(file)
-        
-        img.thumbnail((256, 256), Image.ANTIALIAS)           
-        image = ImageTk.PhotoImage(img)     
-        self.window["-CLASSIFIER IMAGE-"].update(data = image)
-        self.switch_visibility(["-CLASSIFIER IMAGE-", "-CLASSIFIER TEXT-"], True)
-        self.window.refresh()
-        
+            
     def build(self):
         window = sg.Window(TITLE, 
                            layout=self._get_layout(), 
@@ -129,25 +116,7 @@ class GUI:
         #self.remove_tmp_folder()
         self.logger.log("Closing the application...")
         self.window.close()
-    
-    def handle_event(self, event, values):        
-        # Folder name was filled in, make a list of files in the folder
-        EVENTS = {
-            "-FOLDER-": self.handle_select_folder_event,
-            "-FILE LIST-": self.handle_file_list_event,
-            "-DBM TECHNIQUE-": self.handle_dbm_technique_event,
-            "-DBM BTN-": self.handle_get_decision_boundary_mapping_event,
-            "-DBM IMAGE-": self.handle_dbm_image_event,
-            "-PROJECTION TECHNIQUE-": self.handle_projection_technique_event,
-            "-UPLOAD TRAIN DATA BTN-": self.handle_upload_train_data_event,
-            "-UPLOAD TEST DATA BTN-": self.handle_upload_test_data_event,
-            "-UPLOAD MNIST DATA BTN-": self.handle_upload_mnist_data_event,
-            "-UPLOAD CIFAR10 DATA BTN-": self.handle_upload_cifar10_data_event,
-            "-FIT CLASSIFIER-": self.handle_fit_classifier,
-        }
-        
-        EVENTS[event](event, values)
-        
+            
     def _get_layout(self):                
         data_files_list_column = [
             [
@@ -186,14 +155,30 @@ class GUI:
                 sg.Button("Upload MNIST Data set", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, key = "-UPLOAD MNIST DATA BTN-"),
             ],
             [
+                sg.Button("Upload FASHION MNIST Data set", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, key = "-UPLOAD FASHION MNIST DATA BTN-"),
+            ],
+            [
                 sg.Button("Upload CIFAR10 Data set", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, key = "-UPLOAD CIFAR10 DATA BTN-"),
             ],
             [
-                sg.Button("Fit classifier", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, visible=True, key = "-FIT CLASSIFIER-"),
+                sg.Text(text = "Classifier Folder"),
+                sg.In(enable_events=True, key="-CLASSIFIER FOLDER-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True),
+                sg.FolderBrowse(button_text="Browse folder", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), initial_folder=os.getcwd()),
             ],
             [
-                sg.Button("Show the Decision Boundary Mapping", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, visible=False, key = "-DBM BTN-"),
+               sg.Text("Choose the classifier file(.h5) or folder from the list: ", expand_x=True),
             ],
+            [   
+               sg.Text(key="-CLASSIFIER PATH TOUT-", expand_x=True),            
+            ],
+            [
+                sg.Listbox(
+                    values=[], enable_events=True, key="-CLASSIFIER FILE LIST-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True, expand_y=True
+                )
+            ],
+            [
+                sg.Button("Upload classifier", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, visible=True, key = "-UPLOAD CLASSIFIER-"),
+            ],                                                
             [
                 sg.Text("", expand_x=True)    
             ],
@@ -237,18 +222,13 @@ class GUI:
                 sg.Text("Show Decision Boundary Mapper NN history: ", expand_x=True, key="-DBM HISTORY TEXT-", visible=True),
                 sg.Checkbox("", default=False,  key="-DBM HISTORY CHECKBOX-", visible=True),
             ],
-            # ---------------------------------------------------------------------------------------------------                        
             [
-                sg.Column([
-                    [sg.Text("Classifier: ",  visible=False, expand_x=True, key="-CLASSIFIER TEXT-", justification='center')],
-                    [sg.Image(key="-CLASSIFIER IMAGE-", expand_x=True, expand_y=True, visible=False, enable_events=False)],                           
-                ], expand_x=True),
-                sg.Column([
-                    [sg.Text("Decision boundary map: ", visible=False, expand_x=True, key="-DBM TEXT-", justification='center')],
-                    [sg.Text("Loading... ",  visible=False, expand_x=True, key="-DBM IMAGE LOADING-", justification='center')],
-                    [sg.Image(key="-DBM IMAGE-", visible=False, expand_x=True, expand_y=True, enable_events=True)],                                           
-                ], expand_x=True),
-            ],            
+                sg.Button("Show the Decision Boundary Mapping", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, visible=False, key = "-DBM BTN-"),
+            ],
+            # ---------------------------------------------------------------------------------------------------                        
+            [sg.Text("Decision boundary map: ", visible=False, expand_x=True, key="-DBM TEXT-", justification='center')],
+            [sg.Text("Loading... ",  visible=False, expand_x=True, key="-DBM IMAGE LOADING-", justification='center')],
+            [sg.Image(key="-DBM IMAGE-", visible=False, expand_x=True, expand_y=True, enable_events=True)],                                                              
             [
                 sg.HSeparator(),
             ],
@@ -260,7 +240,6 @@ class GUI:
             ]
         ]
         
-        
         layout = [
             [
                 sg.Column(data_files_list_column, expand_x=True, expand_y=True),   
@@ -271,6 +250,46 @@ class GUI:
 
         return layout
 
+    def handle_event(self, event, values):        
+        # Folder name was filled in, make a list of files in the folder
+        EVENTS = {
+            "-FOLDER-": self.handle_select_folder_event,
+            "-CLASSIFIER FOLDER-": self.handle_select_classifier_folder_event,
+            "-FILE LIST-": self.handle_file_list_event,
+            "-CLASSIFIER FILE LIST-": self.handle_classifier_file_list_event,
+            "-DBM TECHNIQUE-": self.handle_dbm_technique_event,
+            "-DBM BTN-": self.handle_get_decision_boundary_mapping_event,
+            "-DBM IMAGE-": self.handle_dbm_image_event,
+            "-PROJECTION TECHNIQUE-": self.handle_projection_technique_event,
+            "-UPLOAD TRAIN DATA BTN-": self.handle_upload_train_data_event,
+            "-UPLOAD TEST DATA BTN-": self.handle_upload_test_data_event,
+            "-UPLOAD MNIST DATA BTN-": self.handle_upload_mnist_data_event,
+            "-UPLOAD FASHION MNIST DATA BTN-": self.handle_upload_fashion_mnist_data_event,
+            "-UPLOAD CIFAR10 DATA BTN-": self.handle_upload_cifar10_data_event,
+            "-UPLOAD CLASSIFIER-": self.handle_upload_classifier_event,
+        }
+        
+        EVENTS[event](event, values)
+
+    def switch_visibility(self, elements, visible):
+        for x in elements:
+            self.window[x].update(visible=visible)            
+        self.window.refresh()
+
+    def handle_select_classifier_folder_event(self, event, values):
+        folder = values["-CLASSIFIER FOLDER-"]
+        try:
+            # Get list of files in folder
+            file_list = os.listdir(folder)
+        except:
+            file_list = []
+        
+        
+        fnames = [ f for f in file_list
+                   if (os.path.isfile(os.path.join(folder, f)) and (f.lower().endswith((".h5")))) or os.path.isdir(os.path.join(folder, f)) ]                
+            
+        self.window["-CLASSIFIER FILE LIST-"].update(fnames)
+    
     def handle_select_folder_event(self, event, values):
         folder = values["-FOLDER-"]
         try:
@@ -283,29 +302,33 @@ class GUI:
                    if os.path.isfile(os.path.join(folder, f)) and (f.lower().endswith((".csv")) or f.lower().endswith((".txt")))
                 ]
         self.window["-FILE LIST-"].update(fnames)
-        
+    
     def handle_file_list_event(self, event, values):
-            try:
-                filename = os.path.join(
-                    values["-FOLDER-"], values["-FILE LIST-"][0]
-                )
-                self.window["-TOUT-"].update(filename)
-            except Exception as e:
+        try:
+            filename = os.path.join(values["-FOLDER-"], values["-FILE LIST-"][0])
+            self.window["-TOUT-"].update(filename)
+        except Exception as e:
+            self.dbm_logger.error("Error while loading data file" + str(e))
+    
+    def handle_classifier_file_list_event(self, event, values):
+        try:
+            filename = os.path.join(values["-CLASSIFIER FOLDER-"], values["-CLASSIFIER FILE LIST-"][0])
+            self.window["-CLASSIFIER PATH TOUT-"].update(filename)
+        except Exception as e:
                 self.logger.error("Error while loading data file" + str(e))
-    
-    def handle_projection_technique_event(self, event, values):
-        projection_technique = values["-PROJECTION TECHNIQUE-"]
-        self.logger.log(f"Projection technique: {projection_technique}")
-    
-    def handle_dbm_technique_event(self, event, values):
-        dbm_technique = values["-DBM TECHNIQUE-"]
-        if dbm_technique == "Inverse Projection":
-            self.switch_visibility(["-PROJECTION TECHNIQUE TEXT-", "-PROJECTION TECHNIQUE-"], True)
-        else:
-            self.switch_visibility(["-PROJECTION TECHNIQUE TEXT-", "-PROJECTION TECHNIQUE-"], False)
-            
-        self.logger.log(f"DBM technique: {dbm_technique}")
-    
+                
+    def handle_upload_classifier_event(self, event, values):       
+        try:
+            fname = os.path.join(values["-CLASSIFIER FOLDER-"], values["-CLASSIFIER FILE LIST-"][0])
+            self.classifier = tf.keras.models.load_model(fname)            
+            self.window["-CLASSIFIER PATH TOUT-"].update(fname)
+            self.logger.log("Classifier loaded successfully")
+            self.dbm_logger.log("Classifier loaded successfully")
+            if self.X_train is not None and self.Y_train is not None and self.X_test is not None and self.Y_test is not None:
+                self.switch_visibility(["-DBM BTN-"], True)
+        except Exception as e:
+            self.logger.error("Error while loading classifier" + str(e))
+        
     def handle_upload_train_data_event(self, event, values):
         try:
             filename = os.path.join(
@@ -314,13 +337,13 @@ class GUI:
             self.X_train, self.Y_train = import_csv_dataset(filename, limit=int(0.7*SAMPLES_LIMIT))
             
             self.num_classes = np.unique(self.Y_train).shape[0]
-            self.upload_classifier()
-            self.switch_visibility(["-DBM BTN-"], True)
+            if self.classifier is not None and self.X_test is not None and self.Y_test is not None:
+                self.switch_visibility(["-DBM BTN-"], True)
         
             self.window["-TRAIN DATA FILE-"].update("Training data file: " + filename)
             self.window["-TRAIN DATA SHAPE-"].update(f"Training data shape: X {self.X_train.shape} Y {self.Y_train.shape}")
         except Exception as e:
-            self.logger.error("Error while loading data file" + str(e))
+            self.dbm_logger.error("Error while loading data file" + str(e))
             
     def handle_upload_test_data_event(self, event, values):
         try:
@@ -328,75 +351,77 @@ class GUI:
                 values["-FOLDER-"], values["-FILE LIST-"][0]
             )
             self.X_test, self.Y_test = import_csv_dataset(filename, limit=int(0.3*SAMPLES_LIMIT))
+            if self.classifier is not None and self.X_train is not None and self.Y_train is not None:
+                self.switch_visibility(["-DBM BTN-"], True)
+        
             self.window["-TEST DATA FILE-"].update("Testing data file: " + filename)
             self.window["-TEST DATA SHAPE-"].update(f"Testing data shape: X {self.X_test.shape} Y {self.Y_test.shape}")
         except Exception as e:
-            self.logger.error("Error while loading data file" + str(e))
+            self.dbm_logger.error("Error while loading data file" + str(e))
     
     def handle_upload_mnist_data_event(self, event, values):
         (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
         
-        X_train = X_train.astype('float32')
-        X_test = X_test.astype('float32')
-        X_train /= 255
-        X_test /= 255
+        X_train = X_train.astype('float32') / 255
+        X_test = X_test.astype('float32') / 255
+        
         X_train, Y_train = X_train[:int(0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
         X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
         
-        self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
-        self.num_classes = np.unique(self.Y_train).shape[0]
-        
         self.dataset_name = "MNIST"
-        self.window["-TRAIN DATA FILE-"].update("Training data: MNIST")
-        self.window["-TRAIN DATA SHAPE-"].update(f"Training data shape: X {self.X_train.shape} Y {self.Y_train.shape}")
+        self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
+        self._post_uploading_processing_()     
+    
+    def handle_upload_fashion_mnist_data_event(self, event, values):
+        (X_train, Y_train), (X_test, Y_test) = import_fashion_mnist_dataset()
         
-        self.window["-TEST DATA FILE-"].update("Testing data: MNIST")
-        self.window["-TEST DATA SHAPE-"].update(f"Testing data shape: X {self.X_test.shape} Y {self.Y_test.shape}")
+        X_train = X_train.astype('float32') / 255
+        X_test = X_test.astype('float32') / 255
+            
+        X_train, Y_train = X_train[:int(0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
+        X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
         
-        self.upload_classifier()
-        self.switch_visibility(["-DBM BTN-"], True)
+        self.dataset_name = "FASION_MNIST"
+        self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
+        self._post_uploading_processing_()     
     
     def handle_upload_cifar10_data_event(self, event, values):
         (X_train, Y_train), (X_test, Y_test) = import_cifar10_dataset()
     
-        def rgb2gray(rgb):
-            return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
-
         X_train, Y_train = X_train[:int(0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
         X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
 
-        X_train = X_train.astype('float32')
-        X_test = X_test.astype('float32')
-        X_train = rgb2gray(X_train)
-        X_test = rgb2gray(X_test)
-        X_train /= 255
-        X_test /= 255
-        
-        self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
-        self.num_classes = np.unique(self.Y_train).shape[0]
+        X_train = X_train.astype('float32') / 255
+        X_test = X_test.astype('float32') / 255        
         
         self.dataset_name = "CIFAR10"
+        self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
+        self._post_uploading_processing_()
+    
+    def _post_uploading_processing_(self):        
+        self.num_classes = np.unique(self.Y_train).shape[0]
         
-        self.window["-TRAIN DATA FILE-"].update("Training data: CIFAR10")
+        self.window["-TRAIN DATA FILE-"].update(f"Training data: {self.dataset_name}")
         self.window["-TRAIN DATA SHAPE-"].update(f"Training data shape: X {self.X_train.shape} Y {self.Y_train.shape}")
         
-        self.window["-TEST DATA FILE-"].update("Testing data: CIFAR10")
+        self.window["-TEST DATA FILE-"].update(f"Testing data: {self.dataset_name}")
         self.window["-TEST DATA SHAPE-"].update(f"Testing data shape: X {self.X_test.shape} Y {self.Y_test.shape}")
         
-        self.upload_classifier()
-        self.switch_visibility(["-DBM BTN-"], True)
-    
-    def handle_fit_classifier(self, event, values):
-        if self.classifier is None:
-            self.logger.log("Classifier is not yet uploaded")
-            return
-        self.classifier.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-        self.classifier.fit(self.X_train, self.Y_train, epochs=5)        
-        
-    def switch_visibility(self, elements, visible):
-        for x in elements:
-            self.window[x].update(visible=visible)
-        self.window.refresh()
+        if self.classifier is not None:
+            self.switch_visibility(["-DBM BTN-"], True)
+     
+    def handle_dbm_technique_event(self, event, values):
+        dbm_technique = values["-DBM TECHNIQUE-"]
+        if dbm_technique == "Inverse Projection":
+            self.switch_visibility(["-PROJECTION TECHNIQUE TEXT-", "-PROJECTION TECHNIQUE-"], True)
+        else:
+            self.switch_visibility(["-PROJECTION TECHNIQUE TEXT-", "-PROJECTION TECHNIQUE-"], False)
+            
+        self.logger.log(f"DBM technique: {dbm_technique}")
+
+    def handle_projection_technique_event(self, event, values):
+        projection_technique = values["-PROJECTION TECHNIQUE-"]
+        self.logger.log(f"Projection technique: {projection_technique}") 
         
     def handle_dbm_image_event(self, event, values):
         self.logger.log("Clicked on the dbm image")
@@ -404,29 +429,16 @@ class GUI:
             self.logger.warn("Nothing to show")
             return
         self.dbm_plotter_gui.start()
-        
-    def handle_show_dbm_history(self, training_history):
-        # this is for plotting the training history
-        plt.close()
-        fig, [ax1, ax2, ax3] = plt.subplots(1, 3, figsize=(20, 5))
-        ax1.set_title("Loss")
-        ax1.plot(training_history["loss"], label="loss")
-        ax1.plot(training_history["val_loss"], label="val_loss")
-        ax1.legend()
-        
-        ax2.set_title("Decoder Accuracy")
-        ax2.plot(training_history["decoder_accuracy"], label="decoder_accuracy")
-        ax2.plot(training_history["val_decoder_accuracy"], label="val_decoder_accuracy")
-        ax2.legend()
-        
-        ax3.set_title("Classifier Accuracy")
-        ax3.plot(training_history["classifier_accuracy"], label="classifier_accuracy")
-        ax3.plot(training_history["val_classifier_accuracy"], label="val_classifier_accuracy")
-        ax3.legend()
-        
-        plt.show()
-            
+                
     def handle_get_decision_boundary_mapping_event(self, event, values):
+        if self.classifier is None:
+            self.dbm_logger.error("No classifier provided, impossible to generate the DBM...")
+            return
+        
+        if self.X_train is None or self.Y_train is None or self.X_test is None or self.Y_test is None:
+            self.dbm_logger.error("Data is incomplete impossible to generate the DBM...")
+            return 
+        
         # update loading state
         self.switch_visibility(["-DBM IMAGE-"], False)
         self.switch_visibility(["-DBM TEXT-", "-DBM IMAGE LOADING-"], True)
@@ -482,7 +494,7 @@ class GUI:
         img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history = dbm_info
         
         if show_dbm_history:
-            self.handle_show_dbm_history(training_history)
+            self.show_dbm_history(training_history)
         
         
         # ---------------------------------
@@ -506,7 +518,8 @@ class GUI:
         # ---------------------------------
         # update the dbm image
         img = Image.fromarray(np.uint8(self.dbm_plotter_gui.color_img*255))
-        img.thumbnail((RESOLUTION, RESOLUTION), Image.ANTIALIAS)
+        WINDOW_IMAGE_RESOLUTION = 300
+        img.thumbnail((WINDOW_IMAGE_RESOLUTION, WINDOW_IMAGE_RESOLUTION), Image.ANTIALIAS)
         # Convert im to ImageTk.PhotoImage after window finalized
         image = ImageTk.PhotoImage(image=img)        
         self.window["-DBM IMAGE-"].update(data=image)
@@ -547,4 +560,25 @@ class GUI:
                     
         self.switch_visibility(["-DBM IMAGE LOADING-"], False)
         self.switch_visibility(["-DBM IMAGE-"], True)
+    
+    def show_dbm_history(self, training_history):
+        # this is for plotting the training history
+        plt.close()
+        fig, [ax1, ax2, ax3] = plt.subplots(1, 3, figsize=(20, 5))
+        ax1.set_title("Loss")
+        ax1.plot(training_history["loss"], label="loss")
+        ax1.plot(training_history["val_loss"], label="val_loss")
+        ax1.legend()
+        
+        ax2.set_title("Decoder Accuracy")
+        ax2.plot(training_history["decoder_accuracy"], label="decoder_accuracy")
+        ax2.plot(training_history["val_decoder_accuracy"], label="val_decoder_accuracy")
+        ax2.legend()
+        
+        ax3.set_title("Classifier Accuracy")
+        ax3.plot(training_history["classifier_accuracy"], label="classifier_accuracy")
+        ax3.plot(training_history["val_classifier_accuracy"], label="val_classifier_accuracy")
+        ax3.legend()
+        
+        plt.show()
     
