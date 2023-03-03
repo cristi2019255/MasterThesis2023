@@ -92,11 +92,12 @@ class DBMPlotterGUI:
                   img, img_confidence,
                   X_train, Y_train, 
                   X_test, Y_test,
-                  encoded_train, encoded_test, spaceNd, 
-                  main_gui,
+                  encoded_train, encoded_test, spaceNd,                   
                   save_folder,
-                  projection_technique,
-                  logger=None):        
+                  projection_technique=None,
+                  logger=None,
+                  main_gui=None,
+                  ):        
         
         if logger is None:
             self.console = Logger(name="DBMPlotterGUI")
@@ -149,7 +150,7 @@ class DBMPlotterGUI:
         self.draw_dbm_img()    
         # --------------------- GUI related ---------------------        
         self.updates_logger = LoggerGUI(name = "Updates logger", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
-            
+        self.dbm_model.console = self.updates_logger
     def _get_GUI_layout_(self):   
         buttons = []
            
@@ -537,8 +538,11 @@ class DBMPlotterGUI:
 
     def _set_loading_proj_errs_state_(self):
         self.window['-COMPUTE PROJECTION ERRORS-'].update(visible=False, disabled=True)        
+        self.proj_errs_warning_text.set_visible(True)
         self.proj_errs_warning_text.set_text("Computing projection errors...\nPlease wait...")
+        
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls) 
+        self.window.refresh()
 
     def handle_compute_projection_errors_event(self, event, values):
         self._set_loading_proj_errs_state_()
@@ -580,9 +584,9 @@ class DBMPlotterGUI:
             projection=self.projection_technique                                        
         )        
         
-        self.main_gui.handle_changes_in_dbm_plotter(dbm_info, self.dbm_model, self.save_folder, self.projection_technique)
+        if self.main_gui is not None and hasattr(self.main_gui, "handle_changes_in_dbm_plotter"):
+            self.main_gui.handle_changes_in_dbm_plotter(dbm_info, self.dbm_model, self.save_folder, self.projection_technique)
         
-    
     def save_changes(self, folder:str="tmp", position_changes={}, label_changes={}):
         if not os.path.exists(folder):
             os.path.makedirs(folder)

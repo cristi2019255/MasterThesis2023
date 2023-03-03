@@ -12,36 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 from ..DBM import DBM
-from ..utils import import_mnist_dataset
+from ..GUI import DBMPlotterGUI
 
+from .utils import *
 
 def DBM_usage_example():
-    
     # import the dataset
-    (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
+    X_train, X_test, Y_train, Y_test = import_data()
     
-    # if needed perform some preprocessing
-    SAMPLES_LIMIT = 5000
-    X_train = X_train.astype('float32')
-    X_test = X_test.astype('float32')
-    X_train /= 255
-    X_test /= 255
-    X_train, Y_train = X_train[:int(0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
-    X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
-    
-    # get the number of classes
-    num_classes = np.unique(Y_train).shape[0]
-    
-    # create a classifier
-    classifier = tf.keras.models.Sequential([
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(num_classes, activation=tf.nn.softmax)
-    ], name = "classifier")
+    # import the classifier
+    classifier = import_classifier()
     
     # create the DBM
     dbm = DBM(classifier=classifier)
@@ -50,15 +35,20 @@ def DBM_usage_example():
     # the DBM will get it for you, you just need to specify the projection method you would like to use (t-SNE, PCA or UMAP)
     img, img_confidence, _, _, _, _ = dbm.generate_boundary_map(X_train, Y_train, 
                                                                 X_test, Y_test, 
-                                                                resolution=256,
+                                                                resolution=256, 
+                                                                load_folder=os.path.join("tmp", "MNIST", "DBM"),                                                                                                                             
                                                                 projection="t-SNE")
     
     # if you have the 2D projection of the data, you can use the following function to get the decision boundary map
     """
     X2d_train, X2d_test = None, None # get the 2D projection of the data by yourself
-    img, img_confidence, _, _, _, _ = dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test,
-                                                          X2d_train=X2d_train, X2d_test=X2d_test, 
-                                                          resolution=100)
+    img, img_confidence, _, _, _, _ = dbm.generate_boundary_map(X_train, Y_train, 
+                                                                X_test, Y_test,
+                                                                X2d_train=X2d_train, 
+                                                                X2d_test=X2d_test,
+                                                                load_folder=os.path.join("tmp", "MNIST", "DBM"), 
+                                                                use_fast_decoding=True,  
+                                                                resolution=256)
     """                                                                  
     
     # make the decision boundary map pretty, by adding the colors and the confidence
@@ -110,3 +100,42 @@ def DBM_usage_example():
     fig.colorbar(img_ax, ax=ax)
     plt.show()
     
+def DBM_usage_example_GUI():
+    # import the dataset
+    X_train, X_test, Y_train, Y_test = import_data()
+    
+    # import the classifier
+    classifier = import_classifier()
+    
+    # import the 2D projection of the data
+    X2d_train, X2d_test = import_2d_data()
+    
+    # create the DBM
+    dbm = DBM(classifier=classifier)
+    
+    # use the DBM to get the decision boundary map, if you don't have the 2D projection of the data
+    # the DBM will get it for you, you just need to specify the projection method you would like to use (t-SNE, PCA or UMAP)
+    dbm_info = dbm.generate_boundary_map(X_train, Y_train, 
+                                         X_test, Y_test, 
+                                         X2d_train=X2d_train,
+                                         X2d_test=X2d_test,
+                                         resolution=256, 
+                                         load_folder=os.path.join("tmp", "MNIST", "DBM"),                                                                                                                             
+                                         projection="t-SNE")
+    
+    img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history  = dbm_info
+    
+    dbm_plotter_gui = DBMPlotterGUI(dbm_model = dbm,
+                                    img = img,
+                                    img_confidence = img_confidence,
+                                    encoded_train = encoded_training_data, 
+                                    encoded_test = encoded_testing_data,
+                                    X_train = X_train,
+                                    Y_train = Y_train,
+                                    X_test = X_test,
+                                    Y_test = Y_test,
+                                    spaceNd=spaceNd,
+                                    save_folder=os.path.join("tmp", "MNIST", "DBM"), # this is the folder where the DBM will save the changes in data the user makes
+                                    projection_technique="t-SNE",
+                                    )
+    dbm_plotter_gui.start()

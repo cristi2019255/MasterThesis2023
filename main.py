@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
     
-from src import DBM_usage_example, SDBM_usage_example
+from src import DBM_usage_example, SDBM_usage_example, DBM_usage_example_GUI, SDBM_usage_example_GUI
 from tests.DBM.test import test_dbm, test_projection_errors
 
 def main():
     #DBM_usage_example()
-    SDBM_usage_example()
+    #DBM_usage_example_GUI()
+    #SDBM_usage_example()
+    SDBM_usage_example_GUI()
     #test_projection_errors()
     #test_dbm()
 

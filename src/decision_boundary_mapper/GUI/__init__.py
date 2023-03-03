@@ -13,3 +13,4 @@
 # limitations under the License.
 
 from .GUI import GUI
+from .DBMPlotterGUI import DBMPlotterGUI
