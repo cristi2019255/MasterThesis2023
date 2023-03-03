@@ -104,6 +104,26 @@ class DBMPlotterGUI:
         else:
             self.console = logger
         
+        self.main_gui = main_gui # reference to main window  
+        
+        self.initialize(dbm_model, 
+                        img, 
+                        img_confidence, 
+                        X_train, Y_train, 
+                        X_test, Y_test, 
+                        encoded_train, encoded_test, spaceNd, 
+                        save_folder, 
+                        projection_technique)
+    
+    def initialize(self,
+                   dbm_model,
+                   img, img_confidence,
+                   X_train, Y_train, 
+                   X_test, Y_test,
+                   encoded_train, encoded_test, spaceNd,                   
+                   save_folder,
+                   projection_technique=None,                   
+                   ):
         self.dbm_model = dbm_model 
         self.img = img
         self.img_confidence = img_confidence
@@ -113,7 +133,6 @@ class DBMPlotterGUI:
         self.Y_test = Y_test
         self.encoded_train = encoded_train
         self.encoded_test = encoded_test  
-        self.main_gui = main_gui # reference to main window  
         self.save_folder = save_folder # folder where to save the changes made to the data by the user    
         self.projection_technique = projection_technique # projection technique used to generate the DBM                            
         self.spaceNd = spaceNd.reshape(spaceNd.shape[0], spaceNd.shape[1], X_train.shape[1], X_train.shape[2])
@@ -444,7 +463,7 @@ class DBMPlotterGUI:
         self.proj_errs_computed = True
         self.updates_logger.log("Finished computing projection errors.")
 
-    #todo: change these function according to todos
+    #TODO: change these function according to todos
     def handle_apply_changes_event(self, event, values):
         num_changes = len(self.expert_updates_labels_mapper)
         if num_changes == 0:
@@ -487,20 +506,22 @@ class DBMPlotterGUI:
             return
         else:
             img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history = dbm_info
-            self.__init__(dbm_model = self.dbm_model,
-                          img = img,
-                          img_confidence = img_confidence,
-                          encoded_train = encoded_training_data, 
-                          encoded_test = encoded_testing_data,
-                          X_train = self.X_train, 
-                          Y_train = self.Y_train,
-                          X_test = self.X_test,
-                          Y_test = self.Y_test,
-                          spaceNd=spaceNd,
-                          save_folder=self.save_folder,
-                          projection_technique=self.projection_technique,
-                    )
+            self.initialize(dbm_model = self.dbm_model,
+                            img = img,
+                            img_confidence = img_confidence,
+                            encoded_train = encoded_training_data, 
+                            encoded_test = encoded_testing_data,
+                            X_train = self.X_train, 
+                            Y_train = self.Y_train,
+                            X_test = self.X_test,
+                            Y_test = self.Y_test,
+                            spaceNd=spaceNd,
+                            save_folder=self.save_folder,
+                            projection_technique=self.projection_technique,
+                        )
+            
             self.draw_dbm_img()
+            self.updates_logger.log("Changes applied successfully!")
             return
             
     def save_changes(self, folder:str="tmp", label_changes={}):
