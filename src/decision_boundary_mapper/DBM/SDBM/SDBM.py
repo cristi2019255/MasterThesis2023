@@ -144,6 +144,8 @@ class SDBM(DBMInterface):
         save_img_path = os.path.join(load_folder, "boundary_map")
         save_img_confidence_path = os.path.join(load_folder, "boundary_map_confidence")
         
+        self.resolution = resolution
+        
         if use_fast_decoding:
             img, img_confidence, spaceNd = self._get_img_dbm_fast_(resolution)
             save_img_path += "_fast"
@@ -151,14 +153,14 @@ class SDBM(DBMInterface):
         else:
             img, img_confidence, spaceNd = self._get_img_dbm_(resolution)
         
-        self.resolution = resolution
+        
         self.spaceNd = spaceNd
         self.X2d = np.concatenate((encoded_training_data, encoded_testing_data), axis=0)
         self.Xnd = np.concatenate((X_train.reshape((X_train.shape[0],-1)), X_test.reshape((X_test.shape[0],-1))), axis=0)
         
         # transform the encoded data to be in the range [0, resolution)
-        encoded_testing_data *= (resolution -1)
-        encoded_training_data *= (resolution -1)
+        encoded_testing_data *= (self.resolution -1)
+        encoded_training_data *= (self.resolution -1)
         encoded_training_data = encoded_training_data.astype(int)
         encoded_testing_data = encoded_testing_data.astype(int)
         

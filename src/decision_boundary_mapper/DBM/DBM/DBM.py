@@ -165,6 +165,8 @@ class DBM(DBMInterface):
         save_img_path = os.path.join(os.path.join(load_folder, projection), "boundary_map")
         save_img_confidence_path = os.path.join(os.path.join(load_folder, projection), "boundary_map_confidence")
         
+        self.resolution = resolution   
+        
         if use_fast_decoding:
             img, img_confidence, spaceNd = self._get_img_dbm_fast_(resolution)
             save_img_path += "_fast"
@@ -176,16 +178,15 @@ class DBM(DBMInterface):
             np.save(f, img)
         with open(f"{save_img_confidence_path}.npy", 'wb') as f:
             np.save(f, img_confidence)        
-
-        self.resolution = resolution   
+        
         self.spaceNd = spaceNd     
         self.X2d = np.concatenate((X2d_train, X2d_test), axis=0)
         self.Xnd = np.concatenate((Xnd_train.reshape((Xnd_train.shape[0],-1)), Xnd_test.reshape((Xnd_test.shape[0],-1))), axis=0)
         self.console.log("Map the 2D embedding of the data to the 2D image")
         
         # transform the encoded data to be in the range [0, resolution)
-        X2d_train *= (resolution - 1)
-        X2d_test *= (resolution - 1)
+        X2d_train *= (self.resolution - 1)
+        X2d_test *= (self.resolution - 1)
         X2d_train = X2d_train.astype(int)
         X2d_test = X2d_test.astype(int)
         

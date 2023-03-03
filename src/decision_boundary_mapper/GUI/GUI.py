@@ -28,7 +28,7 @@ from ..utils import import_csv_dataset, import_mnist_dataset, import_cifar10_dat
 
 sg.theme('DarkBlue1')
 TITLE = "Classifiers visualization tool"
-WINDOW_SIZE = (1150, 650)
+WINDOW_SIZE = (1150, 700)
 BLACK_COLOR = "#252526"
 BUTTON_PRIMARY_COLOR = "#007acc"
 WHITE_COLOR = "#ffffff"
@@ -69,7 +69,7 @@ class GUI:
             
         # --------------- DBM ---------------
         self.dbm_plotter_gui = None
-        self.dbm_logger = LoggerGUI(name = "DBM logger", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
+        self.dbm_logger = LoggerGUI(name = "DBM logger", output = self.window["-LOGGER-"], update_callback = self.window.refresh)        
         
         # --------------- Data set ----------
         self.dataset_name = "Dataset"
@@ -106,7 +106,7 @@ class GUI:
             
             self.handle_event(event, values)
         
-        if self.dbm_plotter_gui is not None:
+        if self.dbm_plotter_gui is not None and hasattr(self.dbm_plotter_gui, "window"):
             self.dbm_plotter_gui.stop()
         
         self.stop()
@@ -221,6 +221,10 @@ class GUI:
             [
                 sg.Text("Show Decision Boundary Mapper NN history: ", expand_x=True, key="-DBM HISTORY TEXT-", visible=True),
                 sg.Checkbox("", default=False,  key="-DBM HISTORY CHECKBOX-", visible=True),
+            ],
+            [
+                sg.Text("Image resolution of the Decision Boundary Mapper: ", size=(45,1), expand_x=True, key="-DBM IMAGE RESOLUTION TEXT-", visible=True),
+                sg.InputText("256", key="-DBM IMAGE RESOLUTION INPUT-", visible=True, background_color=WHITE_COLOR, text_color=BLACK_COLOR),
             ],
             [
                 sg.Button("Show the Decision Boundary Mapping", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, visible=False, key = "-DBM BTN-"),
@@ -448,8 +452,14 @@ class GUI:
         projection_technique = values["-PROJECTION TECHNIQUE-"]
         use_decoding_fast = values["-USE FAST DBM CHECKBOX-"]
         show_dbm_history = values["-DBM HISTORY CHECKBOX-"]
+        resolution = values["-DBM IMAGE RESOLUTION INPUT-"]
+        if resolution.isdigit() and int(resolution) > 50 and int(resolution) < 1000:
+            resolution = int(resolution)
+        else:
+            resolution = 256
         
-        RESOLUTION = 256
+        self.dbm_logger.log(f"DBM resolution: {resolution}")
+        
         TMP_FOLDER = os.path.join("tmp", self.dataset_name)
         save_folder = TMP_FOLDER
         if values["-DBM TECHNIQUE-"] == "Inverse Projection":
@@ -473,7 +483,7 @@ class GUI:
                                         self.Y_test, 
                                         X2d_train=X_train_2d,
                                         X2d_test=X_test_2d,
-                                        resolution=RESOLUTION,
+                                        resolution=resolution,
                                         use_fast_decoding=use_decoding_fast,
                                         load_folder=DEFAULT_MODEL_FOLDER,
                                         projection=projection_technique
@@ -485,7 +495,7 @@ class GUI:
                                         self.Y_train, 
                                         self.X_test, 
                                         self.Y_test, 
-                                        resolution=RESOLUTION,
+                                        resolution=resolution,
                                         use_fast_decoding=use_decoding_fast,
                                         load_folder=save_folder,
                                         projection=projection_technique
@@ -518,7 +528,7 @@ class GUI:
         # ---------------------------------
         # update the dbm image
         img = Image.fromarray(np.uint8(self.dbm_plotter_gui.color_img*255))
-        WINDOW_IMAGE_RESOLUTION = 300
+        WINDOW_IMAGE_RESOLUTION = 256
         img.thumbnail((WINDOW_IMAGE_RESOLUTION, WINDOW_IMAGE_RESOLUTION), Image.ANTIALIAS)
         # Convert im to ImageTk.PhotoImage after window finalized
         image = ImageTk.PhotoImage(image=img)        
@@ -532,7 +542,6 @@ class GUI:
         self.switch_visibility(["-DBM IMAGE-"], False)
         self.switch_visibility(["-DBM TEXT-", "-DBM IMAGE LOADING-"], True)
         
-        RESOLUTION = 256  
         img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history = dbm_info
         self.dbm_plotter_gui = DBMPlotterGUI(
                                             dbm_model = dbm_model,
@@ -553,7 +562,8 @@ class GUI:
         # ---------------------------------
         # update the dbm image
         img = Image.fromarray(np.uint8(self.dbm_plotter_gui.color_img*255))
-        img.thumbnail((RESOLUTION, RESOLUTION), Image.ANTIALIAS)
+        WINDOW_IMAGE_RESOLUTION = 256
+        img.thumbnail((WINDOW_IMAGE_RESOLUTION, WINDOW_IMAGE_RESOLUTION), Image.ANTIALIAS)
         # Convert im to ImageTk.PhotoImage after window finalized
         image = ImageTk.PhotoImage(image=img)        
         self.window["-DBM IMAGE-"].update(data=image)

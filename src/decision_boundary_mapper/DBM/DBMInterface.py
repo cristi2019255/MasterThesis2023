@@ -202,9 +202,13 @@ class DBMInterface:
         
         if (resolution % INITIAL_RESOLUTION != 0):
             self.console.warn(f"The required resolution is not a multiple of the initial resolution ({INITIAL_RESOLUTION} x {INITIAL_RESOLUTION})")
-            self.console.log("The resolution will be set to the closest multiple of the initial resolution")
-            resolution = int(resolution / INITIAL_RESOLUTION) * INITIAL_RESOLUTION   
-        
+            self.console.log("The resolution will be set to the closest multiple of the initial resolution which is a power of 2")
+            amplification_factor = int(resolution / INITIAL_RESOLUTION)
+            amplification_factor = 1 if amplification_factor == 0 else 2**(amplification_factor - 1).bit_length() // 2
+            resolution = amplification_factor * INITIAL_RESOLUTION
+            self.resolution = resolution   
+            self.console.log(f"Resolution was set to {resolution} x {resolution}")
+            
         window_size = int(resolution / INITIAL_RESOLUTION)
         # ------------------------------------------------------------
         
