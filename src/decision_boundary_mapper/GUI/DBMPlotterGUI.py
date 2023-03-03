@@ -28,7 +28,7 @@
 
 import json
 from math import sqrt
-import matplotlib.patches as mpatches
+from matplotlib.patches import Patch, Circle
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
 import matplotlib.figure as figure
@@ -152,10 +152,13 @@ class DBMPlotterGUI:
         self.motion_event_cid = None
         self.click_event_cid = None
         self.key_event_cid = None
+        self.release_event_cid = None
         self.current_selected_point = None
         self.current_selected_point_assigned_label = None
         self.expert_updates_labels_mapper = {}        
-        self.stop_application = False    
+        self.stop_application = False 
+        self.update_labels_by_circle_select = True 
+        self.update_labels_circle = None  
         
     def _initialize_gui_(self):        
         # --------------------- GUI related ---------------------
@@ -178,6 +181,9 @@ class DBMPlotterGUI:
                     [sg.Canvas(key='-CONTROLS CANVAS-', expand_x=True, pad=(0,0))],
                     [
                         sg.Column([
+                            [  
+                                sg.Checkbox("Change labels by selecting with circle", default=True, key="-CIRCLE SELECTING LABELS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
+                            ],
                             [
                                 sg.Checkbox("Show dbm color map", default=True, key="-SHOW DBM COLOR MAP-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
                                 sg.Checkbox("Show dbm confidence", default=True, key="-SHOW DBM CONFIDENCE-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),                                
@@ -235,6 +241,7 @@ class DBMPlotterGUI:
             "-SHOW DBM CONFIDENCE-": self.handle_checkbox_change_event,
             "-SHOW INVERSE PROJECTION ERRORS-": self.handle_checkbox_change_event,
             "-SHOW PROJECTION ERRORS-": self.handle_checkbox_change_event,
+            "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,
         }
         
         EVENTS[event](event, values)    
@@ -268,7 +275,7 @@ class DBMPlotterGUI:
             else:
                 label = f"Value region: {class_name_mapper(value)}"
 
-            patches.append(mpatches.Patch(color=color, label=label))
+            patches.append(Patch(color=color, label=label))
         
         return color_img, patches
    
@@ -310,7 +317,7 @@ class DBMPlotterGUI:
         image = OffsetImage(self.X_train[0], zoom=2, cmap="gray")
         label = TextArea("Data point label: None")
         
-        annImage = AnnotationBbox(image, (0,0), xybox=(50., 50.), xycoords='data',boxcoords="offset points",  pad=0.1,  arrowprops=dict(arrowstyle="->"))        
+        annImage = AnnotationBbox(image, (0,0), xybox=(50., 50.), xycoords='data', boxcoords="offset points",  pad=0.1,  arrowprops=dict(arrowstyle="->"))        
         annLabels = AnnotationBbox(label, (0,0), xybox=(50., 50.), xycoords='data', boxcoords="offset points",  pad=0.3,  arrowprops=dict(arrowstyle="->"))
 
         self.ax.add_artist(annImage)
@@ -319,7 +326,7 @@ class DBMPlotterGUI:
         annLabels.set_visible(False)
 
         fig_width, fig_height = self.fig.get_size_inches() * self.fig.dpi
-            
+          
         def display_annotation(event):
             """Displays the annotation box when hovering over the decision boundary based on the mouse position."""
             if event.inaxes == None:
@@ -374,8 +381,12 @@ class DBMPlotterGUI:
             return point, None
                     
         def onclick(event):
-            """ Open the data point in a new window when clicked on a pixel in training or testing set based on mouse position."""
+            """ Open the data point in a new window when clicked on a pixel in training or testing set based on mouse position."""            
             if event.inaxes == None:
+                return
+            
+            if self.update_labels_by_circle_select:
+                onclick_circle_strategy(event)
                 return
             
             self.console.log("Clicked on: " + str(event.xdata) + ", " + str(event.ydata))
@@ -441,9 +452,79 @@ class DBMPlotterGUI:
                 self.fig.canvas.mpl_disconnect(self.key_event_cid)  
                 self.fig.canvas.draw_idle()  
                 return
+        
+        def onclick_circle_strategy(event):                        
+            self.console.log("Clicked on: " + str(event.xdata) + ", " + str(event.ydata))
+            x, y = int(event.xdata), int(event.ydata)
+            self.current_selected_point = (x,y)
+            self.release_event_cid = self.fig.canvas.mpl_connect('button_release_event', onrelease_circle_strategy)
+        
+        def onrelease_circle_strategy(event):
+            if event.inaxes == None:
+                return
+            self.console.log("Released on: " + str(event.xdata) + ", " + str(event.ydata))
+            (x0, y0) = self.current_selected_point
+            x1, y1 = int(event.xdata), int(event.ydata)
+            (cx, cy) = (x0 + (x1 - x0)/2, y0 + (y1 - y0)/2) # circle center
+            r = sqrt(((x1 - x0)/2)**2 + ((y1 - y0)/2)**2)   # circle radius
+            self.update_labels_circle = Circle((cx, cy), r, color='black', fill=False)
+            self.ax.add_artist(self.update_labels_circle)    
+            self.key_event_cid = self.fig.canvas.mpl_connect('key_press_event', onkey_circle_strategy)    
+            if self.release_event_cid is not None:
+                self.fig.canvas.mpl_disconnect(self.release_event_cid)
+            self.fig.canvas.draw_idle()
+
+        def onkey_circle_strategy(event):
+            if self.update_labels_circle is None:
+                return
+
+            if event.key.isdigit():
+                self.current_selected_point_assigned_label = int(event.key)
+                return
             
+            (x, y) = self.update_labels_circle.get_center()
+            r = self.update_labels_circle.get_radius()
+            if event.key == "enter" and self.current_selected_point_assigned_label is not None:                                    
+                self.updates_logger.log(f"Assigned label: {self.current_selected_point_assigned_label} to circle: center ({x}, {y}), radius ({r})")
+                positions = find_points_in_circle((x,y), r)
+                for pos in positions:
+                    point = self.ax.plot(pos[0], pos[1], 'b^')[0]   
+                    self.expert_updates_labels_mapper[f"{pos[1]} {pos[0]}"] = (self.current_selected_point_assigned_label, point)                        
+                           
+            if event.key == "backspace":
+                self.updates_logger.log(f"Removing changes in circle: center ({x},{y}), radius ({r})")
+                positions = find_points_in_circle((x,y), r)
+                for pos in positions:
+                    if f"{pos[1]} {pos[0]}" in self.expert_updates_labels_mapper:
+                        self.expert_updates_labels_mapper[f"{pos[1]} {pos[0]}"][1].remove()
+                        del self.expert_updates_labels_mapper[f"{pos[1]} {pos[0]}"]
+                
+            self.update_labels_circle.remove()
+            self.update_labels_circle = None
+            self.fig.canvas.mpl_disconnect(self.key_event_cid)  
+            self.fig.canvas.draw_idle()
+        
+        def find_points_in_circle(circle_center, circle_radius):
+            (cx, cy) = circle_center
+            initial_x, initial_y = int(cx - circle_radius), int(cy - circle_radius)
+            final_x, final_y = int(cx + circle_radius) + 1, int(cy + circle_radius) + 1
+            initial_x = 0 if initial_x < 0 else initial_x
+            initial_y = 0 if initial_y < 0 else initial_y
+            final_x = self.img.shape[0] if final_x > self.img.shape[0] else final_x
+            final_y = self.img.shape[0] if final_y > self.img.shape[0] else final_y
+            
+            positions = []
+            for x in range(initial_x, final_x):
+                for y in range(initial_y, final_y):
+                    if (self.img[y, x] == -1 or self.img[y, x] == -2) and ((x - cx)**2 + (y - cy)**2 <= circle_radius**2):
+                        positions.append((x,y))
+            return positions
+            
+                    
         self.motion_event_cid = self.fig.canvas.mpl_connect('motion_notify_event', display_annotation)           
         self.click_event_cid = self.fig.canvas.mpl_connect('button_press_event', onclick)
+        
+        
         
     def plot_data_point(self, data, label):
         """Plots the data point in a new window.
@@ -506,7 +587,9 @@ class DBMPlotterGUI:
         self.axes_image = self.ax.imshow(img) 
         self.fig.canvas.draw_idle()
     
-
+    def handle_circle_selecting_labels_change_event(self, event, values):
+        self.update_labels_by_circle_select = values["-CIRCLE SELECTING LABELS-"]
+    
     #TODO: change these function according to todos
     def handle_apply_changes_event(self, event, values):
         num_changes = len(self.expert_updates_labels_mapper)
@@ -560,8 +643,7 @@ class DBMPlotterGUI:
                         )
             
         self.draw_dbm_img()
-        self.updates_logger.log("Changes applied successfully!")
-        
+        self.updates_logger.log("Changes applied successfully!")     
             
     def save_changes(self, folder:str="tmp", label_changes={}):
         if not os.path.exists(folder):
