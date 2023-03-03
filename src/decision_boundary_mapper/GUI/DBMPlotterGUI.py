@@ -136,7 +136,7 @@ class DBMPlotterGUI:
         self.save_folder = save_folder # folder where to save the changes made to the data by the user    
         self.projection_technique = projection_technique # projection technique used to generate the DBM                            
         self.spaceNd = spaceNd.reshape(spaceNd.shape[0], spaceNd.shape[1], X_train.shape[1], X_train.shape[2])
-        self.color_img, self.legend = self._build_2D_image_(img, img_confidence)
+        self.color_img, self.legend = self._build_2D_image_(img)
         self.train_mapper, self.test_mapper = self._generate_encoded_mapping_()
         self.inverse_projection_errors = self.dbm_model.generate_inverse_projection_errors()
         
@@ -148,7 +148,7 @@ class DBMPlotterGUI:
         # --------------------- Plotter related ---------------------
         
         # --------------------- Others ------------------------------
-        self.proj_errs_computed = False
+        self.projection_errors = None        
         self.motion_event_cid = None
         self.click_event_cid = None
         self.key_event_cid = None
@@ -170,7 +170,7 @@ class DBMPlotterGUI:
     def _get_GUI_layout_(self):   
         buttons = []
            
-        if not self.proj_errs_computed: 
+        if self.projection_errors is None: 
             buttons.append(sg.Button('Compute Projection Errors', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)))             
 
         layout = [                                  
@@ -178,6 +178,12 @@ class DBMPlotterGUI:
                     [sg.Canvas(key='-CONTROLS CANVAS-', expand_x=True, pad=(0,0))],
                     [
                         sg.Column([
+                            [
+                                sg.Checkbox("Show dbm color map", default=True, key="-SHOW DBM COLOR MAP-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
+                                sg.Checkbox("Show dbm confidence", default=True, key="-SHOW DBM CONFIDENCE-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),                                
+                                sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
+                                sg.Checkbox("Show projection errors", default=False, key="-SHOW PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=False),
+                            ],
                             [sg.Button('Apply Updates', font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))],
                             buttons,
                             [sg.Text(INFORMATION_CONTROLS_MESSAGE, expand_x=True)],
@@ -185,7 +191,7 @@ class DBMPlotterGUI:
                             [sg.Text(RIGHTS_MESSAGE_2, expand_x=True)],           
                         ], expand_x=True),
                         sg.Column([
-                            [sg.Multiline("",expand_x=True, size=(50,10), key="-LOGGER-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, auto_size_text=True)],                    
+                            [sg.Multiline("", key="-LOGGER-", size=(50,20), background_color=WHITE_COLOR, text_color=BLACK_COLOR, auto_size_text=True, expand_y=True, expand_x=True)],                    
                         ], expand_x=True),
                     ]                                                      
                 ]
@@ -216,6 +222,8 @@ class DBMPlotterGUI:
         self.stop()
     
     def stop(self):
+        if self.main_gui is not None and hasattr(self.main_gui, "handle_changes_in_dbm_plotter"):
+            self.main_gui.handle_changes_in_dbm_plotter()
         self.console.log("Closing the application...")
         self.window.close()
     
@@ -223,11 +231,15 @@ class DBMPlotterGUI:
         EVENTS = {
             "-COMPUTE PROJECTION ERRORS-": self.handle_compute_projection_errors_event,
             "-APPLY CHANGES-": self.handle_apply_changes_event,
+            "-SHOW DBM COLOR MAP-": self.handle_checkbox_change_event,
+            "-SHOW DBM CONFIDENCE-": self.handle_checkbox_change_event,
+            "-SHOW INVERSE PROJECTION ERRORS-": self.handle_checkbox_change_event,
+            "-SHOW PROJECTION ERRORS-": self.handle_checkbox_change_event,
         }
         
         EVENTS[event](event, values)    
     
-    def _build_2D_image_(self, img, img_confidence, class_name_mapper = lambda x: str(x), colors_mapper = COLORS_MAPPER):
+    def _build_2D_image_(self, img, class_name_mapper = lambda x: str(x), colors_mapper = COLORS_MAPPER):
         """Combines the img and the img_confidence into a single image.
 
         Args:
@@ -240,11 +252,10 @@ class DBMPlotterGUI:
             np.ndarray: The combined image.
             patches: The legend patches.
         """
-        color_img = np.zeros((img.shape[0], img.shape[1], 4))
+        color_img = np.zeros((img.shape[0], img.shape[1], 3))
                 
         for i, j in np.ndindex(img.shape):
-            color_img[i,j] = colors_mapper[img[i,j]] + [img_confidence[i,j]]
-        
+            color_img[i,j] = colors_mapper[img[i,j]]
         values = np.unique(img)
         
         patches = []
@@ -298,10 +309,9 @@ class DBMPlotterGUI:
         """
         image = OffsetImage(self.X_train[0], zoom=2, cmap="gray")
         label = TextArea("Data point label: None")
-
-        xybox=(50., 50.)
-        annImage = AnnotationBbox(image, (0,0), xybox=xybox, xycoords='data',boxcoords="offset points",  pad=0.1,  arrowprops=dict(arrowstyle="->"))        
-        annLabels = AnnotationBbox(label, (0,0), xybox=xybox, xycoords='data', boxcoords="offset points",  pad=0.3,  arrowprops=dict(arrowstyle="->"))
+        
+        annImage = AnnotationBbox(image, (0,0), xybox=(50., 50.), xycoords='data',boxcoords="offset points",  pad=0.1,  arrowprops=dict(arrowstyle="->"))        
+        annLabels = AnnotationBbox(label, (0,0), xybox=(50., 50.), xycoords='data', boxcoords="offset points",  pad=0.3,  arrowprops=dict(arrowstyle="->"))
 
         self.ax.add_artist(annImage)
         self.ax.add_artist(annLabels)
@@ -393,6 +403,7 @@ class DBMPlotterGUI:
             # disable on click event
             if self.click_event_cid is not None:
                 self.fig.canvas.mpl_disconnect(self.click_event_cid)
+                self.click_event_cid = None
             
             # enable key press events
             self.key_event_cid = self.fig.canvas.mpl_connect('key_press_event', onkey)
@@ -447,8 +458,11 @@ class DBMPlotterGUI:
     
     def draw_dbm_img(self):             
         # update the figure
-        self.ax.set_title("Decision Boundary Mapper")        
-        self.ax.imshow(self.color_img)       
+        self.ax.set_title("Decision Boundary Mapper")    
+        img = np.zeros((self.img.shape[0], self.img.shape[1], 4))
+        img[:,:,:3] = self.color_img
+        img[:,:,3] = self.img_confidence    
+        self.axes_image = self.ax.imshow(img)       
         # draw the figure to the canvas
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)    
         self.window.refresh()
@@ -459,9 +473,39 @@ class DBMPlotterGUI:
         
     def handle_compute_projection_errors_event(self, event, values):
         self._set_loading_proj_errs_state_()
-        projection_errors = self.dbm_model.generate_projection_errors()
-        self.proj_errs_computed = True
+        self.projection_errors = self.dbm_model.generate_projection_errors()        
         self.updates_logger.log("Finished computing projection errors.")
+        self.window['-SHOW PROJECTION ERRORS-'].update(visible=True)           
+
+    def handle_checkbox_change_event(self, event, values):
+        show_color_map = values["-SHOW DBM COLOR MAP-"]
+        show_confidence = values["-SHOW DBM CONFIDENCE-"]
+        show_inverse_projection_errors = values["-SHOW INVERSE PROJECTION ERRORS-"]
+        show_projection_errors = values["-SHOW PROJECTION ERRORS-"]
+        
+        color_img = np.zeros((self.img.shape[0], self.img.shape[1], 3))
+        alphas = 1 + np.zeros((self.img.shape[0], self.img.shape[1]))
+        img = np.zeros((self.img.shape[0], self.img.shape[1], 4))
+        
+        if show_color_map:
+            color_img = self.color_img
+        
+        if show_confidence:
+            alphas = alphas * self.img_confidence
+        if show_inverse_projection_errors:
+            alphas = alphas * (1 - self.inverse_projection_errors)
+            
+        if show_projection_errors and self.projection_errors is not None:
+            alphas = alphas * (1 - self.projection_errors)
+        
+        img[:, :, :3] = color_img
+        img[:, :, 3] = alphas                     
+        
+        if hasattr(self, "axes_image"):
+            self.axes_image.remove()
+        self.axes_image = self.ax.imshow(img) 
+        self.fig.canvas.draw_idle()
+    
 
     #TODO: change these function according to todos
     def handle_apply_changes_event(self, event, values):
@@ -499,14 +543,9 @@ class DBMPlotterGUI:
             load_folder=self.save_folder,
             projection=self.projection_technique                                        
         )        
-        
-        if self.main_gui is not None and hasattr(self.main_gui, "handle_changes_in_dbm_plotter"):
-            self.main_gui.handle_changes_in_dbm_plotter(dbm_info, self.dbm_model, self.save_folder, self.projection_technique)
-            self.stop_application=True
-            return
-        else:
-            img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history = dbm_info
-            self.initialize(dbm_model = self.dbm_model,
+            
+        img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history = dbm_info
+        self.initialize(dbm_model = self.dbm_model,
                             img = img,
                             img_confidence = img_confidence,
                             encoded_train = encoded_training_data, 
@@ -520,9 +559,9 @@ class DBMPlotterGUI:
                             projection_technique=self.projection_technique,
                         )
             
-            self.draw_dbm_img()
-            self.updates_logger.log("Changes applied successfully!")
-            return
+        self.draw_dbm_img()
+        self.updates_logger.log("Changes applied successfully!")
+        
             
     def save_changes(self, folder:str="tmp", label_changes={}):
         if not os.path.exists(folder):

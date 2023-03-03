@@ -411,6 +411,7 @@ class DBMInterface:
             resolution (int): the resolution of the image we want to generate (the image will be a square image)
             function (str, optional): Defaults to 'euclidean'.
         """
+        self.console.log("Computing the interpolated image using RBF interpolation...")
         X, Y, Z = [], [], []
         for (x, y, z) in sparse_map:
             X.append(x)
@@ -430,4 +431,5 @@ class DBMInterface:
         iy = da.from_array(yy, chunks=(1, cores))
         iz = da.map_blocks(rbf, ix, iy)
         zz = iz.compute()
+        self.console.log("Finished computing the interpolated image using RBF interpolation")
         return zz

@@ -13,9 +13,11 @@
 # limitations under the License.
 
 from keras.datasets import fashion_mnist, mnist, cifar10
+from matplotlib.offsetbox import AnnotationBbox, TextArea
 import tensorflow as tf
 import os
 
+"""
 SAMPLES_LIMIT = 5000
 CLASSIFIER_NAME = "classifier"
 
@@ -39,3 +41,26 @@ classifier.fit(X_train, Y_train, epochs=5, batch_size=32)
 
 save_path = os.path.join("tmp", "CIFAR10", "classifier")
 classifier.save(save_path, save_format="tf")
+"""
+
+from matplotlib import pyplot as plt
+import numpy as np
+fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+alphas = np.zeros((10, 10)) + 0.5
+img = np.random.rand(10, 10, 3)
+color_img = np.zeros((10, 10, 4))
+color_img[:, :, :3] = img
+color_img[:, :, 3] = alphas
+
+label = TextArea("Data point label: None")
+
+xybox=(50., 50.)
+annLabels = AnnotationBbox(label, (0,0), xybox=xybox, xycoords='data', boxcoords="offset points",  pad=0.3,  arrowprops=dict(arrowstyle="->"))
+
+ax.add_artist(annLabels)
+
+img = ax.imshow(color_img)
+color_img[:, :, 3] = np.zeros((10,10)) 
+img.remove()
+ax.imshow(color_img)
+plt.show()

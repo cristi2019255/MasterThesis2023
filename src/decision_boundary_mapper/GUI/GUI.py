@@ -105,10 +105,7 @@ class GUI:
                 break
             
             self.handle_event(event, values)
-        
-        if self.dbm_plotter_gui is not None and hasattr(self.dbm_plotter_gui, "window"):
-            self.dbm_plotter_gui.stop()
-        
+                
         self.stop()
     
     def stop(self):
@@ -537,28 +534,11 @@ class GUI:
         self.switch_visibility(["-DBM IMAGE LOADING-"], False)
         self.switch_visibility(["-DBM IMAGE-"], True)
     
-    def handle_changes_in_dbm_plotter(self, dbm_info, dbm_model, save_folder, projection_technique):
+    def handle_changes_in_dbm_plotter(self):
         # update loading state
         self.switch_visibility(["-DBM IMAGE-"], False)
         self.switch_visibility(["-DBM TEXT-", "-DBM IMAGE LOADING-"], True)
         
-        img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history = dbm_info
-        self.dbm_plotter_gui = DBMPlotterGUI(
-                                            dbm_model = dbm_model,
-                                            img = img,
-                                            img_confidence = img_confidence,
-                                            encoded_train = encoded_training_data, 
-                                            encoded_test = encoded_testing_data,
-                                            X_train = self.X_train,
-                                            Y_train = self.Y_train,
-                                            X_test = self.X_test,
-                                            Y_test = self.Y_test,
-                                            spaceNd=spaceNd,
-                                            main_gui=self, # reference to the main GUI
-                                            save_folder=save_folder,
-                                            projection_technique=projection_technique,
-                                            )
-                      
         # ---------------------------------
         # update the dbm image
         img = Image.fromarray(np.uint8(self.dbm_plotter_gui.color_img*255))
