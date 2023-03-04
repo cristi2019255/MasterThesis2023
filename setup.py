@@ -41,6 +41,7 @@ setup(
           'keras',
           'matplotlib',
           'numba',
+          'numba_progress',
           'numpy',
           'Pillow',
           'PySimpleGUI',

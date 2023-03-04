@@ -139,37 +139,7 @@ class Autoencoder(NNinterface):
         self.encoder = self.neural_network.get_layer(ENCODER_NAME)
         self.decoder = self.neural_network.get_layer(DECODER_NAME)
             
-        #self.show_predictions(dataNd=x_test, labels=y_test)
-        
-    def refit(self, X2d, Xnd, epochs:int=3, batch_size:int=32):
-        """Refits the model to the specified data.
-
-        Args:
-            X2d (np.ndarray): 
-            Xnd (np.ndarray): 
-            Y (np.ndarray): 
-            epochs (int, optional): Defaults to 3.
-            batch_size (int, optional): Defaults to 32.
-        """
-        self.console.log("Refitting model...")
-        logger_callback = LoggerModel(name=AUTOENCODER_NAME, show_init=False, epochs=epochs)
-        self.decoder.compile(optimizer=tf.keras.optimizers.Adam(), loss=DECODER_LOSS, metrics=["accuracy"])
-
-        self.console.log(X2d.shape)
-        self.console.log(Xnd.shape)
-        Xnd = Xnd.reshape((Xnd.shape[0], 28, 28))
-        self.decoder.fit(X2d, Xnd, 
-                         epochs=epochs, 
-                         batch_size=batch_size, 
-                         shuffle=True,
-                         callbacks=[logger_callback], 
-                         verbose=0)
-        
-        # TODO: not saving for now, uncomment latter
-        #self.save()
-        
-        self.console.log("Model refitted!")
-         
+        #self.show_predictions(dataNd=x_test, labels=y_test)    
            
     def encode(self, data:np.ndarray, verbose:int = 0):
         """ Encodes the data using the encoder part of the autoencoder.

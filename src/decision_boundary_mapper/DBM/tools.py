@@ -16,10 +16,10 @@ import numpy as np
 from numba import jit, njit, prange
 
 @njit(parallel=True)
-def generate_nd_indices_parallel(X_nd, metric):
+def get_nd_indices_parallel(X_nd, metric):
     """ Generates the indices of the nearest neighbors for each point in the nD space.
         Args:
-            X_nd (np.ndarray): the nD space
+            X_nd (np.ndarray): the nD dataset
             metric (function): the metric to use for calculating the distances
     """
     n_samples = X_nd.shape[0]
@@ -34,6 +34,22 @@ def generate_nd_indices_parallel(X_nd, metric):
     
     return indices
 
+@njit()
+def generate_point_indices(X, point, metric):
+    """ Generates the indices of the nearest neighbors for a point.
+        Args:
+            X (np.ndarray): the (Nd or 2d) dataset
+            point (np.ndarray): the (Nd or 2d) point
+            metric (function): the metric to use for calculating the distances
+    """
+    data_samples = X.shape[0]
+    dist_vector = np.zeros(data_samples, dtype=np.float64)
+        
+    for j in range(data_samples):
+        dist_vector[j] = metric(point, X[j])
+
+    return np.argsort(dist_vector)
+    
 @njit(fastmath=True)
 def euclidean(x, y):
     r"""Standard euclidean distance.
@@ -71,7 +87,7 @@ def get_inv_proj_error(i:int,j:int, Xnd:np.ndarray, w:int=1, h:int=1):
     return np.sqrt(np.linalg.norm(dx)**2 + np.linalg.norm(dy)**2)
 
 @njit(parallel=True)
-def get_proj_error(indices_source: np.ndarray, indices_embedding: np.ndarray, k: int=10):
+def get_proj_error_parallel(indices_source: np.ndarray, indices_embedding: np.ndarray, k: int=10):
     """ Calculates the projection error for a given data point.
         Args:
             indices_source (np.ndarray): the indices of the point neighbors in the source (i.e. nD) space
@@ -105,6 +121,43 @@ def get_proj_error(indices_source: np.ndarray, indices_embedding: np.ndarray, k:
     trustworthiness = 2 * trustworthiness / (k * (2*n - 3*k - 1))
     
     return (continuity + trustworthiness) / 2
+
+@njit()
+def get_proj_error(indices_source: np.ndarray, indices_embedding: np.ndarray, k: int=10):
+    """ Calculates the projection error for a given data point.
+        Args:
+            indices_source (np.ndarray): the indices of the point neighbors in the source (i.e. nD) space
+            indices_embedding (np.ndarray): the indices of the point neighbors in the embedding (i.e. 2D) space
+            k (int): the number of neighbors to consider
+    """    
+    assert len(indices_source) == len(indices_embedding)
+    n = len(indices_source)
+    
+    continuity = 0.0
+    trustworthiness = 0.0
+    
+    # computing the continuity and trustworthiness errors for each point in parallel
+    for i in range(k):
+        rank_2d = 0
+        while indices_source[i] != indices_embedding[rank_2d]:
+            rank_2d += 1
+
+        rank_nd = 0
+        while indices_source[rank_nd] != indices_embedding[i]:
+            rank_nd += 1
+
+        if rank_2d > k:
+            continuity += rank_2d - k
+
+        if rank_nd > k:
+            trustworthiness += rank_nd - k
+
+
+    continuity = 2 * continuity / (k * (2*n - 3*k - 1))
+    trustworthiness = 2 * trustworthiness / (k * (2*n - 3*k - 1))
+    
+    return (continuity + trustworthiness) / 2
+
 
 @jit
 def get_decode_pixel_priority(img, i, j, window_size, label):
@@ -147,3 +200,19 @@ def get_decode_pixel_priority(img, i, j, window_size, label):
     cost *= window_size      
     
     return 1/cost
+
+@njit(parallel=True)
+def get_projection_errors_using_inverse_projection( Xnd: np.ndarray, X2d: np.ndarray, spaceNd: np.ndarray, space2d: np.ndarray, progress, k: int=10):  
+    
+    n_points = len(space2d)                 
+    data_samples = len(X2d)
+    errors = np.zeros(n_points, dtype=np.float64) 
+    
+    for index in prange(n_points):              
+        indices_embedded, indices_source = np.zeros(data_samples, dtype=np.int64), np.zeros(data_samples, dtype=np.int64)          
+        indices_embedded = generate_point_indices(X2d, space2d[index], metric=euclidean)
+        indices_source = generate_point_indices(Xnd, spaceNd[index], metric=euclidean)             
+        errors[index] = get_proj_error(indices_source, indices_embedded, k=k)          
+        progress.update(1)
+    
+    return errors        

@@ -110,29 +110,3 @@ class invNN(NNinterface):
         self.console.log("Model fitted!")
         self.save(hist)    
         #self.show_predictions(dataNd=xNd_test, data2d=x2d_test, labels=y_test)
-    
-        
-    def refit(self, X2d, Xnd, epochs:int=3, batch_size:int=32):
-        """Refits the model to the specified data.
-
-        Args:
-            X2d (np.ndarray): 
-            Xnd (np.ndarray):
-            epochs (int, optional): Defaults to 3.
-            batch_size (int, optional): Defaults to 32.
-        """
-        self.console.log("Refitting model...")
-        decoder = self.neural_network.get_layer(DECODER_NAME) 
-        logger_callback = LoggerModel(name=INVNN_NAME, show_init=False, epochs=epochs)       
-        decoder.fit(X2d, Xnd, 
-                    epochs=epochs, 
-                    batch_size=batch_size, 
-                    shuffle=True, 
-                    callbacks=[logger_callback],
-                    verbose=0)
-        
-        # TODO: not saving for now, uncomment latter
-        #self.save()
-        
-        self.console.log("invNN model refitted!")
-        

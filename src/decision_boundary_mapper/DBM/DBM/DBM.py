@@ -15,14 +15,12 @@
 import json
 import os
 import numpy as np
-from sklearn.neighbors import KDTree
 
 from .invNN import DEFAULT_MODEL_PATH, invNN
 from .projections import PROJECTION_METHODS
 
 
 from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
-from ..tools import get_proj_error, generate_nd_indices_parallel, euclidean
 
 from ...utils import track_time_wrapper
 from ...Logger import LoggerInterface, Logger
@@ -80,20 +78,6 @@ class DBM(DBMInterface):
                                   batch_size=batch_size)
         return inverse_projection_NN
     
-    def refit_invNN(self, X2d, Xnd):
-        """ Refits the classifier on the given data set.
-
-        Args:
-            X2d (np.ndarray): Training data set 2D data got from the projection of the original data (e.g. PCA, t-SNE, UMAP)
-            Xnd (np.ndarray): Training data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
-            Y (np.ndarray): Training data set labels
-        """
-        epochs=3 
-        batch_size=32
-        self.console.log("Refitting the model...")
-        self.invNN.refit(X2d, Xnd, epochs=epochs, batch_size=batch_size)
-        self.console.log("Model updated")
-        
     def generate_boundary_map(self, 
                               Xnd_train: np.ndarray, Y_train: np.ndarray, 
                               Xnd_test: np.ndarray, Y_test: np.ndarray,
@@ -202,66 +186,6 @@ class DBM(DBMInterface):
             history = json.load(f)
         
         return (img, img_confidence, X2d_train, X2d_test, spaceNd, history)
-    
-    @track_time_wrapper(logger=time_tracker_console)
-    def generate_projection_errors(self, Xnd: np.ndarray = None, X2d: np.ndarray = None, resolution: int = None):
-        """ Calculates the projection errors of the given data.
-
-        Args:
-            Xnd (np.array): The data to be projected. The data must be in range [0,1].
-            X2d (np.array): The 2D projection of the data. The data must be in range [0,1].
-            resolution (int): The resolution of the 2D space.
-        Returns:
-            errors (np.ndarray): The projection errors matrix of the given data. (resolution x resolution)
-        """
-        if resolution is None:
-            if self.resolution is None:
-                self.console.error("The resolution of the 2D space is not set, try to call the method 'generate_boundary_map' first.")
-                raise Exception("The resolution of the 2D space is not set, try to call the method 'generate_boundary_map' first.")
-            resolution = self.resolution
-        if Xnd is None:
-            if self.Xnd is None:
-                self.console.error("The nD data is not set, try to call the method 'generate_boundary_map' first.")
-                raise Exception("The nD data is not set, try to call the method 'generate_boundary_map' first.")
-            Xnd = self.Xnd
-        if X2d is None:
-            if self.X2d is None:
-                self.console.error("The 2D data is not set, try to call the method 'generate_boundary_map' first.")
-                raise Exception("The 2D data is not set, try to call the method 'generate_boundary_map' first.")
-            X2d = self.X2d
-        
-        assert len(Xnd) == len(X2d)
-        
-        X2d = X2d.reshape((X2d.shape[0], -1))
-        Xnd = Xnd.reshape((Xnd.shape[0], -1))
-        
-        self.console.log("Calculating the projection errors of the given data")
-        errors = np.zeros((resolution,resolution))
-        
-        K = 10 # Number of nearest neighbors to consider
-        metric = "euclidean"
-        
-        self.console.log("Calculating the 2D tree")
-        tree = KDTree(X2d, metric=metric)
-        self.console.log("Finished computing the 2D tree")
-        self.console.log("Calculating the 2D tree indices")
-        indices_embedded = tree.query(X2d, k=len(X2d), return_distance=False)
-        # Drop the actual point itself
-        indices_embedded = indices_embedded[:, 1:]
-        self.console.log("Finished computing the 2D tree indices")
-        
-        self.console.log("Calculating the nD distance indices")
-        indices_source = generate_nd_indices_parallel(Xnd, metric=euclidean)
-        self.console.log("Finished computing the nD distance indices")
-        
-        sparse_map = []
-        for k in range(len(X2d)):
-            x, y = X2d[k]
-            sparse_map.append( (x, y, get_proj_error(indices_source[k], indices_embedded[k], k=K)) )            
-        
-        errors = self._generate_interpolation_rbf_(sparse_map, resolution, function='linear').T
-        
-        return errors
      
     def _predict2dspace_(self, X2d: np.ndarray):
         """ Predicts the labels for the given 2D data set.
@@ -337,3 +261,4 @@ class DBM(DBMInterface):
         X2d_train = (X2d_train - np.array([x_min, y_min])) / np.array([x_max - x_min, y_max - y_min])
         X2d_test = (X2d_test - np.array([x_min, y_min])) / np.array([x_max - x_min, y_max - y_min])
         return X2d_train, X2d_test
+    

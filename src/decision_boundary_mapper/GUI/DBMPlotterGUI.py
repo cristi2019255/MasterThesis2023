@@ -172,10 +172,13 @@ class DBMPlotterGUI:
    
     def _get_GUI_layout_(self):   
         buttons = []
-           
-        if self.projection_errors is None: 
-            buttons.append(sg.Button('Compute Projection Errors', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)))             
-
+        computed_projection_errors = self.projection_errors is not None
+        if not computed_projection_errors: 
+            buttons = [
+                sg.Button('Compute Projection Errors (interpolation)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INTERPOLATION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                sg.Button('Compute Projection Errors (inverse projection)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))             
+            ]
+            
         layout = [                                  
                     [sg.Canvas(key='-DBM CANVAS-', expand_x=True, expand_y=True, pad=(0,0))],     
                     [sg.Canvas(key='-CONTROLS CANVAS-', expand_x=True, pad=(0,0))],
@@ -188,7 +191,7 @@ class DBMPlotterGUI:
                                 sg.Checkbox("Show dbm color map", default=True, key="-SHOW DBM COLOR MAP-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
                                 sg.Checkbox("Show dbm confidence", default=True, key="-SHOW DBM CONFIDENCE-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),                                
                                 sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
-                                sg.Checkbox("Show projection errors", default=False, key="-SHOW PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=False),
+                                sg.Checkbox("Show projection errors", default=False, key="-SHOW PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_projection_errors),
                             ],
                             [sg.Button('Apply Updates', font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))],
                             buttons,
@@ -235,7 +238,8 @@ class DBMPlotterGUI:
     
     def handle_event(self, event, values):
         EVENTS = {
-            "-COMPUTE PROJECTION ERRORS-": self.handle_compute_projection_errors_event,
+            "-COMPUTE PROJECTION ERRORS INTERPOLATION-": self.handle_compute_projection_errors_event,
+            "-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-": self.handle_compute_projection_errors_event,
             "-APPLY CHANGES-": self.handle_apply_changes_event,
             "-SHOW DBM COLOR MAP-": self.handle_checkbox_change_event,
             "-SHOW DBM CONFIDENCE-": self.handle_checkbox_change_event,
@@ -523,9 +527,7 @@ class DBMPlotterGUI:
                     
         self.motion_event_cid = self.fig.canvas.mpl_connect('motion_notify_event', display_annotation)           
         self.click_event_cid = self.fig.canvas.mpl_connect('button_press_event', onclick)
-        
-        
-        
+       
     def plot_data_point(self, data, label):
         """Plots the data point in a new window.
 
@@ -549,12 +551,27 @@ class DBMPlotterGUI:
         self.window.refresh()
     
     def _set_loading_proj_errs_state_(self):
-        self.window['-COMPUTE PROJECTION ERRORS-'].update(visible=False, disabled=True)        
+        self.window['-COMPUTE PROJECTION ERRORS INTERPOLATION-'].update(visible=False, disabled=True)        
+        self.window['-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-'].update(visible=False, disabled=True)        
         self.updates_logger.log("Computing projection errors, please wait...")
         
     def handle_compute_projection_errors_event(self, event, values):
         self._set_loading_proj_errs_state_()
-        self.projection_errors = self.dbm_model.generate_projection_errors()        
+        if event == "-COMPUTE PROJECTION ERRORS INTERPOLATION-":
+            possible_path = os.path.join(self.save_folder, "projection_errors_interpolated.npy")
+            # try to get projection errors from cache first
+            if os.path.exists(possible_path):
+                self.projection_errors = np.load(possible_path)
+            else:
+                self.projection_errors = self.dbm_model.generate_projection_errors(use_interpolation=True, save_folder=self.save_folder)
+        elif event == "-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-":            
+            possible_path = os.path.join(self.save_folder, "projection_errors_inv_proj.npy")
+            # try to get projection errors from cache first
+            if os.path.exists(possible_path):
+                self.projection_errors = np.load(possible_path)
+            else:
+                self.projection_errors = self.dbm_model.generate_projection_errors(use_interpolation=False, save_folder=self.save_folder)        
+        
         self.updates_logger.log("Finished computing projection errors.")
         self.window['-SHOW PROJECTION ERRORS-'].update(visible=True)           
 
