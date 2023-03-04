@@ -15,14 +15,14 @@
 import json
 import os
 import numpy as np
-from sklearn.neighbors import KDTree
-from math import sqrt
 
 from .Autoencoder import DEFAULT_MODEL_PATH, Autoencoder
 from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
-from ..tools import get_proj_error
 
-from ...Logger import LoggerInterface
+from ...utils import track_time_wrapper
+from ...Logger import LoggerInterface, Logger
+time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
+
 
 class SDBM(DBMInterface):
     """
@@ -44,9 +44,9 @@ class SDBM(DBMInterface):
         super().__init__(classifier, logger)
         self.autoencoder = None
 
+    @track_time_wrapper(logger=time_tracker_console)
     def fit(self, 
-            X_train: np.ndarray, Y_train: np.ndarray, 
-            X_test: np.ndarray, Y_test: np.ndarray, 
+            X: np.ndarray, Y: np.ndarray,
             epochs:int=300, batch_size:int=32,
             load_folder:str = DEFAULT_MODEL_PATH):
         """Train an autoencoder on the training data (this will be used to reduce the dimensionality of the data (nD -> 2D) and decode the 2D space to nD)
@@ -63,8 +63,8 @@ class SDBM(DBMInterface):
         Returns:
             autoencoder (Autoencoder): The trained autoencoder
         """
-        autoencoder = Autoencoder(folder_path = load_folder, classifier=self.classifier)
-        autoencoder.fit(X_train, Y_train, X_test, Y_test, epochs, batch_size)        
+        autoencoder = Autoencoder(folder_path = load_folder)
+        autoencoder.fit(X, Y, epochs, batch_size)        
         return autoencoder
     
     def generate_boundary_map(self, 
@@ -73,6 +73,7 @@ class SDBM(DBMInterface):
                               train_epochs:int=300, train_batch_size:int=32,
                               resolution:int=DBM_DEFAULT_RESOLUTION,
                               use_fast_decoding:bool=False,
+                              load_folder:str = DEFAULT_MODEL_PATH,
                               projection:str = None # this parameter is not used in SDBM but is placed here to keep the same interface as DBM
                               ):
         """Generate the decision boundary map
@@ -86,6 +87,7 @@ class SDBM(DBMInterface):
                 train_batch_size (int, optional): Defaults to 32.
                 resolution (int, optional): The resolution of the decision boundary map. Defaults to DBM_DEFAULT_RESOLUTION = 256.
                 use_fast_decoding (bool, optional): If True, a fast inference algorithm will be used to decode the 2D space and to generate the decision boundary map. Defaults to False.
+                load_folder (str, optional): The folder path which contains a pre-trained autoencoder. Defaults to DEFAULT_MODEL_PATH.
                 projection (str, optional): The projection is not used in SDBM, is placed here just to match the DBM signature. Defaults to None.
                 
             Returns:
@@ -107,10 +109,10 @@ class SDBM(DBMInterface):
         
         # first train the autoencoder if it is not already trained
         if self.autoencoder is None:
-            self.autoencoder = self.fit(X_train, 
-                                        Y_train, 
-                                        X_test, 
-                                        Y_test, 
+            X = np.concatenate((X_train, X_test), axis=0)
+            Y = np.concatenate((Y_train, Y_test), axis=0)
+            self.autoencoder = self.fit(X, Y, 
+                                        load_folder=load_folder,
                                         epochs=train_epochs, 
                                         batch_size=train_batch_size)
 
@@ -122,8 +124,10 @@ class SDBM(DBMInterface):
         # generate the 2D image in the encoded space
         self.console.log("Decoding the 2D space... 2D -> nD")
         
-        save_img_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map")
-        save_img_confidence_path = os.path.join(DEFAULT_MODEL_PATH, "boundary_map_confidence")
+        save_img_path = os.path.join(load_folder, "boundary_map")
+        save_img_confidence_path = os.path.join(load_folder, "boundary_map_confidence")
+        
+        self.resolution = resolution
         
         if use_fast_decoding:
             img, img_confidence, spaceNd = self._get_img_dbm_fast_(resolution)
@@ -132,14 +136,14 @@ class SDBM(DBMInterface):
         else:
             img, img_confidence, spaceNd = self._get_img_dbm_(resolution)
         
-        self.resolution = resolution
+        
         self.spaceNd = spaceNd
         self.X2d = np.concatenate((encoded_training_data, encoded_testing_data), axis=0)
         self.Xnd = np.concatenate((X_train.reshape((X_train.shape[0],-1)), X_test.reshape((X_test.shape[0],-1))), axis=0)
         
         # transform the encoded data to be in the range [0, resolution)
-        encoded_testing_data *= (resolution -1)
-        encoded_training_data *= (resolution -1)
+        encoded_testing_data *= (self.resolution -1)
+        encoded_training_data *= (self.resolution -1)
         encoded_training_data = encoded_training_data.astype(int)
         encoded_testing_data = encoded_testing_data.astype(int)
         
@@ -156,7 +160,7 @@ class SDBM(DBMInterface):
             img[i,j] = -2
             img_confidence[i,j] = 1
         
-        with open(os.path.join(DEFAULT_MODEL_PATH, "history.json"), 'r') as f:
+        with open(os.path.join(load_folder, "history.json"), 'r') as f:
             history = json.load(f)
         
         return (img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, history)
@@ -172,82 +176,10 @@ class SDBM(DBMInterface):
             predicted_confidence (np.array): The predicted probabilities for the given 2D data set
             spaceNd (np.array): The decoded nD space
         """
-        spaceNd, predictions = self.autoencoder.decode(X2d, verbose=0)
+        spaceNd = self.autoencoder.decode(X2d, verbose=0)
+        predictions = self.classifier.predict(spaceNd, verbose=0)
         predicted_labels = np.array([np.argmax(p) for p in predictions])
         predicted_confidence = np.array([np.max(p) for p in predictions])
         return predicted_labels, predicted_confidence, spaceNd
     
-    def generate_projection_errors(self, Xnd: np.ndarray = None, X2d: np.ndarray = None, resolution: int = None):
-        """ Calculates the projection errors of the given data.
-
-        Args:
-            Xnd (np.array): The data to be projected. The data must be in the range [0,1].
-            X2d (np.array): The 2D projection of the data. The data must be in the range [0,1].
-            resolution (int): The resolution of the 2D space.
-        Returns:
-            errors (np.array): The projection errors matrix of the given data. 
-        
-        Example:
-            >>> from SDBM import SDBM
-            >>> classifier = ...
-            >>> Xnd = ...
-            >>> sdbm = SDBM(classifier)
-            >>> errors = sdbm.get_projection_errors(Xnd)
-            >>> plt.imshow(errors)
-            >>> plt.show()
-        """
-        if resolution is None:
-            if self.resolution is None:
-                self.console.error("The resolution of the 2D space is not set, try to call the method 'generate_boundary_map' first.")
-                raise Exception("The resolution of the 2D space is not set, try to call the method 'generate_boundary_map' first.")
-            resolution = self.resolution
-        if X2d is None:
-            if self.X2d is None:
-                self.console.error("No 2D data provided and no data stored in the SDBM object.")
-                raise ValueError("No 2D data provided and no data stored in the SDBM object.")
-            X2d = self.X2d
-        if Xnd is None:
-            if self.Xnd is None:
-                self.console.error("No nD data provided and no data stored in the SDBM object.")
-                raise ValueError("No nD data provided and no data stored in the SDBM object.")
-            Xnd = self.Xnd
-            
-        X2d = X2d.reshape((X2d.shape[0], -1))
-        Xnd = Xnd.reshape((Xnd.shape[0], -1))
-        
-        assert len(X2d) == len(Xnd)
-        assert X2d.shape[1] == 2
-        #resolution = int(sqrt(len(X2d)))
-        #assert resolution * resolution == len(X2d)
-        
-        self.console.log("Calculating the projection errors of the given data")
-        errors = np.zeros((resolution,resolution))
-        
-        K = 10 # Number of nearest neighbors to consider
-        metric = "euclidean"
-        
-        tree = KDTree(X2d, metric=metric)
-        self.console.log("Finished computing the 2D tree")
-        indices_embedded = tree.query(X2d, k=len(X2d), return_distance=False)
-        # Drop the actual point itself
-        indices_embedded = indices_embedded[:, 1:]
-        self.console.log("Finished computing the 2D tree indices")
-        
-        
-        tree = KDTree(Xnd, metric=metric)
-        self.console.log("Finished computing the nD tree")
-        indices_source = tree.query(Xnd, k=len(Xnd), return_distance=False)
-        # Drop the actual point itself
-        indices_source = indices_source[:, 1:]
-        self.console.log("Finished computing the nD tree indices")
-        
-        sparse_map = []
-        for k in range(len(X2d)):
-            x, y = X2d[k]
-            sparse_map.append( (x, y, get_proj_error(indices_source[k], indices_embedded[k], k=K)) )
-            
-        errors = self._generate_interpolation_rbf_(sparse_map, resolution, function='linear').T
-        
-        return errors
-
     

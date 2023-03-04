@@ -15,3 +15,4 @@
 from .Logger import Logger
 from .LoggerGUI import LoggerGUI
 from .LoggerInterface import LoggerInterface
+from .LoggerModel import LoggerModel

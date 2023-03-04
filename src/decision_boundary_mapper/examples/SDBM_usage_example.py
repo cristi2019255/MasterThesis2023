@@ -12,42 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 
 from ..DBM import SDBM
-from ..utils import import_mnist_dataset
+from ..GUI import DBMPlotterGUI
+
+from .utils import *
 
 def SDBM_usage_example():
-        
     # import the dataset
-    (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
+    X_train, X_test, Y_train, Y_test = import_data()
     
-    # if needed perform some preprocessing
-    SAMPLES_LIMIT = 5000
-    X_train = X_train.astype('float32')
-    X_test = X_test.astype('float32')
-    X_train /= 255
-    X_test /= 255
-    X_train, Y_train = X_train[:int(0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
-    X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
-    
-    # get the number of classes
-    num_classes = np.unique(Y_train).shape[0]
-    
-    # create a classifier
-    classifier = tf.keras.models.Sequential([
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(num_classes, activation=tf.nn.softmax)
-    ], name="classifier")
+    # import the classifier
+    classifier = import_classifier()
     
     # create the DBM
     sdbm = SDBM(classifier=classifier)
     
     # use the SDBM to get the decision boundary map
     img, img_confidence, _, _, _,_ = sdbm.generate_boundary_map(X_train, Y_train, 
-                                                                X_test, Y_test, 
+                                                                X_test, Y_test,
+                                                                load_folder=os.path.join("tmp", "MNIST", "SDBM"),    
                                                                 resolution=256)
     
     
@@ -99,3 +85,36 @@ def SDBM_usage_example():
     fig.colorbar(img_ax, ax=ax)
     plt.show()
     
+def SDBM_usage_example_GUI():
+    # import the dataset
+    X_train, X_test, Y_train, Y_test = import_data()
+    
+    # import the classifier
+    classifier = import_classifier()
+    
+    # create the DBM
+    sdbm = SDBM(classifier=classifier)
+    
+    # use the DBM to get the decision boundary map, if you don't have the 2D projection of the data
+    # the DBM will get it for you, you just need to specify the projection method you would like to use (t-SNE, PCA or UMAP)
+    dbm_info = sdbm.generate_boundary_map(X_train, Y_train, 
+                                         X_test, Y_test,
+                                         resolution=256, 
+                                         load_folder=os.path.join("tmp", "MNIST", "SDBM"),                                                                                                                             
+                                         )
+    
+    img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history  = dbm_info
+    
+    dbm_plotter_gui = DBMPlotterGUI(dbm_model = sdbm,
+                                    img = img,
+                                    img_confidence = img_confidence,
+                                    encoded_train = encoded_training_data, 
+                                    encoded_test = encoded_testing_data,
+                                    X_train = X_train,
+                                    Y_train = Y_train,
+                                    X_test = X_test,
+                                    Y_test = Y_test,
+                                    spaceNd=spaceNd,
+                                    save_folder=os.path.join("tmp", "MNIST", "SDBM"), # this is the folder where the DBM will save the changes in data the user makes                                    
+                                    )
+    dbm_plotter_gui.start()

@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import numpy as np
-from math import ceil, floor, sqrt
+from math import ceil, floor
 from queue import PriorityQueue
 from scipy import interpolate
 import dask.array as da
+from sklearn.neighbors import KDTree
+from numba_progress import ProgressBar
 
-from .tools import get_decode_pixel_priority, get_inv_proj_error
-
+from .tools import get_decode_pixel_priority, get_inv_proj_error, get_nd_indices_parallel, euclidean, get_proj_error_parallel, get_projection_errors_using_inverse_projection
 from ..utils import track_time_wrapper
 from ..Logger import Logger, LoggerInterface
 
@@ -73,6 +75,20 @@ class DBMInterface:
             batch_size (int, optional): Train batch size. Defaults to 128.
         """
         pass
+    
+    def refit_classifier(self, Xnd:np.ndarray, Y:np.ndarray, save_folder:str, epochs:int=2, batch_size:int=32):
+        """ Refits the classifier on the given data set.
+
+        Args:             
+            Xnd (np.ndarray): 
+            Y (np.ndarray): 
+        """
+        self.console.log(f"Refiting classifier for {epochs} epochs and batch size {batch_size}, please wait...")
+        self.classifier.fit(Xnd, Y, epochs=epochs, batch_size=batch_size, verbose=0)
+        self.console.log("Finished refitting classifier")
+        self.console.log("Saving a copy of the retrained classifier...")
+        self.classifier.save(save_folder, save_format="tf")
+        self.console.log("A copy of the retrained classifier was saved!")
     
     def generate_boundary_map(self, 
                               X_train:np.ndarray, Y_train:np.ndarray, 
@@ -193,9 +209,13 @@ class DBMInterface:
         
         if (resolution % INITIAL_RESOLUTION != 0):
             self.console.warn(f"The required resolution is not a multiple of the initial resolution ({INITIAL_RESOLUTION} x {INITIAL_RESOLUTION})")
-            self.console.log("The resolution will be set to the closest multiple of the initial resolution")
-            resolution = int(resolution / INITIAL_RESOLUTION) * INITIAL_RESOLUTION   
-        
+            self.console.log("The resolution will be set to the closest multiple of the initial resolution which is a power of 2")
+            amplification_factor = int(resolution / INITIAL_RESOLUTION)
+            amplification_factor = 1 if amplification_factor == 0 else 2**(amplification_factor - 1).bit_length() // 2
+            resolution = amplification_factor * INITIAL_RESOLUTION
+            self.resolution = resolution   
+            self.console.log(f"Resolution was set to {resolution} x {resolution}")
+            
         window_size = int(resolution / INITIAL_RESOLUTION)
         # ------------------------------------------------------------
         
@@ -393,6 +413,7 @@ class DBMInterface:
             resolution (int): the resolution of the image we want to generate (the image will be a square image)
             function (str, optional): Defaults to 'euclidean'.
         """
+        self.console.log("Computing the interpolated image using RBF interpolation...")
         X, Y, Z = [], [], []
         for (x, y, z) in sparse_map:
             X.append(x)
@@ -412,4 +433,135 @@ class DBMInterface:
         iy = da.from_array(yy, chunks=(1, cores))
         iz = da.map_blocks(rbf, ix, iy)
         zz = iz.compute()
+        self.console.log("Finished computing the interpolated image using RBF interpolation")
         return zz
+        
+    def generate_projection_errors(self, Xnd: np.ndarray = None, 
+                                   X2d: np.ndarray = None, 
+                                   resolution: int = None, 
+                                   spaceNd: np.ndarray = None,
+                                   use_interpolation:bool=True,
+                                   save_folder:str = None):
+        """ Calculates the projection errors of the given data.
+
+        Args:
+            Xnd (np.array): The data to be projected. The data must be in the range [0,1].
+            X2d (np.array): The 2D projection of the data. The data must be in the range [0,1].
+            resolution (int): The resolution of the 2D space.
+            spaceNd (np.array): The nD space of the data.
+            use_interpolation (bool): Whether to use interpolation to generate the projection errors or use the inverse projection. Defaults to interpolation usage
+            save_folder (str): The folder path where to store the projection errors results. Defaults to None.
+        Returns:
+            errors (np.array): The projection errors matrix of the given data. 
+        
+        Example:
+            >>> from decision-boundary-mapper import SDBM
+            >>> classifier = ...
+            >>> Xnd = ...
+            >>> X2d = ...
+            >>> sdbm = SDBM(classifier)
+            >>> errors = sdbm.get_projection_errors(Xnd, X2d)
+            >>> plt.imshow(errors)
+            >>> plt.show()
+            >>> ...
+            >>> spaceNd = ...
+            >>> errors = sdbm.get_projection_errors(Xnd, X2d, spaceNd=spaceNd, use_interpolation=False)
+            >>> plt.imshow(errors)
+            >>> plt.show()
+        """
+        
+        if Xnd is None:
+            if self.Xnd is None:
+                self.console.error("No nD data provided and no data stored in the DBM object.")
+                raise ValueError("No nD data provided and no data stored in the DBM object.")
+            Xnd = self.Xnd
+        if X2d is None:
+            if self.X2d is None:
+                self.console.error("No 2D data provided and no data stored in the DBM object.")
+                raise ValueError("No 2D data provided and no data stored in the DBM object.")
+            X2d = self.X2d
+        if resolution is None:
+            if self.resolution is None:   
+                self.console.error("The resolution of the 2D space is not set, try to call the method 'generate_boundary_map' first.")
+                raise Exception("The resolution of the 2D space is not set, try to call the method 'generate_boundary_map' first.")
+            resolution = self.resolution
+        
+        assert len(X2d) == len(Xnd)    
+        X2d = X2d.reshape((X2d.shape[0], -1))
+        Xnd = Xnd.reshape((Xnd.shape[0], -1))
+        
+        assert X2d.shape[1] == 2
+        
+        self.console.log("Calculating the projection errors of the given data, this might take a couple of minutes. Please wait...")
+        if use_interpolation:
+            errors = self._generate_projection_errors_using_interpolation_(Xnd, X2d, resolution)                    
+        else: 
+            if spaceNd is None:
+                if self.spaceNd is None:
+                    self.console.error("No nD space provided and no data stored in the DBM object, try to call the method 'generate_boundary_map' first.")
+                    raise ValueError("No 2D space provided and no data stored in the DBM object, try to call the method 'generate_boundary_map' first.")
+                spaceNd = self.spaceNd
+            
+            errors = self._generate_projection_errors_using_inverse_projection_(Xnd, X2d, spaceNd)
+        
+        self.console.log("Finished computing the projection errors!")
+        if save_folder is not None:
+            self.console.log("Saving the projection errors results")
+            save_path = os.path.join(save_folder, "projection_errors_interpolated.npy") if use_interpolation else os.path.join(save_folder, "projection_errors_inv_proj.npy")
+            with open(save_path, "wb") as f:
+                np.save(f, errors)
+            self.console.log("Saved projection errors results!")
+            
+        return errors
+    
+    @track_time_wrapper(logger=time_tracker_console)    
+    def _generate_projection_errors_using_interpolation_(self, Xnd, X2d, resolution):  
+        errors = np.zeros((resolution,resolution))  
+        K = 10 # Number of nearest neighbors to consider when computing the errors
+        metric = "euclidean"
+        
+        self.console.log("Computing the 2D tree")
+        tree = KDTree(X2d, metric=metric)
+        self.console.log("Finished computing the 2D tree")
+        self.console.log("Computing the 2D tree indices")
+        indices_embedded = tree.query(X2d, k=len(X2d), return_distance=False)
+        # Drop the actual point itself
+        indices_embedded = indices_embedded[:, 1:]
+        self.console.log("Finished computing the 2D tree indices")
+        
+        self.console.log("Calculating the nD distance indices")
+        indices_source = get_nd_indices_parallel(Xnd, metric=euclidean)
+        self.console.log("Finished computing the nD distance indices")
+        
+        sparse_map = []
+        for k in range(len(X2d)):
+            x, y = X2d[k]
+            sparse_map.append( (x, y, get_proj_error_parallel(indices_source[k], indices_embedded[k], k=K)))
+            
+        errors = self._generate_interpolation_rbf_(sparse_map, resolution, function='linear').T
+        
+        # resize the errors in range [0,1]
+        errors = (errors - errors.min()) / (errors.max() - errors.min())
+        
+        return errors
+    
+    @track_time_wrapper(logger=time_tracker_console)
+    def _generate_projection_errors_using_inverse_projection_(self, 
+                                                            Xnd: np.ndarray = None, 
+                                                            X2d: np.ndarray = None,                                                             
+                                                            spaceNd: np.ndarray = None):        
+        
+        K = 10 # Number of nearest neighbors to consider when computing the errors       
+        resolution = spaceNd.shape[0]    
+        space2d = np.array([(i / resolution, j / resolution) for i in range(resolution) for j in range(resolution)]) # generate the 2D flatten space
+        n_points = resolution * resolution
+        spaceNd = spaceNd.reshape((n_points, -1)) # flatten the space   
+        
+        with ProgressBar(total=n_points) as progress:
+            errors = get_projection_errors_using_inverse_projection(Xnd=Xnd, X2d=X2d, spaceNd=spaceNd, space2d=space2d, k=K, progress=progress)
+        
+        # resize the errors in range [0,1]
+        errors = (errors - errors.min()) / (errors.max() - errors.min())        
+        errors = errors.reshape((resolution, resolution))        
+        
+        return errors
