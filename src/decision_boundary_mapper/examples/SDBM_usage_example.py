@@ -99,8 +99,7 @@ def SDBM_usage_example_GUI():
     # the DBM will get it for you, you just need to specify the projection method you would like to use (t-SNE, PCA or UMAP)
     dbm_info = sdbm.generate_boundary_map(X_train, Y_train, 
                                          X_test, Y_test,
-                                         resolution=256, 
-                                         use_fast_decoding=True,
+                                         resolution=256,
                                          load_folder=os.path.join("tmp", "MNIST", "SDBM"),                                                                                                                             
                                          )
     

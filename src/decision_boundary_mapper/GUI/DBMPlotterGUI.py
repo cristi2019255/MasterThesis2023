@@ -156,7 +156,6 @@ class DBMPlotterGUI:
         self.spaceNd = spaceNd
         self.color_img, self.legend = self._build_2D_image_(img)
         self.train_mapper, self.test_mapper = self._generate_encoded_mapping_()
-        self.inverse_projection_errors = self.dbm_model.generate_inverse_projection_errors()
         
         # --------------------- Plotter related ---------------------                
         self.fig, self.ax = self._build_plot_()        
@@ -166,6 +165,7 @@ class DBMPlotterGUI:
         # --------------------- Plotter related ---------------------
         
         # --------------------- Others ------------------------------
+        self.inverse_projection_errors = None
         self.projection_errors = None        
         self.motion_event_cid = None
         self.click_event_cid = None
@@ -189,12 +189,18 @@ class DBMPlotterGUI:
         self.dbm_model.console = self.updates_logger
    
     def _get_GUI_layout_(self):   
-        buttons = []
+        buttons_proj_errs = []
+        buttons_inv_proj_errs = []
         computed_projection_errors = self.projection_errors is not None
+        computed_inverse_projection_errors = self.inverse_projection_errors is not None
         if not computed_projection_errors: 
-            buttons = [
+            buttons_proj_errs = [
                 sg.Button('Compute Projection Errors (interpolation)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INTERPOLATION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
                 sg.Button('Compute Projection Errors (inverse projection)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))             
+            ]
+        if not computed_inverse_projection_errors:
+            buttons_inv_proj_errs = [
+                sg.Button('Compute Inverse Projection Errors', font=APP_FONT, expand_x=True, key="-COMPUTE INVERSE PROJECTION ERRORS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)) 
             ]
             
         layout = [                                  
@@ -208,11 +214,12 @@ class DBMPlotterGUI:
                             [
                                 sg.Checkbox("Show dbm color map", default=True, key="-SHOW DBM COLOR MAP-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
                                 sg.Checkbox("Show dbm confidence", default=True, key="-SHOW DBM CONFIDENCE-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),                                
-                                sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
+                                sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_inverse_projection_errors),
                                 sg.Checkbox("Show projection errors", default=False, key="-SHOW PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_projection_errors),
                             ],
                             [sg.Button('Apply Updates', font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))],
-                            buttons,
+                            buttons_proj_errs,
+                            buttons_inv_proj_errs,
                             [sg.Text(INFORMATION_CONTROLS_MESSAGE, expand_x=True)],
                             [sg.Text(RIGHTS_MESSAGE_1, expand_x=True)],
                             [sg.Text(RIGHTS_MESSAGE_2, expand_x=True)],           
@@ -258,6 +265,7 @@ class DBMPlotterGUI:
         EVENTS = {
             "-COMPUTE PROJECTION ERRORS INTERPOLATION-": self.handle_compute_projection_errors_event,
             "-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-": self.handle_compute_projection_errors_event,
+            "-COMPUTE INVERSE PROJECTION ERRORS-": self.handle_compute_inverse_projection_errors_event,
             "-APPLY CHANGES-": self.handle_apply_changes_event,
             "-SHOW DBM COLOR MAP-": self.handle_checkbox_change_event,
             "-SHOW DBM CONFIDENCE-": self.handle_checkbox_change_event,
@@ -568,6 +576,19 @@ class DBMPlotterGUI:
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)    
         self.window.refresh()
     
+    def handle_compute_inverse_projection_errors_event(self, event, values):
+        self.window['-COMPUTE INVERSE PROJECTION ERRORS-'].update(visible=False, disabled=True)        
+        self.updates_logger.log("Computing inverse projection errors, please wait...")
+        possible_path = os.path.join(self.save_folder, "inverse_projection_errors.npy")
+        # try to get projection errors from cache first
+        if os.path.exists(possible_path):
+            self.inverse_projection_errors = np.load(possible_path)
+        else:
+            self.inverse_projection_errors = self.dbm_model.generate_inverse_projection_errors(save_folder=self.save_folder)
+
+        self.updates_logger.log("Inverse projection errors computed!")
+        self.window['-SHOW INVERSE PROJECTION ERRORS-'].update(visible=True)
+    
     def _set_loading_proj_errs_state_(self):
         self.window['-COMPUTE PROJECTION ERRORS INTERPOLATION-'].update(visible=False, disabled=True)        
         self.window['-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-'].update(visible=False, disabled=True)        
@@ -631,10 +652,10 @@ class DBMPlotterGUI:
         if num_changes == 0:
             self.updates_logger.log("No changes to apply")
             return
-        # TODO: uncomment this
-        #if num_changes < 10:
-        #    self.updates_logger.log("Less than 10 changes to apply, please apply more changes")
-        #    return
+        
+        if num_changes < 10:
+            self.updates_logger.log("Less than 10 changes to apply, please apply more changes")
+            return
         
         self.console.log("Transforming changes...")
         Xnd, Y, label_changes = self.transform_changes()
@@ -657,7 +678,7 @@ class DBMPlotterGUI:
             self.X_test, 
             self.Y_test, 
             resolution=len(self.img),
-            use_fast_decoding=False,
+            use_fast_decoding=True,
             load_folder=self.save_folder,
             projection=self.projection_technique                                        
         )        

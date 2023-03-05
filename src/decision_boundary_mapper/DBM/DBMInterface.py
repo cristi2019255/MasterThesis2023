@@ -131,7 +131,7 @@ class DBMInterface:
         pass
     
     @track_time_wrapper(logger=time_tracker_console)
-    def generate_inverse_projection_errors(self, Xnd: np.ndarray = None):
+    def generate_inverse_projection_errors(self, Xnd: np.ndarray = None, save_folder:str = None):
         """ Calculates the inverse projection errors of the given data.
 
         Args:
@@ -155,6 +155,14 @@ class DBMInterface:
                 
         # normalizing the errors to be in the range [0,1]
         errors = (errors - np.min(errors)) / (np.max(errors) - np.min(errors))
+        
+        if save_folder is not None:
+            self.console.log("Saving the inverse projection errors results")
+            save_path = os.path.join(save_folder, "inverse_projection_errors.npy")
+            with open(save_path, "wb") as f:
+                np.save(f, errors)
+            self.console.log("Saved inverse projection errors results!")
+            
         return errors
     
     @track_time_wrapper(logger=time_tracker_console)
