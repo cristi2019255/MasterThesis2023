@@ -100,6 +100,7 @@ def SDBM_usage_example_GUI():
     dbm_info = sdbm.generate_boundary_map(X_train, Y_train, 
                                          X_test, Y_test,
                                          resolution=256, 
+                                         use_fast_decoding=True,
                                          load_folder=os.path.join("tmp", "MNIST", "SDBM"),                                                                                                                             
                                          )
     

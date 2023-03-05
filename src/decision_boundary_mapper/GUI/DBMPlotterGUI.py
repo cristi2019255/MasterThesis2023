@@ -92,13 +92,31 @@ class DBMPlotterGUI:
                   img, img_confidence,
                   X_train, Y_train, 
                   X_test, Y_test,
-                  encoded_train, encoded_test, spaceNd,                   
+                  encoded_train, encoded_test, 
+                  spaceNd,                   
                   save_folder,
                   projection_technique=None,
                   logger=None,
                   main_gui=None,
                   ):        
-        
+        """[summary] TODO: add description
+
+        Args:
+            dbm_model (_type_): _description_
+            img (_type_): _description_
+            img_confidence (_type_): _description_
+            X_train (_type_): _description_
+            Y_train (_type_): _description_
+            X_test (_type_): _description_
+            Y_test (_type_): _description_
+            encoded_train (_type_): _description_
+            encoded_test (_type_): _description_
+            spaceNd (_type_): This is a list of lists of size resolution*resolution. Each point in this list is an nd data point which can be a vector, a matrix or a multidimensional matrix.
+            save_folder (_type_): _description_
+            projection_technique (_type_, optional): _description_. Defaults to None.
+            logger (_type_, optional): _description_. Defaults to None.
+            main_gui (_type_, optional): _description_. Defaults to None.
+        """
         if logger is None:
             self.console = Logger(name="DBMPlotterGUI")
         else:
@@ -135,7 +153,7 @@ class DBMPlotterGUI:
         self.encoded_test = encoded_test  
         self.save_folder = save_folder # folder where to save the changes made to the data by the user    
         self.projection_technique = projection_technique # projection technique used to generate the DBM                            
-        self.spaceNd = spaceNd.reshape(spaceNd.shape[0], spaceNd.shape[1], X_train.shape[1], X_train.shape[2])
+        self.spaceNd = spaceNd
         self.color_img, self.legend = self._build_2D_image_(img)
         self.train_mapper, self.test_mapper = self._generate_encoded_mapping_()
         self.inverse_projection_errors = self.dbm_model.generate_inverse_projection_errors()
@@ -266,7 +284,7 @@ class DBMPlotterGUI:
         color_img = np.zeros((img.shape[0], img.shape[1], 3))
                 
         for i, j in np.ndindex(img.shape):
-            color_img[i,j] = colors_mapper[img[i,j]]
+            color_img[i][j] = colors_mapper[img[i][j]]
         values = np.unique(img)
         
         patches = []
@@ -362,7 +380,7 @@ class DBMPlotterGUI:
             
         def find_data_point(i, j):
             # search for the data point in the encoded train data
-            if self.img[i,j] == -1:
+            if self.img[i][j] == -1:
                 k = self.train_mapper[f"{i} {j}"]
                 if f"{i} {j}" in self.expert_updates_labels_mapper:
                     l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
@@ -370,7 +388,7 @@ class DBMPlotterGUI:
                 return self.X_train[k], f"Label: {self.Y_train[k]}"
             
             # search for the data point in the encoded test data
-            if self.img[i,j] == -2:
+            if self.img[i][j] == -2:
                 k = self.test_mapper[f"{i} {j}"]
                 if f"{i} {j}" in self.expert_updates_labels_mapper:
                     l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
@@ -378,7 +396,7 @@ class DBMPlotterGUI:
                 return self.X_test[k], f"Label: {self.Y_test[k]}"       
             
             # search for the data point in the 
-            point = self.spaceNd[i,j]
+            point = self.spaceNd[i][j]
             if f"{i} {j}" in self.expert_updates_labels_mapper:
                 l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
                 return point, f"Expert label {l}"            
@@ -396,7 +414,7 @@ class DBMPlotterGUI:
             self.console.log("Clicked on: " + str(event.xdata) + ", " + str(event.ydata))
             j, i = int(event.xdata), int(event.ydata)
 
-            if self.img[i,j] >= 0 or self.img[i,j] < -2:
+            if self.img[i][j] >= 0 or self.img[i][j] < -2:
                 self.console.log("Data point not in training or testing set")
                 return
                     
