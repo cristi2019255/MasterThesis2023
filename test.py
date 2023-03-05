@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
 from src.decision_boundary_mapper import DBM
 import os
 import numpy as np
@@ -49,6 +50,20 @@ def import_2d_data():
         X2d_test = np.load(f)
     return X2d_train, X2d_test
 
+def compare_images(img1, img2, comparing_confidence=False):
+    errors = 0
+    for i in range(img1.shape[0]):
+        for j in range(img1.shape[1]):
+            if img1[i,j] != img2[i,j]:
+                if comparing_confidence:
+                    if abs(img1[i,j] - img2[i,j]) > 0.01:
+                        errors += 1
+                else:
+                    errors += 1
+    
+    print("Errors: ", errors)
+    print("Error rate: ", errors / (img1.shape[0] * img1.shape[1]) * 100, "%")
+    return errors
 
 def test():
     X_train, X_test, Y_train, Y_test = import_data()
@@ -57,30 +72,64 @@ def test():
     dbm = DBM(classifier)
     resolution = 288
     
-    """
-    dbm_info = dbm.generate_boundary_map(X_train, Y_train, 
+    dbm.generate_boundary_map(X_train, Y_train, 
                                         X_test, Y_test,
                                         X2d_train,
                                         X2d_test ,
-                                        resolution=resolution,
+                                        resolution=100,
                                         use_fast_decoding=False,
                                         load_folder=os.path.join("tmp", "MNIST", "DBM"),
                                         projection='t-SNE')
-    """
-    dbm_info = dbm.generate_boundary_map(X_train, Y_train, 
-                                        X_test, Y_test,
-                                        X2d_train,
-                                        X2d_test ,
-                                        resolution=resolution,
-                                        use_fast_decoding=True,
-                                        load_folder=os.path.join("tmp", "MNIST", "DBM"),
-                                        projection='t-SNE')
     
-    img, img_confidence, _,_,_,_ = dbm_info
-    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
-    img_confidence = img_confidence / np.max(img_confidence)
-    ax.imshow(img, alpha=img_confidence)
-    plt.show()
+    start = time.time()
+    img1, img_confidence1, _ = dbm._get_img_dbm_fast_(resolution)
+    end = time.time()
+    print("Fast decoding time: ", end - start)
     
+    start = time.time()      
+    img2, img_confidence2, _ = dbm._get_img_dbm_(resolution)
+    end = time.time()  
+    print("Slow decoding time: ", end - start)
     
-test()
+    with open("img1.npy", "wb") as f:
+        np.save(f, img1)
+    with open("img2.npy", "wb") as f:
+        np.save(f, img2)
+    with open("img_confidence1.npy", "wb") as f:
+        np.save(f, img_confidence1)
+    with open("img_confidence2.npy", "wb") as f:
+        np.save(f, img_confidence2)
+
+def test2(): 
+    with open("img1.npy", "rb") as f:
+        img1 = np.load(f)
+    with open("img2.npy", "rb") as f:
+        img2 = np.load(f)
+    with open("img_confidence1.npy", "rb") as f:
+        img_confidence1 = np.load(f)
+    with open("img_confidence2.npy", "rb") as f:
+        img_confidence2 = np.load(f)
+    
+    m = np.max(img_confidence1)
+    print(m)
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    
+    for i in range(img_confidence1.shape[0]):
+        for j in range(img_confidence1.shape[1]):
+            if img_confidence1[i,j] > 1:                
+                ax1.plot(j,i, 'ro')
+                img_confidence1[i,j] = 1
+                
+    ax1.imshow(img_confidence1, cmap='gray')
+    ax2.imshow(img1)
+    plt.show()    
+    
+    #img_confidence1 = img_confidence1 / np.max(img_confidence1)
+    
+    print("Comparing dbm images...")
+    compare_images(img1, img2)
+    print("Comparing confidence images...")
+    compare_images(img_confidence1, img_confidence2, comparing_confidence=True)
+
+test2()
