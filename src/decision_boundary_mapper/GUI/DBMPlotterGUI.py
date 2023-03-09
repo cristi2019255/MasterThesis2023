@@ -124,6 +124,10 @@ class DBMPlotterGUI:
         
         self.main_gui = main_gui # reference to main window  
         
+        self.positions_of_labels_changes = ([], [])
+        self.inverse_projection_errors = None
+        self.projection_errors = None     
+        
         self.initialize(dbm_model, 
                         img, 
                         img_confidence, 
@@ -164,9 +168,7 @@ class DBMPlotterGUI:
         self.fig.legend(handles=self.legend, borderaxespad=0. )
         # --------------------- Plotter related ---------------------
         
-        # --------------------- Others ------------------------------
-        self.inverse_projection_errors = None
-        self.projection_errors = None        
+        # --------------------- Others ------------------------------           
         self.motion_event_cid = None
         self.click_event_cid = None
         self.key_event_cid = None
@@ -186,7 +188,7 @@ class DBMPlotterGUI:
         # --------------------- Classifier related ---------------------
         self.compute_classifier_metrics()
         
-        self.draw_dbm_img()    
+        self.draw_dbm_img()            
         # --------------------- GUI related ---------------------        
         self.updates_logger = LoggerGUI(name = "Updates logger", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
         self.dbm_model.console = self.updates_logger
@@ -194,6 +196,7 @@ class DBMPlotterGUI:
     def _get_GUI_layout_(self):   
         buttons_proj_errs = []
         buttons_inv_proj_errs = []
+        button_use_opf = []
         computed_projection_errors = self.projection_errors is not None
         computed_inverse_projection_errors = self.inverse_projection_errors is not None
         if not computed_projection_errors: 
@@ -204,8 +207,8 @@ class DBMPlotterGUI:
         if not computed_inverse_projection_errors:
             buttons_inv_proj_errs = [
                 sg.Button('Compute Inverse Projection Errors', font=APP_FONT, expand_x=True, key="-COMPUTE INVERSE PROJECTION ERRORS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)) 
-            ]
-            
+            ]        
+         
         layout = [                                  
                     [sg.Canvas(key='-DBM CANVAS-', expand_x=True, expand_y=True, pad=(0,0))],     
                     [sg.Canvas(key='-CONTROLS CANVAS-', expand_x=True, pad=(0,0))],
@@ -216,6 +219,7 @@ class DBMPlotterGUI:
                             ],
                             [  
                                 sg.Checkbox("Change labels by selecting with circle", default=True, key="-CIRCLE SELECTING LABELS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
+                                sg.Checkbox("Show labels changes", default=False, key="-SHOW LABELS CHANGES-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
                             ],
                             [
                                 sg.Checkbox("Show dbm color map", default=True, key="-SHOW DBM COLOR MAP-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
@@ -229,6 +233,9 @@ class DBMPlotterGUI:
                             #],
                             [
                                 sg.Button('Apply Updates', font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                            ],
+                            [
+                                sg.Button('Use OPF to assign labels', font=APP_FONT, expand_x=True, key="-USE OPF TO ASSIGN LABELS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), visible=(computed_projection_errors and computed_inverse_projection_errors)), 
                             ],
                             buttons_proj_errs,
                             buttons_inv_proj_errs,
@@ -284,7 +291,9 @@ class DBMPlotterGUI:
             "-SHOW DBM CONFIDENCE-": self.handle_checkbox_change_event,
             "-SHOW INVERSE PROJECTION ERRORS-": self.handle_checkbox_change_event,
             "-SHOW PROJECTION ERRORS-": self.handle_checkbox_change_event,
+            "-SHOW LABELS CHANGES-": self.handle_checkbox_change_event,
             "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,
+            "-USE OPF TO ASSIGN LABELS-": self.handle_use_opf_to_assign_labels_event,
         }
         
         EVENTS[event](event, values)    
@@ -578,11 +587,12 @@ class DBMPlotterGUI:
         img = np.zeros((self.img.shape[0], self.img.shape[1], 4))
         img[:,:,:3] = self.color_img
         img[:,:,3] = self.img_confidence    
-        self.axes_image = self.ax.imshow(img)       
+        self.axes_image = self.ax.imshow(img)                                    
+                    
         # draw the figure to the canvas
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)    
         self.window.refresh()
-
+        
     def compute_classifier_metrics(self):
         self.console.log("Evaluating classifier...")
         loss, accuracy = self.dbm_model.classifier.evaluate(self.X_test, self.Y_test, verbose=0)        
@@ -601,6 +611,9 @@ class DBMPlotterGUI:
 
         self.updates_logger.log("Inverse projection errors computed!")
         self.window['-SHOW INVERSE PROJECTION ERRORS-'].update(visible=True)
+        
+        if self.projection_errors is not None:
+            self.window['-USE OPF TO ASSIGN LABELS-'].update(visible=True)
     
     def _set_loading_proj_errs_state_(self):
         self.window['-COMPUTE PROJECTION ERRORS INTERPOLATION-'].update(visible=False, disabled=True)        
@@ -627,11 +640,16 @@ class DBMPlotterGUI:
         self.updates_logger.log("Finished computing projection errors.")
         self.window['-SHOW PROJECTION ERRORS-'].update(visible=True)           
 
+        if self.inverse_projection_errors is not None:
+            self.window['-USE OPF TO ASSIGN LABELS-'].update(visible=True)
+    
+
     def handle_checkbox_change_event(self, event, values):
         show_color_map = values["-SHOW DBM COLOR MAP-"]
         show_confidence = values["-SHOW DBM CONFIDENCE-"]
         show_inverse_projection_errors = values["-SHOW INVERSE PROJECTION ERRORS-"]
         show_projection_errors = values["-SHOW PROJECTION ERRORS-"]
+        show_labels_changes = values["-SHOW LABELS CHANGES-"]
         
         color_img = np.zeros((self.img.shape[0], self.img.shape[1], 3))
         alphas = 1 + np.zeros((self.img.shape[0], self.img.shape[1]))
@@ -654,6 +672,15 @@ class DBMPlotterGUI:
         if hasattr(self, "axes_image"):
             self.axes_image.remove()
         self.axes_image = self.ax.imshow(img) 
+        
+        if hasattr(self, "ax_labels_changes") and self.ax_labels_changes is not None:            
+            for point in self.ax_labels_changes:                
+                point.remove()
+            self.ax_labels_changes = None
+        if show_labels_changes:            
+            positions_x, positions_y = self.positions_of_labels_changes        
+            self.ax_labels_changes = self.ax.plot(positions_x, positions_y, 'g^')   
+        
         self.fig.canvas.draw_idle()
     
     def handle_circle_selecting_labels_change_event(self, event, values):
@@ -714,8 +741,9 @@ class DBMPlotterGUI:
                             save_folder=self.save_folder,
                             projection_technique=self.projection_technique,
                         )
-            
-        self.draw_dbm_img()
+        
+        self.draw_dbm_img()   
+        self.handle_checkbox_change_event(event, values)      
         self.compute_classifier_metrics()
         
         self.updates_logger.log("Changes applied successfully!")     
@@ -724,7 +752,8 @@ class DBMPlotterGUI:
         if not os.path.exists(folder):
             os.path.makedirs(folder)                        
         
-        with open(os.path.join(folder, "label_changes.json"), "w") as f:
+        with open(os.path.join(folder, "label_changes.json"), "a") as f:
+            f.write("\n" + "-" * 50 + "\n")
             json.dump(label_changes, f, indent=2)
     
     def transform_changes(self):
@@ -736,10 +765,21 @@ class DBMPlotterGUI:
         Y = np.copy(self.Y_train) 
         labels_changes = {}
         
+        pos_x, pos_y = self.positions_of_labels_changes
+        
         for pos in self.expert_updates_labels_mapper:
             k = self.train_mapper[pos]
+            pos_x.append(int(pos.split(" ")[1]))
+            pos_y.append(int(pos.split(" ")[0]))
             y = self.expert_updates_labels_mapper[pos][0]
             Y[k] = y
             labels_changes[pos] = self.expert_updates_labels_mapper[pos][0]
+        
+        self.positions_of_labels_changes = (pos_x, pos_y)
             
         return Y, labels_changes
+    
+    def handle_use_opf_to_assign_labels_event(self, event, values):
+        #TODO: implement this so the opf use the inverse projection errors and the projection errors
+        pass
+    
