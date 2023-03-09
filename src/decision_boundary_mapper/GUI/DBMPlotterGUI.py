@@ -223,7 +223,13 @@ class DBMPlotterGUI:
                                 sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_inverse_projection_errors),
                                 sg.Checkbox("Show projection errors", default=False, key="-SHOW PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_projection_errors),
                             ],
-                            [sg.Button('Apply Updates', font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))],
+                            #[
+                            #    sg.Text("Epochs to train: ", font=APP_FONT, expand_x=True, pad=(0,0), key="-EPOCHS LABEL-"),
+                            #    sg.Input("2", font=APP_FONT, key="-EPOCHS-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True, justification="center"),                            
+                            #],
+                            [
+                                sg.Button('Apply Updates', font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                            ],
                             buttons_proj_errs,
                             buttons_inv_proj_errs,
                             [sg.Text(INFORMATION_CONTROLS_MESSAGE, expand_x=True)],
@@ -405,16 +411,10 @@ class DBMPlotterGUI:
             # search for the data point in the encoded test data
             if self.img[i][j] == -2:
                 k = self.test_mapper[f"{i} {j}"]
-                if f"{i} {j}" in self.expert_updates_labels_mapper:
-                    l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
-                    return self.X_test[k], f"Label {self.Y_test[k]} \nExpert label: {l}"  
-                return self.X_test[k], f"Label: {self.Y_test[k]}"       
+                return self.X_test[k], None      
             
             # search for the data point in the 
             point = self.spaceNd[i][j]
-            if f"{i} {j}" in self.expert_updates_labels_mapper:
-                l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
-                return point, f"Expert label {l}"            
             return point, None
                     
         def onclick(event):
@@ -429,8 +429,8 @@ class DBMPlotterGUI:
             self.console.log("Clicked on: " + str(event.xdata) + ", " + str(event.ydata))
             j, i = int(event.xdata), int(event.ydata)
 
-            if self.img[i][j] >= 0 or self.img[i][j] < -2:
-                self.console.log("Data point not in training or testing set")
+            if self.img[i][j] != -1:
+                self.console.log("Data point not in training set")
                 return
                     
             # check if clicked on a data point that already was updated, then remove the update
@@ -553,7 +553,7 @@ class DBMPlotterGUI:
             positions = []
             for x in range(initial_x, final_x):
                 for y in range(initial_y, final_y):
-                    if (self.img[y, x] == -1 or self.img[y, x] == -2) and ((x - cx)**2 + (y - cy)**2 <= circle_radius**2):
+                    if (self.img[y, x] == -1) and ((x - cx)**2 + (y - cy)**2 <= circle_radius**2):
                         positions.append((x,y))
             return positions
             
@@ -658,8 +658,7 @@ class DBMPlotterGUI:
     
     def handle_circle_selecting_labels_change_event(self, event, values):
         self.update_labels_by_circle_select = values["-CIRCLE SELECTING LABELS-"]
-    
-    #TODO: change these function according to todos
+        
     def handle_apply_changes_event(self, event, values):
         num_changes = len(self.expert_updates_labels_mapper)
         if num_changes == 0:
@@ -670,24 +669,29 @@ class DBMPlotterGUI:
             self.updates_logger.log("Less than 10 changes to apply, please apply more changes")
             return
         
+        """
+        if values["-EPOCHS-"].isdigit():
+            epochs = int(values["-EPOCHS-"])
+        else:
+            epochs = 2
+            self.window["-EPOCHS-"].update(epochs)
+        """
+        epochs = 2
+        
         self.console.log("Transforming changes...")
-        Xnd, Y, label_changes = self.transform_changes()
+        Y, label_changes = self.transform_changes()
         
         self.console.log("Saving changes to a local folder...")
         self.save_changes(self.save_folder, label_changes=label_changes)
         
         self.updates_logger.log("Applying changes... This might take a couple of seconds, after this the window will be closed")
-        self.updates_logger.log("You can reopen the window from the main GUI (previous window)")
-        
-        # For the start lets do just the position changes (not the labels change)
-        self.dbm_model.refit_classifier(Xnd, Y, save_folder=os.path.join(self.save_folder, "refit_classifier"))
-        
-        # TODO: update self.X_train, self.Y_train, self.X_test, self.Y_test with the new labels from Y
+                
+        self.dbm_model.refit_classifier(self.X_train, Y, save_folder=os.path.join(self.save_folder, "refit_classifier"), epochs = epochs)
         
         # Updating the main GUI with the new model                
         dbm_info = self.dbm_model.generate_boundary_map(
             self.X_train, 
-            self.Y_train, 
+            Y, 
             self.X_test, 
             self.Y_test, 
             resolution=len(self.img),
@@ -703,7 +707,7 @@ class DBMPlotterGUI:
                             encoded_train = encoded_training_data, 
                             encoded_test = encoded_testing_data,
                             X_train = self.X_train, 
-                            Y_train = self.Y_train,
+                            Y_train = Y,
                             X_test = self.X_test,
                             Y_test = self.Y_test,
                             spaceNd=spaceNd,
@@ -729,21 +733,13 @@ class DBMPlotterGUI:
             position_changes (dict): a dictionary with old position as key and the new position as value
             label_changes (dict): a dictionary with old and new positions as key and the new label as value
         """     
-        Xnd = []
-        Y = [] 
+        Y = np.copy(self.Y_train) 
         labels_changes = {}
         
         for pos in self.expert_updates_labels_mapper:
-            if pos in self.train_mapper:
-                k = self.train_mapper[pos]
-                xnd = self.X_train[k]
-            else:
-                k = self.test_mapper[pos]
-                xnd = self.X_test[k]
-            
-            Xnd.append(xnd)
-            Y.append(self.expert_updates_labels_mapper[pos][0])
+            k = self.train_mapper[pos]
+            y = self.expert_updates_labels_mapper[pos][0]
+            Y[k] = y
             labels_changes[pos] = self.expert_updates_labels_mapper[pos][0]
             
-        Xnd, Y = np.array(Xnd), np.array(Y)
-        return Xnd, Y, labels_changes
+        return Y, labels_changes
