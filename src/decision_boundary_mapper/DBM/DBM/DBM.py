@@ -52,7 +52,7 @@ class DBM(DBMInterface):
             logger (LoggerInterface, optional): The logger for outputting info messages. Defaults to console logging.
         """
         super().__init__(classifier, logger)
-        self.invNN = None       
+        self.neural_network = None       
     
     @track_time_wrapper(logger=time_tracker_console)                                             
     def fit(self, 
@@ -117,7 +117,7 @@ class DBM(DBMInterface):
         
         Example:
             >>> dbm = DBM(classifier)
-            >>> img, img_confidence, X2d_train, X2d_test, space_nd, history = dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
+            >>> img, img_confidence, X2d_train, X2d_test, history = dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
             >>> fig, [ax1, ax2] = plt.subplots(1, 2, figsize=(10, 5))
             >>> ax1.imshow(img)
             >>> ax2.imshow(img_confidence)
@@ -137,12 +137,12 @@ class DBM(DBMInterface):
             # Normalize the data to be in the range of [0,1]
             X2d_train, X2d_test = self.__normalize_2d__(X2d_train, X2d_test)
             
-        if self.invNN is None:
+        if self.neural_network is None:
             X = np.concatenate((X2d_train, X2d_test), axis=0)
             Y = np.concatenate((Xnd_train, Xnd_test), axis=0)
-            self.invNN = self.fit(X, Y,
-                                  train_epochs, train_batch_size,
-                                  load_folder=os.path.join(load_folder, projection))   
+            self.neural_network = self.fit(X, Y,
+                                          train_epochs, train_batch_size,
+                                          load_folder=os.path.join(load_folder, projection))   
         
         self.console.log("Decoding the 2D space... 2D -> nD")
         
@@ -152,18 +152,17 @@ class DBM(DBMInterface):
         self.resolution = resolution   
         
         if use_fast_decoding:
-            img, img_confidence, spaceNd = self._get_img_dbm_fast_(resolution)
+            img, img_confidence = self._get_img_dbm_fast_(resolution)
             save_img_path += "_fast"
             save_img_confidence_path += "_fast"
         else:
-            img, img_confidence, spaceNd = self._get_img_dbm_(resolution)
+            img, img_confidence = self._get_img_dbm_(resolution)
     
         with open(f"{save_img_path}.npy", 'wb') as f:
             np.save(f, img)
         with open(f"{save_img_confidence_path}.npy", 'wb') as f:
             np.save(f, img_confidence)        
-        
-        self.spaceNd = spaceNd     
+                 
         self.X2d = np.concatenate((X2d_train, X2d_test), axis=0)
         self.Xnd = np.concatenate((Xnd_train.reshape((Xnd_train.shape[0],-1)), Xnd_test.reshape((Xnd_test.shape[0],-1))), axis=0)
         self.console.log("Map the 2D embedding of the data to the 2D image")
@@ -185,7 +184,7 @@ class DBM(DBMInterface):
         with open(os.path.join(load_folder, projection, "history.json"), 'r') as f:
             history = json.load(f)
         
-        return (img, img_confidence, X2d_train, X2d_test, spaceNd, history)
+        return (img, img_confidence, X2d_train, X2d_test, history)
      
     def _predict2dspace_(self, X2d: np.ndarray):
         """ Predicts the labels for the given 2D data set.
@@ -198,11 +197,11 @@ class DBM(DBMInterface):
             predicted_confidence (np.ndarray): The predicted probabilities for the given 2D data set
             spaceNd (np.ndarray): The decoded nD space
         """
-        spaceNd = self.invNN.decode(X2d, verbose=0)
+        spaceNd = self.neural_network.decode(X2d, verbose=0)
         predictions = self.classifier.predict(spaceNd, verbose=0)
         predicted_labels = np.array([np.argmax(p) for p in predictions])
         predicted_confidence = np.array([np.max(p) for p in predictions])
-        return predicted_labels, predicted_confidence, spaceNd
+        return predicted_labels, predicted_confidence
  
     def __transform_2d__(self, X_train: np.ndarray, X_test: np.ndarray, folder:str=DEFAULT_MODEL_PATH, projection:str='t-SNE'):
         """ Transforms the given data to 2D using a projection method.

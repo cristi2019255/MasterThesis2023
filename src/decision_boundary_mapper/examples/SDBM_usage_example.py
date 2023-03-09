@@ -31,7 +31,7 @@ def SDBM_usage_example():
     sdbm = SDBM(classifier=classifier)
     
     # use the SDBM to get the decision boundary map
-    img, img_confidence, _, _, _,_ = sdbm.generate_boundary_map(X_train, Y_train, 
+    img, img_confidence, _, _, _ = sdbm.generate_boundary_map(X_train, Y_train, 
                                                                 X_test, Y_test,
                                                                 load_folder=os.path.join("tmp", "MNIST", "SDBM"),    
                                                                 resolution=256)
@@ -103,7 +103,7 @@ def SDBM_usage_example_GUI():
                                          load_folder=os.path.join("tmp", "MNIST", "SDBM"),                                                                                                                             
                                          )
     
-    img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history  = dbm_info
+    img, img_confidence, encoded_training_data, encoded_testing_data, training_history  = dbm_info
     
     dbm_plotter_gui = DBMPlotterGUI(dbm_model = sdbm,
                                     img = img,
@@ -114,7 +114,6 @@ def SDBM_usage_example_GUI():
                                     Y_train = Y_train,
                                     X_test = X_test,
                                     Y_test = Y_test,
-                                    spaceNd=spaceNd,
                                     save_folder=os.path.join("tmp", "MNIST", "SDBM"), # this is the folder where the DBM will save the changes in data the user makes                                    
                                     )
     dbm_plotter_gui.start()

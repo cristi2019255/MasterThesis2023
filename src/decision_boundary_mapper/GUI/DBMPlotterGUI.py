@@ -92,8 +92,7 @@ class DBMPlotterGUI:
                   img, img_confidence,
                   X_train, Y_train, 
                   X_test, Y_test,
-                  encoded_train, encoded_test, 
-                  spaceNd,                   
+                  encoded_train, encoded_test,                                    
                   save_folder,
                   projection_technique=None,
                   logger=None,
@@ -133,7 +132,7 @@ class DBMPlotterGUI:
                         img_confidence, 
                         X_train, Y_train, 
                         X_test, Y_test, 
-                        encoded_train, encoded_test, spaceNd, 
+                        encoded_train, encoded_test, 
                         save_folder, 
                         projection_technique)
     
@@ -142,7 +141,7 @@ class DBMPlotterGUI:
                    img, img_confidence,
                    X_train, Y_train, 
                    X_test, Y_test,
-                   encoded_train, encoded_test, spaceNd,                   
+                   encoded_train, encoded_test,                   
                    save_folder,
                    projection_technique=None,                   
                    ):
@@ -156,8 +155,7 @@ class DBMPlotterGUI:
         self.encoded_train = encoded_train
         self.encoded_test = encoded_test  
         self.save_folder = save_folder # folder where to save the changes made to the data by the user    
-        self.projection_technique = projection_technique # projection technique used to generate the DBM                            
-        self.spaceNd = spaceNd
+        self.projection_technique = projection_technique # projection technique used to generate the DBM                                    
         self.color_img, self.legend = self._build_2D_image_(img)
         self.train_mapper, self.test_mapper = self._generate_encoded_mapping_()
         
@@ -397,7 +395,11 @@ class DBMPlotterGUI:
             annImage.xy = (j, i)
             
             x_data, y_data = find_data_point(i,j)                            
-            image.set_data(x_data)
+            if x_data is not None:
+                annImage.set_visible(True)
+                image.set_data(x_data)
+            else:
+                annImage.set_visible(False)
             
             if y_data is not None:    
                 annLabels.set_visible(True)
@@ -423,7 +425,7 @@ class DBMPlotterGUI:
                 return self.X_test[k], None      
             
             # search for the data point in the 
-            point = self.spaceNd[i][j]
+            point = None #self.spaceNd[i][j]
             return point, None
                     
         def onclick(event):
@@ -727,7 +729,7 @@ class DBMPlotterGUI:
             projection=self.projection_technique                                        
         )        
             
-        img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history = dbm_info
+        img, img_confidence, encoded_training_data, encoded_testing_data, training_history = dbm_info
         self.initialize(dbm_model = self.dbm_model,
                             img = img,
                             img_confidence = img_confidence,
@@ -736,8 +738,7 @@ class DBMPlotterGUI:
                             X_train = self.X_train, 
                             Y_train = Y,
                             X_test = self.X_test,
-                            Y_test = self.Y_test,
-                            spaceNd=spaceNd,
+                            Y_test = self.Y_test,                            
                             save_folder=self.save_folder,
                             projection_technique=self.projection_technique,
                         )

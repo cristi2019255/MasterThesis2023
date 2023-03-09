@@ -33,7 +33,7 @@ def DBM_usage_example():
     
     # use the DBM to get the decision boundary map, if you don't have the 2D projection of the data
     # the DBM will get it for you, you just need to specify the projection method you would like to use (t-SNE, PCA or UMAP)
-    img, img_confidence, _, _, _, _ = dbm.generate_boundary_map(X_train, Y_train, 
+    img, img_confidence, _, _, _ = dbm.generate_boundary_map(X_train, Y_train, 
                                                                 X_test, Y_test, 
                                                                 resolution=256, 
                                                                 load_folder=os.path.join("tmp", "MNIST", "DBM"),                                                                                                                             
@@ -42,7 +42,7 @@ def DBM_usage_example():
     # if you have the 2D projection of the data, you can use the following function to get the decision boundary map
     """
     X2d_train, X2d_test = None, None # get the 2D projection of the data by yourself
-    img, img_confidence, _, _, _, _ = dbm.generate_boundary_map(X_train, Y_train, 
+    img, img_confidence, _, _, _ = dbm.generate_boundary_map(X_train, Y_train, 
                                                                 X_test, Y_test,
                                                                 X2d_train=X2d_train, 
                                                                 X2d_test=X2d_test,
@@ -123,7 +123,7 @@ def DBM_usage_example_GUI():
                                          load_folder=os.path.join("tmp", "MNIST", "DBM"),                                                                                                                             
                                          projection="t-SNE")
     
-    img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history  = dbm_info
+    img, img_confidence, encoded_training_data, encoded_testing_data, training_history  = dbm_info
     
     dbm_plotter_gui = DBMPlotterGUI(dbm_model = dbm,
                                     img = img,
@@ -133,8 +133,7 @@ def DBM_usage_example_GUI():
                                     X_train = X_train,
                                     Y_train = Y_train,
                                     X_test = X_test,
-                                    Y_test = Y_test,
-                                    spaceNd=spaceNd,
+                                    Y_test = Y_test,                                    
                                     save_folder=os.path.join("tmp", "MNIST", "DBM"), # this is the folder where the DBM will save the changes in data the user makes
                                     projection_technique="t-SNE",
                                     )

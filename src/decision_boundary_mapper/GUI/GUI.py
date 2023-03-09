@@ -493,7 +493,7 @@ class GUI:
                                         projection=projection_technique
                                         )
 
-        img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history = dbm_info
+        img, img_confidence, encoded_training_data, encoded_testing_data, training_history = dbm_info
         
         if show_dbm_history:
             self.show_dbm_history(training_history)
@@ -510,8 +510,7 @@ class GUI:
                                             X_train = self.X_train,
                                             Y_train = self.Y_train,
                                             X_test = self.X_test,
-                                            Y_test = self.Y_test,
-                                            spaceNd=spaceNd,
+                                            Y_test = self.Y_test,                                            
                                             main_gui=self, # reference to the main GUI
                                             save_folder=save_folder,
                                             projection_technique=projection_technique,
