@@ -11,3 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from src.decision_boundary_mapper.utils import import_mnist_dataset
+from tests import opf
+import numpy as np
+
+(X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
+Y_train = Y_train[:3500]
+X_train = X_train[:3500]
+
+#with open("/home/cristi/codeRepo/MasterThesis2023/tmp/MNIST/DBM/t-SNE/train_2d.npy", "rb") as f:
+#    X_train = np.load(f)
+
+print(X_train.shape)
+
+opf(X_train, Y_train)

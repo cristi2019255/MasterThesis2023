@@ -13,3 +13,4 @@
 # limitations under the License.
 
 from tests.DBM.test import test_projection_errors
+from tests.OPF.opf import opf
