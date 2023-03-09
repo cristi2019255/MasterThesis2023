@@ -183,6 +183,9 @@ class DBMPlotterGUI:
         self.window = self._build_GUI_()
         self.canvas, self.fig_agg, self.canvas_controls = self._build_canvas_(self.fig, key = "-DBM CANVAS-", controls_key="-CONTROLS CANVAS-")
         
+        # --------------------- Classifier related ---------------------
+        self.compute_classifier_metrics()
+        
         self.draw_dbm_img()    
         # --------------------- GUI related ---------------------        
         self.updates_logger = LoggerGUI(name = "Updates logger", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
@@ -208,6 +211,9 @@ class DBMPlotterGUI:
                     [sg.Canvas(key='-CONTROLS CANVAS-', expand_x=True, pad=(0,0))],
                     [
                         sg.Column([
+                            [
+                                sg.Text("Classifier accuracy: ", font=APP_FONT, expand_x=True, pad=(0,0), key="-CLASSIFIER ACCURACY-"),  
+                            ],
                             [  
                                 sg.Checkbox("Change labels by selecting with circle", default=True, key="-CIRCLE SELECTING LABELS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
                             ],
@@ -229,6 +235,7 @@ class DBMPlotterGUI:
                         ], expand_x=True),
                     ]                                                      
                 ]
+        
         return layout
         
     def _build_GUI_(self):        
@@ -575,6 +582,12 @@ class DBMPlotterGUI:
         # draw the figure to the canvas
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)    
         self.window.refresh()
+
+    def compute_classifier_metrics(self):
+        self.console.log("Evaluating classifier...")
+        loss, accuracy = self.dbm_model.classifier.evaluate(self.X_test, self.Y_test, verbose=0)        
+        self.console.log(f"Classifier Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.2f}")        
+        self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(100 * accuracy):.2f} %  Loss: {loss:.2f}")
     
     def handle_compute_inverse_projection_errors_event(self, event, values):
         self.window['-COMPUTE INVERSE PROJECTION ERRORS-'].update(visible=False, disabled=True)        
@@ -699,6 +712,8 @@ class DBMPlotterGUI:
                         )
             
         self.draw_dbm_img()
+        self.compute_classifier_metrics()
+        
         self.updates_logger.log("Changes applied successfully!")     
             
     def save_changes(self, folder:str="tmp", label_changes={}):
