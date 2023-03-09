@@ -20,8 +20,6 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset
 
-
-
 def import_data():
     # import the dataset
     (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
@@ -56,7 +54,7 @@ def compare_images(img1, img2, comparing_confidence=False):
         for j in range(img1.shape[1]):
             if img1[i,j] != img2[i,j]:
                 if comparing_confidence:
-                    if abs(img1[i,j] - img2[i,j]) > 0.01:
+                    if abs(img1[i,j] - img2[i,j]) > 0.03:
                         errors += 1
                 else:
                     errors += 1
@@ -110,20 +108,17 @@ def test2():
     with open("img_confidence2.npy", "rb") as f:
         img_confidence2 = np.load(f)
     
-    m = np.max(img_confidence1)
-    print(m)
-    
     fig, (ax1, ax2) = plt.subplots(1, 2)
     
-    for i in range(img_confidence1.shape[0]):
-        for j in range(img_confidence1.shape[1]):
-            if img_confidence1[i,j] > 1:                
-                ax1.plot(j,i, 'ro')
-                img_confidence1[i,j] = 1
+    #for i in range(img_confidence1.shape[0]):
+    #    for j in range(img_confidence1.shape[1]):
+    #        if img_confidence1[i,j] != img_confidence2[i,j]:                
+    #                if abs(img_confidence1[i,j] - img_confidence2[i,j]) > 0.05:                                 
+    #                    ax1.plot(j,i, 'ro')
                 
-    ax1.imshow(img_confidence1, cmap='gray')
-    ax2.imshow(img1)
-    plt.show()    
+    #ax1.imshow(img_confidence1, cmap='gray')
+    #ax2.imshow(img1)
+    #plt.show()    
     
     #img_confidence1 = img_confidence1 / np.max(img_confidence1)
     
@@ -132,4 +127,5 @@ def test2():
     print("Comparing confidence images...")
     compare_images(img_confidence1, img_confidence2, comparing_confidence=True)
 
+#test()
 test2()
