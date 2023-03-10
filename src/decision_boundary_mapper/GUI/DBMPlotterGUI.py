@@ -28,10 +28,12 @@
 
 import json
 from math import sqrt
+from datetime import datetime
 from matplotlib.patches import Patch, Circle
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
 import matplotlib.figure as figure
+import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
 import PySimpleGUI as sg
@@ -85,6 +87,8 @@ RIGHTS_MESSAGE_1 = "© 2023 Cristian Grosu. All rights reserved."
 RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"
 INFORMATION_CONTROLS_MESSAGE = "To change the position of a data point click on the data point, then use the arrow keys to move it. \nPress 'Enter' to confirm the new position. Press 'Esc' to cancel the movement.\nTo remove a change just click on the data point.\nAfter the changes are done press 'Apply Changes' to update the model. \nAfter the changes are applied the window will close.\nTo see the changes just reopen this window from the previous window."
 DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon.png")
+CLASSIFIER_PERFORMANCE_HISTORY_FILE = "classifier_performance.log"
+
 
 class DBMPlotterGUI:
     def __init__ (self, 
@@ -123,7 +127,7 @@ class DBMPlotterGUI:
         
         self.main_gui = main_gui # reference to main window  
         
-        self.positions_of_labels_changes = ([], [])
+        self.positions_of_labels_changes = ([], [], [])
         self.inverse_projection_errors = None
         self.projection_errors = None     
         
@@ -213,7 +217,8 @@ class DBMPlotterGUI:
                     [
                         sg.Column([
                             [
-                                sg.Text("Classifier accuracy: ", font=APP_FONT, expand_x=True, pad=(0,0), key="-CLASSIFIER ACCURACY-"),  
+                                sg.Button("Show classifier performance history", font=APP_FONT, expand_x=True, key="-SHOW CLASSIFIER PERFORMANCE HISTORY-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                                sg.Text("Classifier accuracy: ", font=APP_FONT, expand_x=True, key="-CLASSIFIER ACCURACY-"),  
                             ],
                             [  
                                 sg.Checkbox("Change labels by selecting with circle", default=True, key="-CIRCLE SELECTING LABELS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
@@ -277,6 +282,11 @@ class DBMPlotterGUI:
         if self.main_gui is not None and hasattr(self.main_gui, "handle_changes_in_dbm_plotter"):
             self.main_gui.handle_changes_in_dbm_plotter()
         self.console.log("Closing the application...")
+        
+        classifier_performance_path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
+        if os.path.exists(classifier_performance_path):
+            os.remove(classifier_performance_path)
+            
         self.window.close()
     
     def handle_event(self, event, values):
@@ -292,6 +302,7 @@ class DBMPlotterGUI:
             "-SHOW LABELS CHANGES-": self.handle_checkbox_change_event,
             "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,
             "-USE OPF TO ASSIGN LABELS-": self.handle_use_opf_to_assign_labels_event,
+            "-SHOW CLASSIFIER PERFORMANCE HISTORY-": self.handle_show_classifier_performance_history_event,
         }
         
         EVENTS[event](event, values)    
@@ -598,7 +609,15 @@ class DBMPlotterGUI:
     def compute_classifier_metrics(self):
         self.console.log("Evaluating classifier...")
         loss, accuracy = self.dbm_model.classifier.evaluate(self.X_test, self.Y_test, verbose=0)        
-        self.console.log(f"Classifier Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.2f}")        
+        self.console.log(f"Classifier Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.2f}")
+        
+        path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
+        
+        with open(path, "a") as f:
+            time = datetime.now().strftime("%D %H:%M:%S")
+            message = f"Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.2f}"
+            f.write(f"{time} {message}\n")
+            
         self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(100 * accuracy):.2f} %  Loss: {loss:.2f}")
     
     def handle_compute_inverse_projection_errors_event(self, event, values):
@@ -645,7 +664,6 @@ class DBMPlotterGUI:
         if self.inverse_projection_errors is not None:
             self.window['-USE OPF TO ASSIGN LABELS-'].update(visible=True)
     
-
     def handle_checkbox_change_event(self, event, values):
         show_color_map = values["-SHOW DBM COLOR MAP-"]
         show_confidence = values["-SHOW DBM CONFIDENCE-"]
@@ -676,12 +694,14 @@ class DBMPlotterGUI:
         self.axes_image = self.ax.imshow(img) 
         
         if hasattr(self, "ax_labels_changes") and self.ax_labels_changes is not None:            
-            for point in self.ax_labels_changes:                
-                point.remove()
+            self.ax_labels_changes.set_visible(False)
+            #for point in self.ax_labels_changes:                
+            #    point.remove()
             self.ax_labels_changes = None
-        if show_labels_changes:            
-            positions_x, positions_y = self.positions_of_labels_changes        
-            self.ax_labels_changes = self.ax.plot(positions_x, positions_y, 'g^')   
+        
+        positions_x, positions_y, alphas = self.positions_of_labels_changes   
+        if show_labels_changes and len(positions_x) > 0 and len(positions_y) > 0  and len(alphas) > 0:                             
+            self.ax_labels_changes = self.ax.scatter(positions_x, positions_y, c='green', marker='^', alpha=alphas)   
         
         self.fig.canvas.draw_idle()
     
@@ -766,17 +786,21 @@ class DBMPlotterGUI:
         Y = np.copy(self.Y_train) 
         labels_changes = {}
         
-        pos_x, pos_y = self.positions_of_labels_changes
+        pos_x, pos_y, alphas = self.positions_of_labels_changes
+        
+        ALPHA_DECAY_ON_UPDATE = 0.05        
+        alphas = [alpha - ALPHA_DECAY_ON_UPDATE for alpha in alphas]
         
         for pos in self.expert_updates_labels_mapper:
             k = self.train_mapper[pos]
             pos_x.append(int(pos.split(" ")[1]))
             pos_y.append(int(pos.split(" ")[0]))
+            alphas.append(1)
             y = self.expert_updates_labels_mapper[pos][0]
             Y[k] = y
             labels_changes[pos] = self.expert_updates_labels_mapper[pos][0]
         
-        self.positions_of_labels_changes = (pos_x, pos_y)
+        self.positions_of_labels_changes = (pos_x, pos_y, alphas)
             
         return Y, labels_changes
     
@@ -784,3 +808,37 @@ class DBMPlotterGUI:
         #TODO: implement this so the opf use the inverse projection errors and the projection errors
         pass
     
+    def handle_show_classifier_performance_history_event(self, event, values):
+        path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
+        if not os.path.isfile(path):
+            return
+        
+        times, accuracies, losses = [], [], []
+        with open(path, "r") as f:
+            for line in f.readlines():                
+                line = line.strip()
+                if len(line) == 0:
+                    continue
+                _, time, _, acc, _, _, loss = line.replace("\n", "").replace("%", "").split(" ")                        
+                times.append(time)
+                accuracies.append(float(acc))
+                losses.append(float(loss))
+        
+        fig, (ax1, ax2) = plt.subplots(1,2, figsize=(20,10))
+        
+        for tick in ax1.get_xticklabels():
+            tick.set_rotation(45)
+        for tick in ax2.get_xticklabels():
+            tick.set_rotation(45)
+        
+        ax1.set_title("Classifier accuracy history")
+        ax2.set_title("Classifier loss history")
+        ax1.set_xlabel("Time")
+        ax2.set_xlabel("Time")
+        ax1.set_ylabel("Accuracy (%)")
+        ax2.set_ylabel("Loss")
+        
+        ax1.plot(times, accuracies)
+        ax2.plot(times, losses)
+        plt.show()
+        
