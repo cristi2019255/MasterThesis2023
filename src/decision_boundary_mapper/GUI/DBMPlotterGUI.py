@@ -85,7 +85,7 @@ BUTTON_PRIMARY_COLOR = "#007acc"
 WHITE_COLOR = "#ffffff"
 RIGHTS_MESSAGE_1 = "© 2023 Cristian Grosu. All rights reserved."
 RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"
-INFORMATION_CONTROLS_MESSAGE = "To change the position of a data point click on the data point, then use the arrow keys to move it. \nPress 'Enter' to confirm the new position. Press 'Esc' to cancel the movement.\nTo remove a change just click on the data point.\nAfter the changes are done press 'Apply Changes' to update the model. \nAfter the changes are applied the window will close.\nTo see the changes just reopen this window from the previous window."
+INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point click on the data point, or select the data point by including them into a circle.\nPress any digit key to indicate the new label.\nPress 'Enter' to confirm the new label. Press 'Esc' to cancel the action.\nTo remove a change just click on the data point.\nAfter the changes are done press 'Apply Changes' to update the model. \nAfter the changes are applied the window will update."
 DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon.png")
 CLASSIFIER_PERFORMANCE_HISTORY_FILE = "classifier_performance.log"
 LABELS_CHANGES_FILE = "label_changes.json"
@@ -102,23 +102,24 @@ class DBMPlotterGUI:
                   logger=None,
                   main_gui=None,
                   ):        
-        """[summary] TODO: add description
+        """[summary] DBMPlotterGUI is a GUI that allows the user to visualize the decision boundary map and the errors of the DBM model.
+        It also allows the user to change the labels of the data points and see the impact of the changes on the model.
 
         Args:
-            dbm_model (_type_): _description_
-            img (_type_): _description_
-            img_confidence (_type_): _description_
-            X_train (_type_): _description_
-            Y_train (_type_): _description_
-            X_test (_type_): _description_
-            Y_test (_type_): _description_
-            encoded_train (_type_): _description_
-            encoded_test (_type_): _description_
-            spaceNd (_type_): This is a list of lists of size resolution*resolution. Each point in this list is an nd data point which can be a vector, a matrix or a multidimensional matrix.
-            save_folder (_type_): _description_
-            projection_technique (_type_, optional): _description_. Defaults to None.
-            logger (_type_, optional): _description_. Defaults to None.
-            main_gui (_type_, optional): _description_. Defaults to None.
+            dbm_model (DBM or SDBM): The DBM model that will be used to generate the decision boundary map.
+            img (np.ndarray): The decision boundary map image.
+            img_confidence (np.ndarray): The decision boundary map confidence image.
+            X_train (np.ndarray): The training data.
+            Y_train (np.ndarray): The training labels.
+            X_test (np.ndarray): The test data.
+            Y_test (np.ndarray): The test labels.
+            encoded_train (np.ndarray): Positions of the training data points in the 2D embedding space.
+            encoded_test (np.ndarray): Positions of the test data points in the 2D embedding space.
+            spaceNd (np.ndarray): This is a list of lists of size resolution*resolution. Each point in this list is an nd data point which can be a vector, a matrix or a multidimensional matrix.
+            save_folder (string): The folder where all the DBM model related files will be saved.
+            projection_technique (string, optional): The projection technique the user wants to use if DBM is used as dbm_model. Defaults to None.
+            logger (Logger, optional): The logger which is meant for logging the info messages. Defaults to None.
+            main_gui (GUI, optional): The GUI that started the DBMPlotterGUI if any. Defaults to None.
         """
         if logger is None:
             self.console = Logger(name="DBMPlotterGUI")
@@ -197,8 +198,7 @@ class DBMPlotterGUI:
    
     def _get_GUI_layout_(self):   
         buttons_proj_errs = []
-        buttons_inv_proj_errs = []
-        button_use_opf = []
+        buttons_inv_proj_errs = []        
         computed_projection_errors = self.projection_errors is not None
         computed_inverse_projection_errors = self.inverse_projection_errors is not None
         if not computed_projection_errors: 
@@ -635,10 +635,7 @@ class DBMPlotterGUI:
 
         self.updates_logger.log("Inverse projection errors computed!")
         self.window['-SHOW INVERSE PROJECTION ERRORS-'].update(visible=True)
-        
-        if self.projection_errors is not None:
-            self.window['-USE OPF TO ASSIGN LABELS-'].update(visible=True)
-    
+            
     def _set_loading_proj_errs_state_(self):
         self.window['-COMPUTE PROJECTION ERRORS INTERPOLATION-'].update(visible=False, disabled=True)        
         self.window['-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-'].update(visible=False, disabled=True)        
