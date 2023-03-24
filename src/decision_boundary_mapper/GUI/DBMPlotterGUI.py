@@ -88,7 +88,7 @@ RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis 
 INFORMATION_CONTROLS_MESSAGE = "To change the position of a data point click on the data point, then use the arrow keys to move it. \nPress 'Enter' to confirm the new position. Press 'Esc' to cancel the movement.\nTo remove a change just click on the data point.\nAfter the changes are done press 'Apply Changes' to update the model. \nAfter the changes are applied the window will close.\nTo see the changes just reopen this window from the previous window."
 DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon.png")
 CLASSIFIER_PERFORMANCE_HISTORY_FILE = "classifier_performance.log"
-
+LABELS_CHANGES_FILE = "label_changes.json"
 
 class DBMPlotterGUI:
     def __init__ (self, 
@@ -227,6 +227,8 @@ class DBMPlotterGUI:
                             [
                                 sg.Checkbox("Show dbm color map", default=True, key="-SHOW DBM COLOR MAP-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
                                 sg.Checkbox("Show dbm confidence", default=True, key="-SHOW DBM CONFIDENCE-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),                                
+                            ],
+                            [
                                 sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_inverse_projection_errors),
                                 sg.Checkbox("Show projection errors", default=False, key="-SHOW PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_projection_errors),
                             ],
@@ -236,9 +238,6 @@ class DBMPlotterGUI:
                             #],
                             [
                                 sg.Button('Apply Updates', font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
-                            ],
-                            [
-                                sg.Button('Use OPF to assign labels', font=APP_FONT, expand_x=True, key="-USE OPF TO ASSIGN LABELS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), visible=(computed_projection_errors and computed_inverse_projection_errors)), 
                             ],
                             buttons_proj_errs,
                             buttons_inv_proj_errs,
@@ -284,9 +283,14 @@ class DBMPlotterGUI:
         self.console.log("Closing the application...")
         
         classifier_performance_path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
+        labels_changes_path = os.path.join(self.save_folder, LABELS_CHANGES_FILE)
+        
         if os.path.exists(classifier_performance_path):
             os.remove(classifier_performance_path)
-            
+        
+        if os.path.exists(labels_changes_path):
+            os.remove(labels_changes_path)
+                    
         self.window.close()
     
     def handle_event(self, event, values):
@@ -300,8 +304,7 @@ class DBMPlotterGUI:
             "-SHOW INVERSE PROJECTION ERRORS-": self.handle_checkbox_change_event,
             "-SHOW PROJECTION ERRORS-": self.handle_checkbox_change_event,
             "-SHOW LABELS CHANGES-": self.handle_checkbox_change_event,
-            "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,
-            "-USE OPF TO ASSIGN LABELS-": self.handle_use_opf_to_assign_labels_event,
+            "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,            
             "-SHOW CLASSIFIER PERFORMANCE HISTORY-": self.handle_show_classifier_performance_history_event,
         }
         
@@ -773,7 +776,7 @@ class DBMPlotterGUI:
         if not os.path.exists(folder):
             os.path.makedirs(folder)                        
         
-        with open(os.path.join(folder, "label_changes.json"), "a") as f:
+        with open(os.path.join(folder, LABELS_CHANGES_FILE), "a") as f:
             f.write("\n" + "-" * 50 + "\n")
             json.dump(label_changes, f, indent=2)
     
@@ -789,7 +792,7 @@ class DBMPlotterGUI:
         pos_x, pos_y, alphas = self.positions_of_labels_changes
         
         ALPHA_DECAY_ON_UPDATE = 0.05        
-        alphas = [alpha - ALPHA_DECAY_ON_UPDATE for alpha in alphas]
+        alphas = [alpha - ALPHA_DECAY_ON_UPDATE if alpha > ALPHA_DECAY_ON_UPDATE else ALPHA_DECAY_ON_UPDATE for alpha in alphas]
         
         for pos in self.expert_updates_labels_mapper:
             k = self.train_mapper[pos]
@@ -803,10 +806,6 @@ class DBMPlotterGUI:
         self.positions_of_labels_changes = (pos_x, pos_y, alphas)
             
         return Y, labels_changes
-    
-    def handle_use_opf_to_assign_labels_event(self, event, values):
-        #TODO: implement this so the opf use the inverse projection errors and the projection errors
-        pass
     
     def handle_show_classifier_performance_history_event(self, event, values):
         path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
