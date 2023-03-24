@@ -631,7 +631,7 @@ class DBMPlotterGUI:
         if os.path.exists(possible_path):
             self.inverse_projection_errors = np.load(possible_path)
         else:
-            self.inverse_projection_errors = self.dbm_model.generate_inverse_projection_errors(save_folder=self.save_folder)
+            self.inverse_projection_errors = self.dbm_model.generate_inverse_projection_errors(save_folder=self.save_folder, resolution = len(self.img))
 
         self.updates_logger.log("Inverse projection errors computed!")
         self.window['-SHOW INVERSE PROJECTION ERRORS-'].update(visible=True)
@@ -661,9 +661,6 @@ class DBMPlotterGUI:
         self.updates_logger.log("Finished computing projection errors.")
         self.window['-SHOW PROJECTION ERRORS-'].update(visible=True)           
 
-        if self.inverse_projection_errors is not None:
-            self.window['-USE OPF TO ASSIGN LABELS-'].update(visible=True)
-    
     def handle_checkbox_change_event(self, event, values):
         show_color_map = values["-SHOW DBM COLOR MAP-"]
         show_confidence = values["-SHOW DBM CONFIDENCE-"]
