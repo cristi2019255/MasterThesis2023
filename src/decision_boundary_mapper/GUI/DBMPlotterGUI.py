@@ -159,8 +159,11 @@ class DBMPlotterGUI:
         self.Y_test = Y_test
         self.encoded_train = encoded_train
         self.encoded_test = encoded_test  
-        self.save_folder = save_folder # folder where to save the changes made to the data by the user    
-        self.projection_technique = projection_technique # projection technique used to generate the DBM                                    
+        self.save_folder = save_folder # folder where to save the changes made to the data by the user            
+        self.projection_technique = projection_technique # projection technique used to generate the DBM                                            
+        if self.projection_technique is not None:
+           self.save_folder = os.path.join(self.save_folder, self.projection_technique)                
+       
         self.color_img, self.legend = self._build_2D_image_(img)
         self.train_mapper, self.test_mapper = self._generate_encoded_mapping_()
         
@@ -656,7 +659,7 @@ class DBMPlotterGUI:
             if os.path.exists(possible_path):
                 self.projection_errors = np.load(possible_path)
             else:
-                self.projection_errors = self.dbm_model.generate_projection_errors(use_interpolation=False, save_folder=self.save_folder)        
+                self.projection_errors = self.dbm_model.generate_projection_errors(use_interpolation=False, save_folder=save_folder)        
         
         self.updates_logger.log("Finished computing projection errors.")
         self.window['-SHOW PROJECTION ERRORS-'].update(visible=True)           

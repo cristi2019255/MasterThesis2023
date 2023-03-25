@@ -136,18 +136,21 @@ class DBM(DBMInterface):
         else:
             # Normalize the data to be in the range of [0,1]
             X2d_train, X2d_test = self.__normalize_2d__(X2d_train, X2d_test)
-            
+        
+        if projection != load_folder.split(os.sep)[-1]:
+            load_folder = os.path.join(load_folder, projection)
+        
         if self.neural_network is None:
             X = np.concatenate((X2d_train, X2d_test), axis=0)
             Y = np.concatenate((Xnd_train, Xnd_test), axis=0)
             self.neural_network = self.fit(X, Y,
                                           train_epochs, train_batch_size,
-                                          load_folder=os.path.join(load_folder, projection))   
+                                          load_folder=load_folder)   
         
         self.console.log("Decoding the 2D space... 2D -> nD")
         
-        save_img_path = os.path.join(os.path.join(load_folder, projection), "boundary_map")
-        save_img_confidence_path = os.path.join(os.path.join(load_folder, projection), "boundary_map_confidence")
+        save_img_path = os.path.join(load_folder, "boundary_map")
+        save_img_confidence_path = os.path.join(load_folder, "boundary_map_confidence")
         
         self.resolution = resolution   
         
@@ -181,7 +184,7 @@ class DBM(DBMInterface):
             img_confidence[i,j] = 1
             
         
-        with open(os.path.join(load_folder, projection, "history.json"), 'r') as f:
+        with open(os.path.join(load_folder, "history.json"), 'r') as f:
             history = json.load(f)
         
         return (img, img_confidence, X2d_train, X2d_test, history)

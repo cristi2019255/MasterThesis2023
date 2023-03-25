@@ -77,11 +77,11 @@ def opf(X_train, Y_train):
     return np.hstack((Y_train, preds))
 
 
-def import_2d_data():
+def import_2d_data(projection='t-SNE'):
     # upload the 2D projection of the data
-    with open(os.path.join("tmp", "MNIST", "DBM", "t-SNE", "train_2d.npy"), "rb") as f:
+    with open(os.path.join("tmp", "MNIST", "DBM", projection, "train_2d.npy"), "rb") as f:
         X2d_train = np.load(f)
-    with open(os.path.join("tmp", "MNIST", "DBM", "t-SNE", "test_2d.npy"), "rb") as f:
+    with open(os.path.join("tmp", "MNIST", "DBM", projection, "test_2d.npy"), "rb") as f:
         X2d_test = np.load(f)
     return X2d_train, X2d_test
 
