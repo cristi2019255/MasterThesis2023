@@ -659,7 +659,7 @@ class DBMPlotterGUI:
             if os.path.exists(possible_path):
                 self.projection_errors = np.load(possible_path)
             else:
-                self.projection_errors = self.dbm_model.generate_projection_errors(use_interpolation=False, save_folder=save_folder)        
+                self.projection_errors = self.dbm_model.generate_projection_errors(use_interpolation=False, save_folder=self.save_folder)        
         
         self.updates_logger.log("Finished computing projection errors.")
         self.window['-SHOW PROJECTION ERRORS-'].update(visible=True)           
