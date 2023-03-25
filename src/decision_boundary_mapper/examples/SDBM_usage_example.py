@@ -64,7 +64,7 @@ def SDBM_usage_example():
     plt.show()
     
     # use the SDBM to get the inverse projection errors
-    img_inverse_projection_errors = sdbm.generate_inverse_projection_errors()
+    img_inverse_projection_errors = sdbm.generate_inverse_projection_errors(resolution=256)
     # plot the inverse projection errors
     fig, ax = plt.subplots()
     ax.set_title("Inverse projection errors")
@@ -91,6 +91,7 @@ def SDBM_usage_example_GUI():
     
     Y = np.copy(Y_train)
     
+    # use the opf to generate the labels for the training data if the data is not completely labelled
     Y_train = opf(X_train=X_train, Y_train=Y_train)
     
     # generate a classifier

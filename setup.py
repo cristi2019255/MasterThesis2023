@@ -25,7 +25,7 @@ os.system("pdoc --html src/decision_boundary_mapper -o docs")
 
 setup(
     name='decision-boundary-mapper',
-    version='0.3.8',
+    version='0.4.1',
     license='MIT',
     author="Cristian Grosu",
     author_email='c.grosu@students.uu.nl',
@@ -43,6 +43,7 @@ setup(
           'numba',
           'numba_progress',
           'numpy',
+          'opfython',
           'Pillow',
           'PySimpleGUI',
           'pydot',
@@ -50,6 +51,7 @@ setup(
           'scipy',
           'tensorflow',
           'termcolor',
+          'tqdm',
           'umap',
           'umap-learn',
       ],

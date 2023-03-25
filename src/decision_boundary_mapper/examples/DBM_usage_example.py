@@ -79,7 +79,7 @@ def DBM_usage_example():
     
     
     # use the dbm to get the inverse projection errors
-    img_inverse_projection_errors = dbm.generate_inverse_projection_errors()
+    img_inverse_projection_errors = dbm.generate_inverse_projection_errors(resolution=256)
     # plot the inverse projection errors
     fig, ax = plt.subplots()
     ax.set_title("Inverse projection errors")
