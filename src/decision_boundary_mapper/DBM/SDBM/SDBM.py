@@ -42,7 +42,7 @@ class SDBM(DBMInterface):
             logger (LoggerInterface, optional): The logger class to be used for outputting the info messages. Defaults to None.
         """
         super().__init__(classifier, logger)
-        self.autoencoder = None
+        self.neural_network = None
 
     @track_time_wrapper(logger=time_tracker_console)
     def fit(self, 
@@ -102,25 +102,25 @@ class SDBM(DBMInterface):
                 >>> import SDBM
                 >>> classifier = build_classifier(...)
                 >>> sdbm = SDBM.SDBM(classifier)
-                >>> img, img_confidence, _, _, space_Nd, history = sdbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
+                >>> img, img_confidence, _, _, history = sdbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
                 >>> plt.imshow(img)
                 >>> plt.show()
         """
         
         # first train the autoencoder if it is not already trained
-        if self.autoencoder is None:
+        if self.neural_network is None:
             X = np.concatenate((X_train, X_test), axis=0)
             Y = np.concatenate((Y_train, Y_test), axis=0)
-            self.autoencoder = self.fit(X, Y, 
+            self.neural_network = self.fit(X, Y, 
                                         load_folder=load_folder,
                                         epochs=train_epochs, 
                                         batch_size=train_batch_size)
 
         # encoder the train and test data and show the encoded data in 2D space
         self.console.log("Encoding the training data to 2D space")
-        encoded_training_data = self.autoencoder.encode(X_train)
+        encoded_training_data = self.neural_network.encode(X_train)
         self.console.log("Encoding the testing data to 2D space")
-        encoded_testing_data = self.autoencoder.encode(X_test)            
+        encoded_testing_data = self.neural_network.encode(X_test)            
         # generate the 2D image in the encoded space
         self.console.log("Decoding the 2D space... 2D -> nD")
         
@@ -130,14 +130,13 @@ class SDBM(DBMInterface):
         self.resolution = resolution
         
         if use_fast_decoding:
-            img, img_confidence, spaceNd = self._get_img_dbm_fast_(resolution)
+            img, img_confidence = self._get_img_dbm_fast_(resolution)
             save_img_path += "_fast"
             save_img_confidence_path += "_fast"
         else:
-            img, img_confidence, spaceNd = self._get_img_dbm_(resolution)
+            img, img_confidence = self._get_img_dbm_(resolution)
         
-        
-        self.spaceNd = spaceNd
+                
         self.X2d = np.concatenate((encoded_training_data, encoded_testing_data), axis=0)
         self.Xnd = np.concatenate((X_train.reshape((X_train.shape[0],-1)), X_test.reshape((X_test.shape[0],-1))), axis=0)
         
@@ -163,7 +162,7 @@ class SDBM(DBMInterface):
         with open(os.path.join(load_folder, "history.json"), 'r') as f:
             history = json.load(f)
         
-        return (img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, history)
+        return (img, img_confidence, encoded_training_data, encoded_testing_data, history)
     
     def _predict2dspace_(self, X2d:np.ndarray):
         """ Predicts the labels for the given 2D data set.
@@ -176,10 +175,10 @@ class SDBM(DBMInterface):
             predicted_confidence (np.array): The predicted probabilities for the given 2D data set
             spaceNd (np.array): The decoded nD space
         """
-        spaceNd = self.autoencoder.decode(X2d, verbose=0)
+        spaceNd = self.neural_network.decode(X2d, verbose=0)
         predictions = self.classifier.predict(spaceNd, verbose=0)
         predicted_labels = np.array([np.argmax(p) for p in predictions])
         predicted_confidence = np.array([np.max(p) for p in predictions])
-        return predicted_labels, predicted_confidence, spaceNd
+        return predicted_labels, predicted_confidence
     
     

@@ -20,6 +20,7 @@ from scipy import interpolate
 import dask.array as da
 from sklearn.neighbors import KDTree
 from numba_progress import ProgressBar
+from tqdm import tqdm
 
 from .tools import get_decode_pixel_priority, get_inv_proj_error, get_nd_indices_parallel, euclidean, get_proj_error_parallel, get_projection_errors_using_inverse_projection
 from ..utils import track_time_wrapper
@@ -131,7 +132,7 @@ class DBMInterface:
         pass
     
     @track_time_wrapper(logger=time_tracker_console)
-    def generate_inverse_projection_errors(self, Xnd: np.ndarray = None):
+    def generate_inverse_projection_errors(self, resolution:int, save_folder:str = None):
         """ Calculates the inverse projection errors of the given data.
 
         Args:
@@ -140,20 +141,56 @@ class DBMInterface:
         Returns:
             errors (np.ndarray): The inverse projection errors matrix of the given data. (resolution x resolution)
         """
-        if Xnd is None:
-            if self.spaceNd is None:
-                self.console.error("The nD data is not set, try to call the method 'generate_boundary_map' first.")
-                raise Exception("The nD data is not set, try to call the method 'generate_boundary_map' first.")
-            Xnd = self.spaceNd
             
         self.console.log("Calculating the inverse projection errors of the given data")
-        errors = np.zeros(Xnd.shape[:2])
-        for i in range(Xnd.shape[0]):
-            for j in range(Xnd.shape[1]):
-                errors[i,j] = get_inv_proj_error(i,j, Xnd)
+        errors = np.zeros((resolution, resolution))
+        
+        w, h = 1, 1
+        
+        i = 0
+                
+        current_row = np.array([(i / resolution, j / resolution) for j in range(resolution) ])
+        next_row = np.array([((i + 1) / resolution, j / resolution) for j in range(resolution) ])            
+        data_2d = np.concatenate((current_row, next_row))
+        data_nd = self.neural_network.decode(data_2d)
+        
+        previous_row_nd = None
+        current_row_nd = data_nd[:resolution]
+        next_row_nd = data_nd[resolution:]
+        
+        
+        for i in tqdm(range(resolution)):
+            for j in range(resolution):
+                dw = w if (j - w < 0) or (j + w >= resolution) else 2 * w
+                dh = h if (i - h < 0) or (i + h >= resolution) else 2 * h
+                xnd = current_row_nd[j] 
+                xl = current_row_nd[j-w] if j - w >= 0 else xnd
+                xr = current_row_nd[j+w] if j + w < resolution else xnd
+                yl = previous_row_nd[j] if previous_row_nd is not None else xnd
+                yr = next_row_nd[j] if next_row_nd is not None else xnd
+                                                
+                dx = (xl - xr) / dw
+                dy = (yl - yr) / dh  
+                errors[i,j] = get_inv_proj_error(dx, dy)
+            
+            previous_row_nd = current_row_nd
+            current_row_nd = next_row_nd
+            if i + 2 < resolution:
+                next_row = np.array([((i + 2) / resolution, j / resolution) for j in range(resolution) ])
+                next_row_nd = self.neural_network.decode(next_row)
+            else:
+                next_row_nd = None
                 
         # normalizing the errors to be in the range [0,1]
         errors = (errors - np.min(errors)) / (np.max(errors) - np.min(errors))
+        
+        if save_folder is not None:
+            self.console.log("Saving the inverse projection errors results")
+            save_path = os.path.join(save_folder, "inverse_projection_errors.npy")
+            with open(save_path, "wb") as f:
+                np.save(f, errors)
+            self.console.log("Saved inverse projection errors results!")
+            
         return errors
     
     @track_time_wrapper(logger=time_tracker_console)
@@ -169,18 +206,32 @@ class DBMInterface:
             img_space_Nd (np.array): The nD space points
       
         Example:
-            >>> img, img_confidence, space2d, spaceNd = self._get_img_dbm_(resolution = 100)
+            >>> img, img_confidence = self._get_img_dbm_(resolution = 100)
         """
         space2d = np.array([(i / resolution, j / resolution) for i in range(resolution) for j in range(resolution)])
         self.console.log("Predicting labels for the 2D boundary mapping using the nD data and the trained classifier...")
-        predicted_labels, predicted_confidence, spaceNd = self._predict2dspace_(space2d)
-        img = predicted_labels.reshape((resolution, resolution))
-        img_confidence = predicted_confidence.reshape((resolution, resolution))
-        img_space_Nd = spaceNd.reshape((resolution, resolution, -1))
-        return (img, img_confidence, img_space_Nd)
+        
+        chunk_size = 10000
+        chunks = (resolution * resolution) // chunk_size + 1        
+        space2d_chunks = np.array_split(space2d, chunks)
+        
+        img, img_confidence = np.array([]), np.array([])
+        
+        chunk_index = 0
+        for space2d_chunk in space2d_chunks:
+            chunk_index += 1
+            self.console.log(f"Predicting labels for the 2D boundary mapping using the nD data and the trained classifier... (chunk {chunk_index}/{len(space2d_chunks)})")
+            predicted_labels, predicted_confidence = self._predict2dspace_(space2d_chunk)
+            img = np.concatenate((img, predicted_labels))
+            img_confidence = np.concatenate((img_confidence, predicted_confidence))
+        
+        img = img.reshape((resolution, resolution))
+        img_confidence = img_confidence.reshape((resolution, resolution))        
+        
+        return (img, img_confidence)
     
     @track_time_wrapper(logger=time_tracker_console)
-    def _get_img_dbm_fast_(self, resolution:int, computational_budget=None, interpolation_method:str="cubic"):
+    def _get_img_dbm_fast_(self, resolution:int, computational_budget=None, interpolation_method:str="linear"):
         """
         This function generates the 2D image of the boundary map. It uses a fast algorithm to generate the image.
         
@@ -190,33 +241,36 @@ class DBMInterface:
             resolution (int): the resolution of the 2D image to be generated
             computational_budget (int, optional): The computational budget to be used. Defaults to None.
             interpolation_method (str, optional): The interpolation method to be used for the interpolation of sparse data generated by the fast algorithm.
-                                                  Defaults to "cubic". The options are: "nearest", "linear", "cubic"
+                                                  Defaults to "linear". The options are: "nearest", "linear", "cubic"
         Returns:
             img, img_confidence: The 2D image of the boundary map and a image with the confidence for each pixel
             spaceNd: The nD space points
         Example:
-            >>> img, img_confidence, image_space_Nd = self._get_img_dbm_fast_(resolution=32, computational_budget=1000)
+            >>> img, img_confidence = self._get_img_dbm_fast_(resolution=32, computational_budget=1000)
         """
         # ------------------------------------------------------------
         # Setting the initial parameters
-        INITIAL_RESOLUTION = 32
+        WINDOW_SIZE = 8
         NEIGHBORS_NUMBER = 4
+        
+        assert(resolution > WINDOW_SIZE)
+        
+        INITIAL_RESOLUTION = resolution // WINDOW_SIZE
         
         if computational_budget is None:
             computational_budget = resolution * resolution
         
         assert(computational_budget > INITIAL_RESOLUTION * INITIAL_RESOLUTION)
+        INITIAL_COMPUTATIONAL_BUDGET = computational_budget
         
         if (resolution % INITIAL_RESOLUTION != 0):
-            self.console.warn(f"The required resolution is not a multiple of the initial resolution ({INITIAL_RESOLUTION} x {INITIAL_RESOLUTION})")
-            self.console.log("The resolution will be set to the closest multiple of the initial resolution which is a power of 2")
-            amplification_factor = int(resolution / INITIAL_RESOLUTION)
-            amplification_factor = 1 if amplification_factor == 0 else 2**(amplification_factor - 1).bit_length() // 2
-            resolution = amplification_factor * INITIAL_RESOLUTION
+            self.console.warn(f"The required resolution is not a multiple of the initial window size ({WINDOW_SIZE} x {WINDOW_SIZE})")
+            self.console.log("The resolution will be set to the closest multiple of the window size")
+            resolution = INITIAL_RESOLUTION * WINDOW_SIZE
             self.resolution = resolution   
             self.console.log(f"Resolution was set to {resolution} x {resolution}")
             
-        window_size = int(resolution / INITIAL_RESOLUTION)
+        window_size = WINDOW_SIZE
         # ------------------------------------------------------------
         
         # ------------------------------------------------------------
@@ -226,26 +280,31 @@ class DBMInterface:
                 
         # ------------------------------------------------------------
         # generate the initial points
+        self.console.log(f"Generating the initial central points within each window... total number of windows ({(INITIAL_RESOLUTION * INITIAL_RESOLUTION)})")
+        
         space2d = [((i * window_size + window_size / 2 - 0.5) / resolution, (j * window_size + window_size / 2 - 0.5) / resolution) for i in range(INITIAL_RESOLUTION) for j in range(INITIAL_RESOLUTION)]
         
-        predicted_labels, predicted_confidence, predicted_spaceNd = self._predict2dspace_(space2d)
-        predicted_spaceNd = predicted_spaceNd.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION, -1))
+        predicted_labels, predicted_confidence = self._predict2dspace_(space2d)
+        #shape = (INITIAL_RESOLUTION, INITIAL_RESOLUTION, ) + predicted_spaceNd.shape[1:]        
+        #spaceNd = predicted_spaceNd.reshape(shape)
+        
+        predictions = predicted_labels.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION))
+        confidences = predicted_confidence.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION))        
+        
         # initialize the nD space
         
         computational_budget -= INITIAL_RESOLUTION * INITIAL_RESOLUTION
         
-        predictions = predicted_labels.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION))
-        confidences = predicted_confidence.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION))
-        spaceNd = predicted_spaceNd.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION, -1))
         
-        img_space_Nd = np.zeros((resolution, resolution, spaceNd.shape[2]))
-        
+        #shape = (resolution, resolution, ) + spaceNd.shape[2:]
+        #img_space_Nd = np.zeros(shape, dtype=np.float32)
+                
         # fill the initial points in the 2D image
         for i in range(INITIAL_RESOLUTION):
             for j in range(INITIAL_RESOLUTION):
                 x0, x1, y0, y1 = i * window_size, (i+1) * window_size, j * window_size, (j+1) * window_size
-                img[x0:x1+ 1, y0:y1 + 1] = predictions[i,j]
-                img_space_Nd[x0:x1+ 1, y0:y1 + 1] = spaceNd[i,j]
+                img[x0:x1, y0:y1] = predictions[i,j]
+                #img_space_Nd[x0:x1, y0:y1] = spaceNd[i,j]
         # -------------------------------------
         
         # collecting the indexes of the actual computed pixels in the 2D image and the confidence of each pixel
@@ -259,7 +318,7 @@ class DBMInterface:
                             [(resolution - 1, i * window_size + window_size / 2 - 0.5) for i in range(-1, INITIAL_RESOLUTION + 1)]
             
             space2d_border = [(i / resolution, j / resolution) for (i,j) in border_indices]
-            _, confidences_border, _ = self._predict2dspace_(space2d_border)
+            _, confidences_border = self._predict2dspace_(space2d_border)
             computational_budget -= len(space2d_border)
             confidence_map = [(i, j, conf) for (i,j),conf in zip(border_indices, confidences_border)]
                     
@@ -274,6 +333,7 @@ class DBMInterface:
 
         # -------------------------------------
         # start the iterative process of filling the image
+        self.console.log(f"Starting the iterative process of refining windows...")
         while computational_budget > 0 and not priority_queue.empty():    
             # take the highest priority task
             priority, item = priority_queue.get()
@@ -320,24 +380,23 @@ class DBMInterface:
             computational_budget -= len(space)
             
             # decode the space
-            predicted_labels, predicted_confidence, predicted_spaceNd = self._predict2dspace_(space)
-            predicted_spaceNd = predicted_spaceNd.reshape((len(space), -1))
+            predicted_labels, predicted_confidence = self._predict2dspace_(space)
             # copy the image to a new one, the new image will be updated with the new labels, the old one will be used to calculate the priorities
             new_img = np.copy(img)            
             
             # fill the new image with the single points
             single_points_labels = predicted_labels[len(space2d):]
             single_points_confidences  = predicted_confidence[len(space2d):]
-            single_points_spaceNd = predicted_spaceNd[len(space2d):]
+            #single_points_spaceNd = predicted_spaceNd[len(space2d):]
             
             for i in range(len(single_points_indices)):
                 new_img[single_points_indices[i]] = single_points_labels[i]
-                img_space_Nd[single_points_indices[i]] = single_points_spaceNd[i]
+                #img_space_Nd[single_points_indices[i]] = single_points_spaceNd[i]
                 confidence_map.append((single_points_indices[i][0], single_points_indices[i][1], single_points_confidences[i]))                
                            
             predicted_labels = predicted_labels[:len(space2d)]
             predicted_confidence = predicted_confidence[:len(space2d)]
-            predicted_spaceNd = predicted_spaceNd[:len(space2d)] 
+            #predicted_spaceNd = predicted_spaceNd[:len(space2d)] 
             
             # fill the new image with the new labels and update the priority queue
             for index in range(len(valid_items)):
@@ -345,11 +404,11 @@ class DBMInterface:
                 neighbors = indices[index*NEIGHBORS_NUMBER:(index+1)*NEIGHBORS_NUMBER]
                 neighbors_labels = predicted_labels[index*NEIGHBORS_NUMBER:(index+1)*NEIGHBORS_NUMBER]
                 confidences = predicted_confidence[index*NEIGHBORS_NUMBER:(index+1)*NEIGHBORS_NUMBER]
-                spaceNd = predicted_spaceNd[index*NEIGHBORS_NUMBER:(index+1)*NEIGHBORS_NUMBER]
+                #spaceNd = predicted_spaceNd[index*NEIGHBORS_NUMBER:(index+1)*NEIGHBORS_NUMBER]
                 
                 new_window_size = window_size / NEIGHBORS_NUMBER
                 
-                for (x, y), label, conf, pointNd in zip(neighbors, neighbors_labels, confidences, spaceNd):
+                for (x, y), label, conf in zip(neighbors, neighbors_labels, confidences):
                     # all the pixels in the window are set to the same label
                     # starting from the top left corner of the window
                     # ending at the bottom right corner of the window
@@ -357,11 +416,11 @@ class DBMInterface:
                     confidence_map.append((x, y, conf))
                     if new_window_size >= 1:
                         x0, x1, y0, y1 = ceil(x-new_window_size), floor(x + new_window_size), ceil(y - new_window_size), floor(y + new_window_size)
-                        new_img[x0:x1 + 1, y0:y1 + 1] = label
-                        img_space_Nd[x0:x1 + 1, y0:y1 + 1] = pointNd
+                        new_img[x0:x1 + 1, y0:y1 + 1] = label                    
+                        #img_space_Nd[x0:x1 + 1, y0:y1 + 1] = pointNd
                     else:
                         new_img[int(x), int(y)] = label
-                        img_space_Nd[int(x), int(y)] = pointNd
+                        #img_space_Nd[int(x), int(y)] = pointNd
                 
                 # update the priority queue after the window has been filled
                 for (x, y), label in zip(neighbors, neighbors_labels):
@@ -372,23 +431,28 @@ class DBMInterface:
             # update the image        
             img = new_img
         
+        # summary
+        self.console.log(f"Finished decoding the image, initial computational budget: {INITIAL_COMPUTATIONAL_BUDGET} computational budget left: {computational_budget}")
+        self.console.log(f"Items left in the priority queue: {priority_queue.qsize()}")
+        
         # generating the confidence image using interpolation based on the confidence map
         img_confidence = self._generate_interpolated_image_(sparse_map=confidence_map,
                                                             resolution=resolution,
                                                             method=interpolation_method).T
         
-        return img, img_confidence, img_space_Nd
 
-    def _generate_interpolated_image_(self, sparse_map, resolution, method='cubic'):
+        return img, img_confidence
+
+    def _generate_interpolated_image_(self, sparse_map, resolution, method='linear'):
         """A private method that uses interpolation to generate the values for the 2D space image
            The sparse map is a list of tuples (x, y, data)
            The sparse map represents a structured but non uniform grid of data values
            Therefore usual rectangular interpolation methods are not suitable
-           For the interpolation we use the scipy.interpolate.griddata function with the cubic method
+           For the interpolation we use the scipy.interpolate.griddata function with the linear method
         Args:
             sparse_map (list): a list of tuples (x, y, data) where x and y are the coordinates of the pixel and data is the data value
             resolution (int): the resolution of the image we want to generate (the image will be a square image)
-            method (str, optional): The method to be used for the interpolation. Defaults to 'cubic'. Available methods are: 'nearest', 'linear', 'cubic'
+            method (str, optional): The method to be used for the interpolation. Defaults to 'linear'. Available methods are: 'nearest', 'linear', 'cubic'
 
         Returns:
             np.array: an array of shape (resolution, resolution) containing the data values for the 2D space image
@@ -439,7 +503,6 @@ class DBMInterface:
     def generate_projection_errors(self, Xnd: np.ndarray = None, 
                                    X2d: np.ndarray = None, 
                                    resolution: int = None, 
-                                   spaceNd: np.ndarray = None,
                                    use_interpolation:bool=True,
                                    save_folder:str = None):
         """ Calculates the projection errors of the given data.
@@ -495,14 +558,8 @@ class DBMInterface:
         self.console.log("Calculating the projection errors of the given data, this might take a couple of minutes. Please wait...")
         if use_interpolation:
             errors = self._generate_projection_errors_using_interpolation_(Xnd, X2d, resolution)                    
-        else: 
-            if spaceNd is None:
-                if self.spaceNd is None:
-                    self.console.error("No nD space provided and no data stored in the DBM object, try to call the method 'generate_boundary_map' first.")
-                    raise ValueError("No 2D space provided and no data stored in the DBM object, try to call the method 'generate_boundary_map' first.")
-                spaceNd = self.spaceNd
-            
-            errors = self._generate_projection_errors_using_inverse_projection_(Xnd, X2d, spaceNd)
+        else:            
+            errors = self._generate_projection_errors_using_inverse_projection_(Xnd, X2d, resolution)
         
         self.console.log("Finished computing the projection errors!")
         if save_folder is not None:
@@ -549,17 +606,29 @@ class DBMInterface:
     def _generate_projection_errors_using_inverse_projection_(self, 
                                                             Xnd: np.ndarray = None, 
                                                             X2d: np.ndarray = None,                                                             
-                                                            spaceNd: np.ndarray = None):        
+                                                            resolution: int = 256):        
         
         K = 10 # Number of nearest neighbors to consider when computing the errors       
-        resolution = spaceNd.shape[0]    
         space2d = np.array([(i / resolution, j / resolution) for i in range(resolution) for j in range(resolution)]) # generate the 2D flatten space
-        n_points = resolution * resolution
-        spaceNd = spaceNd.reshape((n_points, -1)) # flatten the space   
         
-        with ProgressBar(total=n_points) as progress:
-            errors = get_projection_errors_using_inverse_projection(Xnd=Xnd, X2d=X2d, spaceNd=spaceNd, space2d=space2d, k=K, progress=progress)
+        errors = np.array([])
+        # split space2d into chunks
+        chunks_number = resolution * resolution // 10000 + 1 # split the space into chunks of 10000 points max
+        self.console.log(f"Splitting the 2D space into {chunks_number} chunks")
+        space2d_chunks = np.array_split(space2d, chunks_number)
         
+        chunk_index = 0
+        for space2d_chunk in space2d_chunks:
+            chunk_index += 1
+            self.console.log(f"Computing the projection errors for chunk ({chunk_index}/{chunks_number}) of size: {(len(space2d_chunk))}")
+            spaceNd_chunk = self.neural_network.decode(space2d_chunk) # decode the 2D space to nD space        
+            spaceNd_chunk = spaceNd_chunk.reshape((spaceNd_chunk.shape[0], -1)) # flatten the space   
+                    
+            with ProgressBar(total=len(space2d_chunk)) as progress:
+                errors_chunk = get_projection_errors_using_inverse_projection(Xnd=Xnd, X2d=X2d, spaceNd=spaceNd_chunk, space2d=space2d_chunk, k=K, progress=progress)
+        
+            errors = np.concatenate((errors, errors_chunk))
+            
         # resize the errors in range [0,1]
         errors = (errors - errors.min()) / (errors.max() - errors.min())        
         errors = errors.reshape((resolution, resolution))        

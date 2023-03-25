@@ -28,10 +28,12 @@
 
 import json
 from math import sqrt
+from datetime import datetime
 from matplotlib.patches import Patch, Circle
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
 import matplotlib.figure as figure
+import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
 import PySimpleGUI as sg
@@ -83,8 +85,10 @@ BUTTON_PRIMARY_COLOR = "#007acc"
 WHITE_COLOR = "#ffffff"
 RIGHTS_MESSAGE_1 = "© 2023 Cristian Grosu. All rights reserved."
 RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"
-INFORMATION_CONTROLS_MESSAGE = "To change the position of a data point click on the data point, then use the arrow keys to move it. \nPress 'Enter' to confirm the new position. Press 'Esc' to cancel the movement.\nTo remove a change just click on the data point.\nAfter the changes are done press 'Apply Changes' to update the model. \nAfter the changes are applied the window will close.\nTo see the changes just reopen this window from the previous window."
+INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point click on the data point, or select the data point by including them into a circle.\nPress any digit key to indicate the new label.\nPress 'Enter' to confirm the new label. Press 'Esc' to cancel the action.\nTo remove a change just click on the data point.\nAfter the changes are done press 'Apply Changes' to update the model. \nAfter the changes are applied the window will update."
 DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon.png")
+CLASSIFIER_PERFORMANCE_HISTORY_FILE = "classifier_performance.log"
+LABELS_CHANGES_FILE = "label_changes.json"
 
 class DBMPlotterGUI:
     def __init__ (self, 
@@ -92,13 +96,31 @@ class DBMPlotterGUI:
                   img, img_confidence,
                   X_train, Y_train, 
                   X_test, Y_test,
-                  encoded_train, encoded_test, spaceNd,                   
+                  encoded_train, encoded_test,                                    
                   save_folder,
                   projection_technique=None,
                   logger=None,
                   main_gui=None,
                   ):        
-        
+        """[summary] DBMPlotterGUI is a GUI that allows the user to visualize the decision boundary map and the errors of the DBM model.
+        It also allows the user to change the labels of the data points and see the impact of the changes on the model.
+
+        Args:
+            dbm_model (DBM or SDBM): The DBM model that will be used to generate the decision boundary map.
+            img (np.ndarray): The decision boundary map image.
+            img_confidence (np.ndarray): The decision boundary map confidence image.
+            X_train (np.ndarray): The training data.
+            Y_train (np.ndarray): The training labels.
+            X_test (np.ndarray): The test data.
+            Y_test (np.ndarray): The test labels.
+            encoded_train (np.ndarray): Positions of the training data points in the 2D embedding space.
+            encoded_test (np.ndarray): Positions of the test data points in the 2D embedding space.
+            spaceNd (np.ndarray): This is a list of lists of size resolution*resolution. Each point in this list is an nd data point which can be a vector, a matrix or a multidimensional matrix.
+            save_folder (string): The folder where all the DBM model related files will be saved.
+            projection_technique (string, optional): The projection technique the user wants to use if DBM is used as dbm_model. Defaults to None.
+            logger (Logger, optional): The logger which is meant for logging the info messages. Defaults to None.
+            main_gui (GUI, optional): The GUI that started the DBMPlotterGUI if any. Defaults to None.
+        """
         if logger is None:
             self.console = Logger(name="DBMPlotterGUI")
         else:
@@ -106,12 +128,16 @@ class DBMPlotterGUI:
         
         self.main_gui = main_gui # reference to main window  
         
+        self.positions_of_labels_changes = ([], [], [])
+        self.inverse_projection_errors = None
+        self.projection_errors = None     
+        
         self.initialize(dbm_model, 
                         img, 
                         img_confidence, 
                         X_train, Y_train, 
                         X_test, Y_test, 
-                        encoded_train, encoded_test, spaceNd, 
+                        encoded_train, encoded_test, 
                         save_folder, 
                         projection_technique)
     
@@ -120,7 +146,7 @@ class DBMPlotterGUI:
                    img, img_confidence,
                    X_train, Y_train, 
                    X_test, Y_test,
-                   encoded_train, encoded_test, spaceNd,                   
+                   encoded_train, encoded_test,                   
                    save_folder,
                    projection_technique=None,                   
                    ):
@@ -134,11 +160,9 @@ class DBMPlotterGUI:
         self.encoded_train = encoded_train
         self.encoded_test = encoded_test  
         self.save_folder = save_folder # folder where to save the changes made to the data by the user    
-        self.projection_technique = projection_technique # projection technique used to generate the DBM                            
-        self.spaceNd = spaceNd.reshape(spaceNd.shape[0], spaceNd.shape[1], X_train.shape[1], X_train.shape[2])
+        self.projection_technique = projection_technique # projection technique used to generate the DBM                                    
         self.color_img, self.legend = self._build_2D_image_(img)
         self.train_mapper, self.test_mapper = self._generate_encoded_mapping_()
-        self.inverse_projection_errors = self.dbm_model.generate_inverse_projection_errors()
         
         # --------------------- Plotter related ---------------------                
         self.fig, self.ax = self._build_plot_()        
@@ -147,8 +171,7 @@ class DBMPlotterGUI:
         self.fig.legend(handles=self.legend, borderaxespad=0. )
         # --------------------- Plotter related ---------------------
         
-        # --------------------- Others ------------------------------
-        self.projection_errors = None        
+        # --------------------- Others ------------------------------           
         self.motion_event_cid = None
         self.click_event_cid = None
         self.key_event_cid = None
@@ -165,36 +188,59 @@ class DBMPlotterGUI:
         self.window = self._build_GUI_()
         self.canvas, self.fig_agg, self.canvas_controls = self._build_canvas_(self.fig, key = "-DBM CANVAS-", controls_key="-CONTROLS CANVAS-")
         
-        self.draw_dbm_img()    
+        # --------------------- Classifier related ---------------------
+        self.compute_classifier_metrics()
+        
+        self.draw_dbm_img()            
         # --------------------- GUI related ---------------------        
         self.updates_logger = LoggerGUI(name = "Updates logger", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
         self.dbm_model.console = self.updates_logger
    
     def _get_GUI_layout_(self):   
-        buttons = []
+        buttons_proj_errs = []
+        buttons_inv_proj_errs = []        
         computed_projection_errors = self.projection_errors is not None
+        computed_inverse_projection_errors = self.inverse_projection_errors is not None
         if not computed_projection_errors: 
-            buttons = [
+            buttons_proj_errs = [
                 sg.Button('Compute Projection Errors (interpolation)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INTERPOLATION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
                 sg.Button('Compute Projection Errors (inverse projection)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))             
             ]
-            
+        if not computed_inverse_projection_errors:
+            buttons_inv_proj_errs = [
+                sg.Button('Compute Inverse Projection Errors', font=APP_FONT, expand_x=True, key="-COMPUTE INVERSE PROJECTION ERRORS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)) 
+            ]        
+         
         layout = [                                  
                     [sg.Canvas(key='-DBM CANVAS-', expand_x=True, expand_y=True, pad=(0,0))],     
                     [sg.Canvas(key='-CONTROLS CANVAS-', expand_x=True, pad=(0,0))],
                     [
                         sg.Column([
+                            [
+                                sg.Button("Show classifier performance history", font=APP_FONT, expand_x=True, key="-SHOW CLASSIFIER PERFORMANCE HISTORY-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                                sg.Text("Classifier accuracy: ", font=APP_FONT, expand_x=True, key="-CLASSIFIER ACCURACY-"),  
+                            ],
                             [  
                                 sg.Checkbox("Change labels by selecting with circle", default=True, key="-CIRCLE SELECTING LABELS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
+                                sg.Checkbox("Show labels changes", default=False, key="-SHOW LABELS CHANGES-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
                             ],
                             [
                                 sg.Checkbox("Show dbm color map", default=True, key="-SHOW DBM COLOR MAP-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
                                 sg.Checkbox("Show dbm confidence", default=True, key="-SHOW DBM CONFIDENCE-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),                                
-                                sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
+                            ],
+                            [
+                                sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_inverse_projection_errors),
                                 sg.Checkbox("Show projection errors", default=False, key="-SHOW PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_projection_errors),
                             ],
-                            [sg.Button('Apply Updates', font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))],
-                            buttons,
+                            #[
+                            #    sg.Text("Epochs to train: ", font=APP_FONT, expand_x=True, pad=(0,0), key="-EPOCHS LABEL-"),
+                            #    sg.Input("2", font=APP_FONT, key="-EPOCHS-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True, justification="center"),                            
+                            #],
+                            [
+                                sg.Button('Apply Updates', font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                            ],
+                            buttons_proj_errs,
+                            buttons_inv_proj_errs,
                             [sg.Text(INFORMATION_CONTROLS_MESSAGE, expand_x=True)],
                             [sg.Text(RIGHTS_MESSAGE_1, expand_x=True)],
                             [sg.Text(RIGHTS_MESSAGE_2, expand_x=True)],           
@@ -204,6 +250,7 @@ class DBMPlotterGUI:
                         ], expand_x=True),
                     ]                                                      
                 ]
+        
         return layout
         
     def _build_GUI_(self):        
@@ -234,18 +281,31 @@ class DBMPlotterGUI:
         if self.main_gui is not None and hasattr(self.main_gui, "handle_changes_in_dbm_plotter"):
             self.main_gui.handle_changes_in_dbm_plotter()
         self.console.log("Closing the application...")
+        
+        classifier_performance_path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
+        labels_changes_path = os.path.join(self.save_folder, LABELS_CHANGES_FILE)
+        
+        if os.path.exists(classifier_performance_path):
+            os.remove(classifier_performance_path)
+        
+        if os.path.exists(labels_changes_path):
+            os.remove(labels_changes_path)
+                    
         self.window.close()
     
     def handle_event(self, event, values):
         EVENTS = {
             "-COMPUTE PROJECTION ERRORS INTERPOLATION-": self.handle_compute_projection_errors_event,
             "-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-": self.handle_compute_projection_errors_event,
+            "-COMPUTE INVERSE PROJECTION ERRORS-": self.handle_compute_inverse_projection_errors_event,
             "-APPLY CHANGES-": self.handle_apply_changes_event,
             "-SHOW DBM COLOR MAP-": self.handle_checkbox_change_event,
             "-SHOW DBM CONFIDENCE-": self.handle_checkbox_change_event,
             "-SHOW INVERSE PROJECTION ERRORS-": self.handle_checkbox_change_event,
             "-SHOW PROJECTION ERRORS-": self.handle_checkbox_change_event,
-            "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,
+            "-SHOW LABELS CHANGES-": self.handle_checkbox_change_event,
+            "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,            
+            "-SHOW CLASSIFIER PERFORMANCE HISTORY-": self.handle_show_classifier_performance_history_event,
         }
         
         EVENTS[event](event, values)    
@@ -266,7 +326,7 @@ class DBMPlotterGUI:
         color_img = np.zeros((img.shape[0], img.shape[1], 3))
                 
         for i, j in np.ndindex(img.shape):
-            color_img[i,j] = colors_mapper[img[i,j]]
+            color_img[i][j] = colors_mapper[img[i][j]]
         values = np.unique(img)
         
         patches = []
@@ -349,7 +409,11 @@ class DBMPlotterGUI:
             annImage.xy = (j, i)
             
             x_data, y_data = find_data_point(i,j)                            
-            image.set_data(x_data)
+            if x_data is not None:
+                annImage.set_visible(True)
+                image.set_data(x_data)
+            else:
+                annImage.set_visible(False)
             
             if y_data is not None:    
                 annLabels.set_visible(True)
@@ -362,7 +426,7 @@ class DBMPlotterGUI:
             
         def find_data_point(i, j):
             # search for the data point in the encoded train data
-            if self.img[i,j] == -1:
+            if self.img[i][j] == -1:
                 k = self.train_mapper[f"{i} {j}"]
                 if f"{i} {j}" in self.expert_updates_labels_mapper:
                     l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
@@ -370,18 +434,12 @@ class DBMPlotterGUI:
                 return self.X_train[k], f"Label: {self.Y_train[k]}"
             
             # search for the data point in the encoded test data
-            if self.img[i,j] == -2:
+            if self.img[i][j] == -2:
                 k = self.test_mapper[f"{i} {j}"]
-                if f"{i} {j}" in self.expert_updates_labels_mapper:
-                    l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
-                    return self.X_test[k], f"Label {self.Y_test[k]} \nExpert label: {l}"  
-                return self.X_test[k], f"Label: {self.Y_test[k]}"       
+                return self.X_test[k], None      
             
             # search for the data point in the 
-            point = self.spaceNd[i,j]
-            if f"{i} {j}" in self.expert_updates_labels_mapper:
-                l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
-                return point, f"Expert label {l}"            
+            point = None #self.spaceNd[i][j]
             return point, None
                     
         def onclick(event):
@@ -396,8 +454,8 @@ class DBMPlotterGUI:
             self.console.log("Clicked on: " + str(event.xdata) + ", " + str(event.ydata))
             j, i = int(event.xdata), int(event.ydata)
 
-            if self.img[i,j] >= 0 or self.img[i,j] < -2:
-                self.console.log("Data point not in training or testing set")
+            if self.img[i][j] != -1:
+                self.console.log("Data point not in training set")
                 return
                     
             # check if clicked on a data point that already was updated, then remove the update
@@ -520,7 +578,7 @@ class DBMPlotterGUI:
             positions = []
             for x in range(initial_x, final_x):
                 for y in range(initial_y, final_y):
-                    if (self.img[y, x] == -1 or self.img[y, x] == -2) and ((x - cx)**2 + (y - cy)**2 <= circle_radius**2):
+                    if (self.img[y, x] == -1) and ((x - cx)**2 + (y - cy)**2 <= circle_radius**2):
                         positions.append((x,y))
             return positions
             
@@ -545,11 +603,39 @@ class DBMPlotterGUI:
         img = np.zeros((self.img.shape[0], self.img.shape[1], 4))
         img[:,:,:3] = self.color_img
         img[:,:,3] = self.img_confidence    
-        self.axes_image = self.ax.imshow(img)       
+        self.axes_image = self.ax.imshow(img)                                    
+                    
         # draw the figure to the canvas
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)    
         self.window.refresh()
+        
+    def compute_classifier_metrics(self):
+        self.console.log("Evaluating classifier...")
+        loss, accuracy = self.dbm_model.classifier.evaluate(self.X_test, self.Y_test, verbose=0)        
+        self.console.log(f"Classifier Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.2f}")
+        
+        path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
+        
+        with open(path, "a") as f:
+            time = datetime.now().strftime("%D %H:%M:%S")
+            message = f"Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.2f}"
+            f.write(f"{time} {message}\n")
+            
+        self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(100 * accuracy):.2f} %  Loss: {loss:.2f}")
     
+    def handle_compute_inverse_projection_errors_event(self, event, values):
+        self.window['-COMPUTE INVERSE PROJECTION ERRORS-'].update(visible=False, disabled=True)        
+        self.updates_logger.log("Computing inverse projection errors, please wait...")
+        possible_path = os.path.join(self.save_folder, "inverse_projection_errors.npy")
+        # try to get projection errors from cache first
+        if os.path.exists(possible_path):
+            self.inverse_projection_errors = np.load(possible_path)
+        else:
+            self.inverse_projection_errors = self.dbm_model.generate_inverse_projection_errors(save_folder=self.save_folder, resolution = len(self.img))
+
+        self.updates_logger.log("Inverse projection errors computed!")
+        self.window['-SHOW INVERSE PROJECTION ERRORS-'].update(visible=True)
+            
     def _set_loading_proj_errs_state_(self):
         self.window['-COMPUTE PROJECTION ERRORS INTERPOLATION-'].update(visible=False, disabled=True)        
         self.window['-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-'].update(visible=False, disabled=True)        
@@ -580,6 +666,7 @@ class DBMPlotterGUI:
         show_confidence = values["-SHOW DBM CONFIDENCE-"]
         show_inverse_projection_errors = values["-SHOW INVERSE PROJECTION ERRORS-"]
         show_projection_errors = values["-SHOW PROJECTION ERRORS-"]
+        show_labels_changes = values["-SHOW LABELS CHANGES-"]
         
         color_img = np.zeros((self.img.shape[0], self.img.shape[1], 3))
         alphas = 1 + np.zeros((self.img.shape[0], self.img.shape[1]))
@@ -602,71 +689,89 @@ class DBMPlotterGUI:
         if hasattr(self, "axes_image"):
             self.axes_image.remove()
         self.axes_image = self.ax.imshow(img) 
+        
+        if hasattr(self, "ax_labels_changes") and self.ax_labels_changes is not None:            
+            self.ax_labels_changes.set_visible(False)
+            #for point in self.ax_labels_changes:                
+            #    point.remove()
+            self.ax_labels_changes = None
+        
+        positions_x, positions_y, alphas = self.positions_of_labels_changes   
+        if show_labels_changes and len(positions_x) > 0 and len(positions_y) > 0  and len(alphas) > 0:                             
+            self.ax_labels_changes = self.ax.scatter(positions_x, positions_y, c='green', marker='^', alpha=alphas)   
+        
         self.fig.canvas.draw_idle()
     
     def handle_circle_selecting_labels_change_event(self, event, values):
         self.update_labels_by_circle_select = values["-CIRCLE SELECTING LABELS-"]
-    
-    #TODO: change these function according to todos
+        
     def handle_apply_changes_event(self, event, values):
         num_changes = len(self.expert_updates_labels_mapper)
         if num_changes == 0:
             self.updates_logger.log("No changes to apply")
             return
-        # TODO: uncomment this
-        #if num_changes < 10:
-        #    self.updates_logger.log("Less than 10 changes to apply, please apply more changes")
-        #    return
+        
+        if num_changes < 10:
+            self.updates_logger.log("Less than 10 changes to apply, please apply more changes")
+            return
+        
+        """
+        if values["-EPOCHS-"].isdigit():
+            epochs = int(values["-EPOCHS-"])
+        else:
+            epochs = 2
+            self.window["-EPOCHS-"].update(epochs)
+        """
+        epochs = 2
         
         self.console.log("Transforming changes...")
-        Xnd, Y, label_changes = self.transform_changes()
+        Y, label_changes = self.transform_changes()
         
         self.console.log("Saving changes to a local folder...")
         self.save_changes(self.save_folder, label_changes=label_changes)
         
         self.updates_logger.log("Applying changes... This might take a couple of seconds, after this the window will be closed")
-        self.updates_logger.log("You can reopen the window from the main GUI (previous window)")
-        
-        # For the start lets do just the position changes (not the labels change)
-        self.dbm_model.refit_classifier(Xnd, Y, save_folder=os.path.join(self.save_folder, "refit_classifier"))
-        
-        # TODO: update self.X_train, self.Y_train, self.X_test, self.Y_test with the new labels from Y
+                
+        self.dbm_model.refit_classifier(self.X_train, Y, save_folder=os.path.join(self.save_folder, "refit_classifier"), epochs = epochs)
         
         # Updating the main GUI with the new model                
         dbm_info = self.dbm_model.generate_boundary_map(
             self.X_train, 
-            self.Y_train, 
+            Y, 
             self.X_test, 
             self.Y_test, 
             resolution=len(self.img),
-            use_fast_decoding=False,
+            use_fast_decoding=True,
             load_folder=self.save_folder,
             projection=self.projection_technique                                        
         )        
             
-        img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history = dbm_info
+        img, img_confidence, encoded_training_data, encoded_testing_data, training_history = dbm_info
         self.initialize(dbm_model = self.dbm_model,
                             img = img,
                             img_confidence = img_confidence,
                             encoded_train = encoded_training_data, 
                             encoded_test = encoded_testing_data,
                             X_train = self.X_train, 
-                            Y_train = self.Y_train,
+                            Y_train = Y,
                             X_test = self.X_test,
-                            Y_test = self.Y_test,
-                            spaceNd=spaceNd,
+                            Y_test = self.Y_test,                            
                             save_folder=self.save_folder,
                             projection_technique=self.projection_technique,
                         )
-            
-        self.draw_dbm_img()
+        
+        self.draw_dbm_img()   
+        self.handle_checkbox_change_event(event, values)      
+        self.compute_classifier_metrics()
+        
         self.updates_logger.log("Changes applied successfully!")     
             
     def save_changes(self, folder:str="tmp", label_changes={}):
         if not os.path.exists(folder):
             os.path.makedirs(folder)                        
         
-        with open(os.path.join(folder, "label_changes.json"), "w") as f:
+        with open(os.path.join(folder, LABELS_CHANGES_FILE), "a") as f:
+            f.write("\n" + "-" * 50 + "\n")
             json.dump(label_changes, f, indent=2)
     
     def transform_changes(self):
@@ -675,21 +780,58 @@ class DBMPlotterGUI:
             position_changes (dict): a dictionary with old position as key and the new position as value
             label_changes (dict): a dictionary with old and new positions as key and the new label as value
         """     
-        Xnd = []
-        Y = [] 
+        Y = np.copy(self.Y_train) 
         labels_changes = {}
         
+        pos_x, pos_y, alphas = self.positions_of_labels_changes
+        
+        ALPHA_DECAY_ON_UPDATE = 0.05        
+        alphas = [alpha - ALPHA_DECAY_ON_UPDATE if alpha > ALPHA_DECAY_ON_UPDATE else ALPHA_DECAY_ON_UPDATE for alpha in alphas]
+        
         for pos in self.expert_updates_labels_mapper:
-            if pos in self.train_mapper:
-                k = self.train_mapper[pos]
-                xnd = self.X_train[k]
-            else:
-                k = self.test_mapper[pos]
-                xnd = self.X_test[k]
-            
-            Xnd.append(xnd)
-            Y.append(self.expert_updates_labels_mapper[pos][0])
+            k = self.train_mapper[pos]
+            pos_x.append(int(pos.split(" ")[1]))
+            pos_y.append(int(pos.split(" ")[0]))
+            alphas.append(1)
+            y = self.expert_updates_labels_mapper[pos][0]
+            Y[k] = y
             labels_changes[pos] = self.expert_updates_labels_mapper[pos][0]
+        
+        self.positions_of_labels_changes = (pos_x, pos_y, alphas)
             
-        Xnd, Y = np.array(Xnd), np.array(Y)
-        return Xnd, Y, labels_changes
+        return Y, labels_changes
+    
+    def handle_show_classifier_performance_history_event(self, event, values):
+        path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
+        if not os.path.isfile(path):
+            return
+        
+        times, accuracies, losses = [], [], []
+        with open(path, "r") as f:
+            for line in f.readlines():                
+                line = line.strip()
+                if len(line) == 0:
+                    continue
+                _, time, _, acc, _, _, loss = line.replace("\n", "").replace("%", "").split(" ")                        
+                times.append(time)
+                accuracies.append(float(acc))
+                losses.append(float(loss))
+        
+        fig, (ax1, ax2) = plt.subplots(1,2, figsize=(20,10))
+        
+        for tick in ax1.get_xticklabels():
+            tick.set_rotation(45)
+        for tick in ax2.get_xticklabels():
+            tick.set_rotation(45)
+        
+        ax1.set_title("Classifier accuracy history")
+        ax2.set_title("Classifier loss history")
+        ax1.set_xlabel("Time")
+        ax2.set_xlabel("Time")
+        ax1.set_ylabel("Accuracy (%)")
+        ax2.set_ylabel("Loss")
+        
+        ax1.plot(times, accuracies)
+        ax2.plot(times, losses)
+        plt.show()
+        

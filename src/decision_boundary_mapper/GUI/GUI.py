@@ -210,19 +210,15 @@ class GUI:
                     visible=False,
                     background_color=WHITE_COLOR, text_color=BLACK_COLOR,
                 ),
-            ],
-            [
-                sg.Text("Use the fast algorithm for generating the Decision Boundary Mapper: ", expand_x=True, key="-USE FAST DBM TEXT-", visible=True),
-                sg.Checkbox("", default=False,  key="-USE FAST DBM CHECKBOX-", visible=True),
-            ],            
+            ],           
             [
                 sg.Text("Show Decision Boundary Mapper NN history: ", expand_x=True, key="-DBM HISTORY TEXT-", visible=True),
                 sg.Checkbox("", default=False,  key="-DBM HISTORY CHECKBOX-", visible=True),
             ],
-            [
-                sg.Text("Image resolution of the Decision Boundary Mapper: ", size=(45,1), expand_x=True, key="-DBM IMAGE RESOLUTION TEXT-", visible=True),
-                sg.InputText("256", key="-DBM IMAGE RESOLUTION INPUT-", visible=True, background_color=WHITE_COLOR, text_color=BLACK_COLOR),
-            ],
+            #[
+            #    sg.Text("Image resolution of the Decision Boundary Mapper: ", size=(45,1), expand_x=True, key="-DBM IMAGE RESOLUTION TEXT-", visible=True),
+            #    sg.InputText("256", key="-DBM IMAGE RESOLUTION INPUT-", visible=True, background_color=WHITE_COLOR, text_color=BLACK_COLOR),
+            #],
             [
                 sg.Button("Show the Decision Boundary Mapping", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, visible=False, key = "-DBM BTN-"),
             ],
@@ -446,14 +442,15 @@ class GUI:
         
         dbm = DBM_TECHNIQUES[values["-DBM TECHNIQUE-"]](classifier = self.classifier, logger = self.dbm_logger)
         
-        projection_technique = values["-PROJECTION TECHNIQUE-"]
-        use_decoding_fast = values["-USE FAST DBM CHECKBOX-"]
+        projection_technique = values["-PROJECTION TECHNIQUE-"]        
         show_dbm_history = values["-DBM HISTORY CHECKBOX-"]
-        resolution = values["-DBM IMAGE RESOLUTION INPUT-"]
-        if resolution.isdigit() and int(resolution) > 50 and int(resolution) < 1000:
-            resolution = int(resolution)
-        else:
-            resolution = 256
+        resolution = 256 #values["-DBM IMAGE RESOLUTION INPUT-"]
+        
+        #if resolution.isdigit() and int(resolution) > 50 and int(resolution) < 800:
+        #    resolution = int(resolution)
+        #else:
+        #    self.dbm_logger.log("Invalid resolution, using default value 256, please enter a value between 50 and 800")
+        #    resolution = 256
         
         self.dbm_logger.log(f"DBM resolution: {resolution}")
         
@@ -481,7 +478,6 @@ class GUI:
                                         X2d_train=X_train_2d,
                                         X2d_test=X_test_2d,
                                         resolution=resolution,
-                                        use_fast_decoding=use_decoding_fast,
                                         load_folder=DEFAULT_MODEL_FOLDER,
                                         projection=projection_technique
                                         )
@@ -493,12 +489,11 @@ class GUI:
                                         self.X_test, 
                                         self.Y_test, 
                                         resolution=resolution,
-                                        use_fast_decoding=use_decoding_fast,
                                         load_folder=save_folder,
                                         projection=projection_technique
                                         )
 
-        img, img_confidence, encoded_training_data, encoded_testing_data, spaceNd, training_history = dbm_info
+        img, img_confidence, encoded_training_data, encoded_testing_data, training_history = dbm_info
         
         if show_dbm_history:
             self.show_dbm_history(training_history)
@@ -515,8 +510,7 @@ class GUI:
                                             X_train = self.X_train,
                                             Y_train = self.Y_train,
                                             X_test = self.X_test,
-                                            Y_test = self.Y_test,
-                                            spaceNd=spaceNd,
+                                            Y_test = self.Y_test,                                            
                                             main_gui=self, # reference to the main GUI
                                             save_folder=save_folder,
                                             projection_technique=projection_technique,
