@@ -143,8 +143,7 @@ class DBMPlotterGUI:
                         X_train, Y_train, 
                         X_test, Y_test, 
                         encoded_train, encoded_test, 
-                        save_folder, 
-                        projection_technique)
+                        )
     
     def initialize(self,
                    dbm_model,
@@ -443,8 +442,8 @@ class DBMPlotterGUI:
                 k = self.test_mapper[f"{i} {j}"]
                 return self.X_test[k], None      
             
-            # search for the data point in the 
-            point = None #self.spaceNd[i][j]
+            # generate the nD data point on the fly using the inverse projection
+            point = self.dbm_model.neural_network.decode([(i/self.img.shape[0], j/self.img.shape[1])])[0]            
             return point, None
                     
         def onclick(event):
