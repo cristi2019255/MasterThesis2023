@@ -85,10 +85,12 @@ BUTTON_PRIMARY_COLOR = "#007acc"
 WHITE_COLOR = "#ffffff"
 RIGHTS_MESSAGE_1 = "© 2023 Cristian Grosu. All rights reserved."
 RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"
-INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point click on the data point, or select the data point by including them into a circle.\nPress any digit key to indicate the new label.\nPress 'Enter' to confirm the new label. Press 'Esc' to cancel the action.\nTo remove a change just click on the data point.\nAfter the changes are done press 'Apply Changes' to update the model. \nAfter the changes are applied the window will update."
+INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point click on the data point,\n or select the data point by including them into a circle.\nPress any digit key to indicate the new label.\nPress 'Enter' to confirm the new label. Press 'Esc' to cancel the action.\nTo remove a change just click on the data point.\nAfter the changes are done press 'Apply Changes' to update the model. \nAfter the changes are applied the window will update."
 DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon.png")
 CLASSIFIER_PERFORMANCE_HISTORY_FILE = "classifier_performance.log"
 LABELS_CHANGES_FILE = "label_changes.json"
+TRAIN_DATA_POINT_MARKER = -1
+TEST_DATA_POINT_MARKER = -2
 
 class DBMPlotterGUI:
     def __init__ (self, 
@@ -204,8 +206,8 @@ class DBMPlotterGUI:
         computed_inverse_projection_errors = self.inverse_projection_errors is not None
         if not computed_projection_errors: 
             buttons_proj_errs = [
-                sg.Button('Compute Projection Errors (interpolation)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INTERPOLATION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
-                sg.Button('Compute Projection Errors (inverse projection)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))             
+                [sg.Button('Compute Projection Errors (interpolation)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INTERPOLATION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))],
+                [sg.Button('Compute Projection Errors (inverse projection)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))]             
             ]
         if not computed_inverse_projection_errors:
             buttons_inv_proj_errs = [
@@ -213,24 +215,35 @@ class DBMPlotterGUI:
             ]        
          
         layout = [                                  
-                    [sg.Canvas(key='-DBM CANVAS-', expand_x=True, expand_y=True, pad=(0,0))],     
-                    [sg.Canvas(key='-CONTROLS CANVAS-', expand_x=True, pad=(0,0))],
-                    [
+                    [ 
+                        sg.Column([
+                            [sg.Canvas(key='-DBM CANVAS-', expand_x=True, expand_y=True, pad=(0,0))],     
+                            [sg.Canvas(key='-CONTROLS CANVAS-', expand_x=True, pad=(0,0))],                    
+                        ], pad=(0,0), expand_x=True, expand_y=True),                         
+                        sg.VSeparator(),                
                         sg.Column([
                             [
                                 sg.Button("Show classifier performance history", font=APP_FONT, expand_x=True, key="-SHOW CLASSIFIER PERFORMANCE HISTORY-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                            ],
+                            [
                                 sg.Text("Classifier accuracy: ", font=APP_FONT, expand_x=True, key="-CLASSIFIER ACCURACY-"),  
                             ],
                             [  
                                 sg.Checkbox("Change labels by selecting with circle", default=True, key="-CIRCLE SELECTING LABELS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
+                            ],
+                            [
                                 sg.Checkbox("Show labels changes", default=False, key="-SHOW LABELS CHANGES-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
                             ],
                             [
                                 sg.Checkbox("Show dbm color map", default=True, key="-SHOW DBM COLOR MAP-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
+                            ],
+                            [
                                 sg.Checkbox("Show dbm confidence", default=True, key="-SHOW DBM CONFIDENCE-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),                                
                             ],
                             [
                                 sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_inverse_projection_errors),
+                            ],
+                            [
                                 sg.Checkbox("Show projection errors", default=False, key="-SHOW PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_projection_errors),
                             ],
                             [
@@ -243,15 +256,14 @@ class DBMPlotterGUI:
                             [
                                 sg.Button('Apply Updates', font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
                             ],
-                            buttons_proj_errs,
+                            buttons_proj_errs[0],
+                            buttons_proj_errs[1],
                             buttons_inv_proj_errs,
                             [sg.Text(INFORMATION_CONTROLS_MESSAGE, expand_x=True)],
                             [sg.Text(RIGHTS_MESSAGE_1, expand_x=True)],
-                            [sg.Text(RIGHTS_MESSAGE_2, expand_x=True)],           
-                        ], expand_x=True),
-                        sg.Column([
-                            [sg.Multiline("", key="-LOGGER-", size=(50,20), background_color=WHITE_COLOR, text_color=BLACK_COLOR, auto_size_text=True, expand_y=True, expand_x=True)],                    
-                        ], expand_x=True),
+                            [sg.Text(RIGHTS_MESSAGE_2, expand_x=True)],   
+                            [sg.Multiline("", key="-LOGGER-", size=(40,20), background_color=WHITE_COLOR, text_color=BLACK_COLOR, auto_size_text=True, expand_y=True, expand_x=True)],                                                    
+                        ]),
                     ]                                                      
                 ]
         
@@ -265,8 +277,8 @@ class DBMPlotterGUI:
                            icon=DBM_WINDOW_ICON_PATH,
                            element_justification='center',
                            )
-        window.finalize()
-        #window.maximize()
+        
+        window.finalize()        
         return window
     
     def start(self):
@@ -430,7 +442,7 @@ class DBMPlotterGUI:
             
         def find_data_point(i, j):
             # search for the data point in the encoded train data
-            if self.img[i][j] == -1:
+            if self.img[i][j] == TRAIN_DATA_POINT_MARKER:
                 k = self.train_mapper[f"{i} {j}"]
                 if f"{i} {j}" in self.expert_updates_labels_mapper:
                     l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
@@ -438,7 +450,7 @@ class DBMPlotterGUI:
                 return self.X_train[k], f"Label: {self.Y_train[k]}"
             
             # search for the data point in the encoded test data
-            if self.img[i][j] == -2:
+            if self.img[i][j] == TEST_DATA_POINT_MARKER:
                 k = self.test_mapper[f"{i} {j}"]
                 return self.X_test[k], None      
             
@@ -585,8 +597,7 @@ class DBMPlotterGUI:
                     if (self.img[y, x] == -1) and ((x - cx)**2 + (y - cy)**2 <= circle_radius**2):
                         positions.append((x,y))
             return positions
-            
-                    
+                              
         self.motion_event_cid = self.fig.canvas.mpl_connect('motion_notify_event', display_annotation)           
         self.click_event_cid = self.fig.canvas.mpl_connect('button_press_event', onclick)
        
@@ -774,9 +785,7 @@ class DBMPlotterGUI:
                             X_train = self.X_train, 
                             Y_train = Y,
                             X_test = self.X_test,
-                            Y_test = self.Y_test,                            
-                            save_folder=self.save_folder,
-                            projection_technique=self.projection_technique,
+                            Y_test = self.Y_test,                          
                         )
         
         self.draw_dbm_img()   
@@ -860,3 +869,4 @@ class DBMPlotterGUI:
             X2d_test = np.load(os.path.join(self.save_folder, "test_2d.npy"))
             return X2d_train, X2d_test        
         return None, None
+    
