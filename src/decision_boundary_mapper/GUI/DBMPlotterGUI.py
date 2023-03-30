@@ -42,17 +42,18 @@ import os
 
 from .. import Logger, LoggerGUI
 
-def draw_figure_to_canvas(canvas, figure, canvas_toolbar):
+def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
     if canvas.children:
         for child in canvas.winfo_children():
             child.destroy()
-    if canvas_toolbar.children:
+    if canvas_toolbar is not None and canvas_toolbar.children:
         for child in canvas_toolbar.winfo_children():
             child.destroy()
     figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
     figure_canvas_agg.draw()
-    toolbar = NavigationToolbar2Tk(figure_canvas_agg, canvas_toolbar)        
-    toolbar.update()  
+    if canvas_toolbar is not None:
+        toolbar = NavigationToolbar2Tk(figure_canvas_agg, canvas_toolbar)        
+        toolbar.update()  
     figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
     return figure_canvas_agg
 
@@ -80,13 +81,13 @@ def generate_color_mapper():
 COLORS_MAPPER = generate_color_mapper()
 APP_FONT = 'Helvetica 12'
 TITLE = "Decision Boundary Map & Errors"
-WINDOW_SIZE = (1550, 950)
+WINDOW_SIZE = (1650, 1000)
 BLACK_COLOR = "#252526"
 BUTTON_PRIMARY_COLOR = "#007acc"
 WHITE_COLOR = "#ffffff"
 RIGHTS_MESSAGE_1 = "© 2023 Cristian Grosu. All rights reserved."
 RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"
-INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point click on the data point,\n or select the data point by including them into a circle.\nPress any digit key to indicate the new label.\nPress 'Enter' to confirm the new label. Press 'Esc' to cancel the action.\nTo remove a change just click on the data point.\nAfter the changes are done press 'Apply Changes' to update the model. \nAfter the changes are applied the window will update."
+INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point click on the data point,\n or select the data point by including them into a circle.\nPress any digit key to indicate the new label.\nPress 'Enter' to confirm the new label. Press 'Esc' to cancel the action.\nTo remove a change just click on the data point.\nPress 'Apply Changes' to update the model."
 DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon.png")
 CLASSIFIER_PERFORMANCE_HISTORY_FILE = "classifier_performance.log"
 CLASSIFIER_REFIT_FOLDER = "refit_classifier"
@@ -182,6 +183,10 @@ class DBMPlotterGUI:
         self.fig.legend(handles=self.legend, borderaxespad=0. )
         # --------------------- Plotter related ---------------------
         
+        # --------------------- Classifier related ---------------------
+        self.classifier_performance_fig, self.classifier_performance_ax = self._build_plot_()        
+        
+        
         # --------------------- Others ------------------------------           
         self.motion_event_cid = None
         self.click_event_cid = None
@@ -197,6 +202,8 @@ class DBMPlotterGUI:
         # --------------------- GUI related ---------------------
         self.window = self._build_GUI_()
         self.canvas, self.fig_agg, self.canvas_controls = self._build_canvas_(self.fig, key = "-DBM CANVAS-", controls_key="-CONTROLS CANVAS-")
+        
+        self.classifier_performance_canvas, self.classifier_performance_fig_agg = self._build_canvas_(self.classifier_performance_fig, key = "-CLASSIFIER PERFORMANCE CANVAS-")        
         
         # --------------------- Classifier related ---------------------
         self.compute_classifier_metrics()
@@ -229,9 +236,7 @@ class DBMPlotterGUI:
                         ], pad=(0,0), expand_x=True, expand_y=True),                         
                         sg.VSeparator(),                
                         sg.Column([
-                            [
-                                sg.Button("Show classifier performance history", font=APP_FONT, expand_x=True, key="-SHOW CLASSIFIER PERFORMANCE HISTORY-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
-                            ],
+                            [sg.Canvas(key="-CLASSIFIER PERFORMANCE CANVAS-", size=(100,100), expand_y=True)],                                                         
                             [
                                 sg.Text("Classifier accuracy: ", font=APP_FONT, expand_x=True, key="-CLASSIFIER ACCURACY-"),  
                             ],
@@ -256,12 +261,8 @@ class DBMPlotterGUI:
                             [
                                 sg.Checkbox("Use the fast DBM algorithm", default=True, key="-USE FAST DBM-", font=APP_FONT, expand_x=True, pad=(0,0)),  
                             ],
-                            #[
-                            #    sg.Text("Epochs to train: ", font=APP_FONT, expand_x=True, pad=(0,0), key="-EPOCHS LABEL-"),
-                            #    sg.Input("2", font=APP_FONT, key="-EPOCHS-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True, justification="center"),                            
-                            #],
                             [
-                                sg.Button("Apply Updates", font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                                sg.Button("Apply Changes", font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
                             ],
                             [
                                 sg.Button("Undo Changes", font=APP_FONT, expand_x=True, key="-UNDO CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
@@ -348,7 +349,6 @@ class DBMPlotterGUI:
             "-SHOW PROJECTION ERRORS-": self.handle_checkbox_change_event,
             "-SHOW LABELS CHANGES-": self.handle_checkbox_change_event,
             "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,            
-            "-SHOW CLASSIFIER PERFORMANCE HISTORY-": self.handle_show_classifier_performance_history_event,
             "-UNDO CHANGES-": self.handle_undo_changes_event,
         }
         
@@ -412,8 +412,11 @@ class DBMPlotterGUI:
         ax.set_axis_off()
         return fig, ax
     
-    def _build_canvas_(self, fig, key, controls_key):        
+    def _build_canvas_(self, fig, key, controls_key=None):        
         canvas = self.window[key].TKCanvas
+        if controls_key is None:
+            fig_agg = draw_figure_to_canvas(canvas, fig)
+            return canvas, fig_agg
         canvas_controls = self.window[controls_key].TKCanvas
         fig_agg = draw_figure_to_canvas(canvas, fig, canvas_controls)
         return canvas, fig_agg, canvas_controls
@@ -665,6 +668,7 @@ class DBMPlotterGUI:
             f.write(f"{time} {message}\n")
             
         self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(100 * accuracy):.2f} %  Loss: {loss:.2f}")
+        self.update_classifier_performance_canvas()
     
     def pop_classifier_evaluation(self):
         path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
@@ -681,8 +685,8 @@ class DBMPlotterGUI:
         last_line = lines[-1].replace("\n", "")
         accuracy, loss = float(last_line.split("Accuracy: ")[1].split("%")[0]), float(last_line.split("Loss: ")[1])        
         self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(accuracy):.2f} %  Loss: {loss:.2f}")
-    
-    
+        self.update_classifier_performance_canvas()
+      
     def handle_compute_inverse_projection_errors_event(self, event, values):
         self.window['-COMPUTE INVERSE PROJECTION ERRORS-'].update(visible=False, disabled=True)        
         self.updates_logger.log("Computing inverse projection errors, please wait...")
@@ -775,13 +779,6 @@ class DBMPlotterGUI:
             self.updates_logger.log("Less than 10 changes to apply, please apply more changes")
             return
         
-        """
-        if values["-EPOCHS-"].isdigit():
-            epochs = int(values["-EPOCHS-"])
-        else:
-            epochs = 2
-            self.window["-EPOCHS-"].update(epochs)
-        """
         epochs = 2
         
         # store the changes done so far so we can restore them when needed
@@ -813,12 +810,14 @@ class DBMPlotterGUI:
         
         self.dbm_model.refit_classifier(self.X_train, Y, save_folder=save_folder, epochs=epochs)
 
-        self.regenerate_bounary_map(event, values, Y)
+        self.regenerate_bounary_map(Y, use_fast_decoding=values["-USE FAST DBM-"])
+        self.handle_checkbox_change_event(event, values)              
+        
         self.compute_classifier_metrics()
         
         self.updates_logger.log("Changes applied successfully!")        
     
-    def regenerate_bounary_map(self, event, values, Y):
+    def regenerate_bounary_map(self, Y, use_fast_decoding):
         
         if self.projection_technique is None:           
             dbm_info = self.dbm_model.generate_boundary_map(
@@ -827,7 +826,7 @@ class DBMPlotterGUI:
                 self.X_test, 
                 self.Y_test, 
                 resolution=len(self.img),
-                use_fast_decoding=values["-USE FAST DBM-"],
+                use_fast_decoding=use_fast_decoding,
                 load_folder=self.save_folder,
                 projection=self.projection_technique                                        
             )        
@@ -841,7 +840,7 @@ class DBMPlotterGUI:
                 X2d_train = X2d_train,
                 X2d_test = X2d_test,
                 resolution=len(self.img),
-                use_fast_decoding=values["-USE FAST DBM-"],
+                use_fast_decoding=use_fast_decoding,
                 load_folder=self.save_folder,
                 projection=self.projection_technique                                        
             )
@@ -859,7 +858,6 @@ class DBMPlotterGUI:
                         )
         
         self.draw_dbm_img()   
-        self.handle_checkbox_change_event(event, values)              
         
     def handle_undo_changes_event(self, event, values):
         if not os.path.exists(os.path.join(self.save_folder, CLASSIFIER_STACKED_FOLDER)):
@@ -900,9 +898,10 @@ class DBMPlotterGUI:
         self._build_annotation_mapper_()
         
         self.fig.legend(handles=self.legend, borderaxespad=0. )
-      
+                
         self.draw_dbm_img()        
-        
+        self.handle_checkbox_change_event(event, values)              
+       
         self.updates_logger.log("Undone changes successfully")
         
     def save_labels_changes(self, folder:str="tmp", label_changes={}):
@@ -940,23 +939,9 @@ class DBMPlotterGUI:
             
         return Y, labels_changes
     
-    def handle_show_classifier_performance_history_event(self, event, values):
-        path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
-        if not os.path.isfile(path):
-            return
-        
-        times, accuracies, losses = [], [], []
-        with open(path, "r") as f:
-            for line in f.readlines():                
-                line = line.strip()
-                if len(line) == 0:
-                    continue
-                _, time, _, acc, _, _, loss = line.replace("\n", "").replace("%", "").split(" ")                        
-                times.append(time)
-                accuracies.append(float(acc))
-                losses.append(float(loss))
-        
-        fig, (ax1, ax2) = plt.subplots(1,2, figsize=(20,10))
+    def handle_show_classifier_performance_history_event(self, event = None, values = None):
+        times, accuracies, losses = self.get_classifier_performance_history()
+        _, (ax1, ax2) = plt.subplots(1,2, figsize=(20,10))
         
         for tick in ax1.get_xticklabels():
             tick.set_rotation(45)
@@ -973,6 +958,38 @@ class DBMPlotterGUI:
         ax1.plot(times, accuracies, marker="o")
         ax2.plot(times, losses, marker="o")
         plt.show()
+    
+    def get_classifier_performance_history(self):
+        path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
+        if not os.path.isfile(path):
+            return
+        
+        times, accuracies, losses = [], [], []
+        with open(path, "r") as f:
+            for line in f.readlines():                
+                line = line.strip()
+                if len(line) == 0:
+                    continue
+                _, time, _, acc, _, _, loss = line.replace("\n", "").replace("%", "").split(" ")                        
+                times.append(time)
+                accuracies.append(float(acc))
+                losses.append(float(loss))
+        return times, accuracies, losses
+    
+    def update_classifier_performance_canvas(self):
+        times, accuracies, _ = self.get_classifier_performance_history()       
+        self.classifier_performance_fig.set_figwidth(4.5)
+        self.classifier_performance_fig.set_figheight(2) 
+        self.classifier_performance_ax.clear()
+        self.classifier_performance_ax.set_title("Classifier performance history")
+        self.classifier_performance_ax.set_xlabel("Time")
+        self.classifier_performance_ax.set_ylabel("Accuracy (%)")
+            
+        self.classifier_performance_ax.plot(times, accuracies, marker="o")
+        self.classifier_performance_fig.canvas.mpl_connect('button_press_event', self.handle_show_classifier_performance_history_event)
+       
+        self.classifier_performance_fig_agg = draw_figure_to_canvas(self.classifier_performance_canvas, self.classifier_performance_fig)    
+        self.window.refresh()
         
     def load_2d_projection(self):    
         if os.path.exists(os.path.join(self.save_folder, "train_2d.npy")) and os.path.exists(os.path.join(self.save_folder, "test_2d.npy")):                     
