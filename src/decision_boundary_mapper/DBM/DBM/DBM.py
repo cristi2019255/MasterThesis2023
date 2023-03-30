@@ -126,8 +126,8 @@ class DBM(DBMInterface):
         assert projection in ['t-SNE', 'PCA', 'UMAP']
                 
         # creating a folder for the model if not present
-        if not os.path.exists(os.path.join(load_folder, projection)):
-           os.makedirs(os.path.join(load_folder, projection)) 
+        if not os.path.exists(os.path.join(load_folder)):
+           os.makedirs(os.path.join(load_folder)) 
         
         if X2d_train is None or X2d_test is None:
             Xnd_train_flatten = Xnd_train.reshape((Xnd_train.shape[0], -1))
@@ -183,9 +183,11 @@ class DBM(DBMInterface):
             img[i,j] = -2
             img_confidence[i,j] = 1
             
-        
-        with open(os.path.join(load_folder, "history.json"), 'r') as f:
-            history = json.load(f)
+        history_file_path = os.path.join(load_folder, "history.json")
+        history = {}
+        if os.path.exists(history_file_path):
+            with open(history_file_path, 'r') as f:
+                history = json.load(f)
         
         return (img, img_confidence, X2d_train, X2d_test, history)
      
@@ -218,8 +220,7 @@ class DBM(DBMInterface):
         Returns:
             X2d (np.ndarray): The transformed data in 2D.
         """
-        self.console.log(f"Transforming the data to 2D using {projection}")
-        
+        self.console.log(f"Transforming the data to 2D using {projection}")        
         X = np.concatenate((X_train, X_test), axis=0)
         X2d = PROJECTION_METHODS[projection](X)
             
@@ -230,15 +231,15 @@ class DBM(DBMInterface):
         # rescale to [0,1]
         X2d_train, X2d_test = self.__normalize_2d__(X2d_train, X2d_test)
         # ---------------------
-        if not os.path.exists(os.path.join(folder, projection)):
-            os.makedirs(os.path.join(folder, projection))
+        if not os.path.exists(os.path.join(folder)):
+            os.makedirs(os.path.join(folder))
             
-        file_path = os.path.join(folder, projection, "train_2d.npy")
+        file_path = os.path.join(folder, "train_2d.npy")
         self.console.log("Saving the 2D data to the disk: " + file_path)
         with open(file_path, 'wb') as f:
             np.save(f, X2d_train)
         
-        file_path = os.path.join(folder, projection, "test_2d.npy")
+        file_path = os.path.join(folder, "test_2d.npy")
         self.console.log("Saving the 2D data to the disk: " + file_path)
         with open(file_path, 'wb') as f:
             np.save(f, X2d_test)

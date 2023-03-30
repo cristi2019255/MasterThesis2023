@@ -132,6 +132,11 @@ class DBMPlotterGUI:
         self.inverse_projection_errors = None
         self.projection_errors = None     
         
+        self.save_folder = save_folder # folder where to save the changes made to the data by the user            
+        self.projection_technique = projection_technique # projection technique used to generate the DBM                                            
+        if self.projection_technique is not None:
+           self.save_folder = os.path.join(self.save_folder, self.projection_technique)                
+       
         self.initialize(dbm_model, 
                         img, 
                         img_confidence, 
@@ -146,9 +151,7 @@ class DBMPlotterGUI:
                    img, img_confidence,
                    X_train, Y_train, 
                    X_test, Y_test,
-                   encoded_train, encoded_test,                   
-                   save_folder,
-                   projection_technique=None,                   
+                   encoded_train, encoded_test,                                                        
                    ):
         self.dbm_model = dbm_model 
         self.img = img
@@ -159,11 +162,7 @@ class DBMPlotterGUI:
         self.Y_test = Y_test
         self.encoded_train = encoded_train
         self.encoded_test = encoded_test  
-        self.save_folder = save_folder # folder where to save the changes made to the data by the user            
-        self.projection_technique = projection_technique # projection technique used to generate the DBM                                            
-        if self.projection_technique is not None:
-           self.save_folder = os.path.join(self.save_folder, self.projection_technique)                
-       
+        
         self.color_img, self.legend = self._build_2D_image_(img)
         self.train_mapper, self.test_mapper = self._generate_encoded_mapping_()
         
@@ -234,6 +233,9 @@ class DBMPlotterGUI:
                             [
                                 sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_inverse_projection_errors),
                                 sg.Checkbox("Show projection errors", default=False, key="-SHOW PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_projection_errors),
+                            ],
+                            [
+                                sg.Checkbox("Use the fast DBM algorithm", default=True, key="-USE FAST DBM-", font=APP_FONT, expand_x=True, pad=(0,0)),  
                             ],
                             #[
                             #    sg.Text("Epochs to train: ", font=APP_FONT, expand_x=True, pad=(0,0), key="-EPOCHS LABEL-"),
@@ -737,18 +739,33 @@ class DBMPlotterGUI:
                 
         self.dbm_model.refit_classifier(self.X_train, Y, save_folder=os.path.join(self.save_folder, "refit_classifier"), epochs = epochs)
         
-        # Updating the main GUI with the new model                
-        dbm_info = self.dbm_model.generate_boundary_map(
-            self.X_train, 
-            Y, 
-            self.X_test, 
-            self.Y_test, 
-            resolution=len(self.img),
-            use_fast_decoding=True,
-            load_folder=self.save_folder,
-            projection=self.projection_technique                                        
-        )        
-            
+        # Updating the main GUI with the new model     
+        if self.projection_technique is None:           
+            dbm_info = self.dbm_model.generate_boundary_map(
+                self.X_train, 
+                Y, 
+                self.X_test, 
+                self.Y_test, 
+                resolution=len(self.img),
+                use_fast_decoding=values["-USE FAST DBM-"],
+                load_folder=self.save_folder,
+                projection=self.projection_technique                                        
+            )        
+        else:
+            X2d_train, X2d_test = self.load_2d_projection()            
+            dbm_info = self.dbm_model.generate_boundary_map(
+                Xnd_train = self.X_train, 
+                Y_train = Y, 
+                Xnd_test = self.X_test, 
+                Y_test = self.Y_test, 
+                X2d_train = X2d_train,
+                X2d_test = X2d_test,
+                resolution=len(self.img),
+                use_fast_decoding=values["-USE FAST DBM-"],
+                load_folder=self.save_folder,
+                projection=self.projection_technique                                        
+            )
+        
         img, img_confidence, encoded_training_data, encoded_testing_data, training_history = dbm_info
         self.initialize(dbm_model = self.dbm_model,
                             img = img,
@@ -838,3 +855,9 @@ class DBMPlotterGUI:
         ax2.plot(times, losses)
         plt.show()
         
+    def load_2d_projection(self):    
+        if os.path.exists(os.path.join(self.save_folder, "train_2d.npy")) and os.path.exists(os.path.join(self.save_folder, "test_2d.npy")):                     
+            X2d_train = np.load(os.path.join(self.save_folder, "train_2d.npy"))
+            X2d_test = np.load(os.path.join(self.save_folder, "test_2d.npy"))
+            return X2d_train, X2d_test        
+        return None, None
