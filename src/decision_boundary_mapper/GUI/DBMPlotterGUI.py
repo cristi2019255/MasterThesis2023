@@ -29,6 +29,7 @@
 import json
 from math import sqrt
 from datetime import datetime
+import shutil
 from matplotlib.patches import Patch, Circle
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
@@ -88,6 +89,13 @@ RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis 
 INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point click on the data point,\n or select the data point by including them into a circle.\nPress any digit key to indicate the new label.\nPress 'Enter' to confirm the new label. Press 'Esc' to cancel the action.\nTo remove a change just click on the data point.\nAfter the changes are done press 'Apply Changes' to update the model. \nAfter the changes are applied the window will update."
 DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon.png")
 CLASSIFIER_PERFORMANCE_HISTORY_FILE = "classifier_performance.log"
+CLASSIFIER_REFIT_FOLDER = "refit_classifier"
+CLASSIFIER_STACKED_FOLDER = "stacked_classifier"
+CLASSIFIER_STACKED_LABELS_FILE = "classifier_old_labels.npy"
+CLASSIFIER_STACKED_LABELS_CHANGES_FILE = "classifier_old_labels_changes.npy"
+CLASSIFIER_STACKED_BOUNDARY_MAP_FILE = "classifier_old_boundary_map.npy"
+CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE = "classifier_old_boundary_map_confidence.npy"
+
 LABELS_CHANGES_FILE = "label_changes.json"
 TRAIN_DATA_POINT_MARKER = -1
 TEST_DATA_POINT_MARKER = -2
@@ -181,8 +189,7 @@ class DBMPlotterGUI:
         self.release_event_cid = None
         self.current_selected_point = None
         self.current_selected_point_assigned_label = None
-        self.expert_updates_labels_mapper = {}        
-        self.stop_application = False 
+        self.expert_updates_labels_mapper = {}                
         self.update_labels_by_circle_select = True 
         self.update_labels_circle = None  
         
@@ -254,15 +261,21 @@ class DBMPlotterGUI:
                             #    sg.Input("2", font=APP_FONT, key="-EPOCHS-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True, justification="center"),                            
                             #],
                             [
-                                sg.Button('Apply Updates', font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                                sg.Button("Apply Updates", font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                            ],
+                            [
+                                sg.Button("Undo Changes", font=APP_FONT, expand_x=True, key="-UNDO CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                            ],
+                            [
+                                sg.HSeparator()  
                             ],
                             buttons_proj_errs[0],
                             buttons_proj_errs[1],
                             buttons_inv_proj_errs,
+                            [sg.Multiline("", key="-LOGGER-", size=(40,20), background_color=WHITE_COLOR, text_color=BLACK_COLOR, auto_size_text=True, expand_y=True, expand_x=True)],
                             [sg.Text(INFORMATION_CONTROLS_MESSAGE, expand_x=True)],
                             [sg.Text(RIGHTS_MESSAGE_1, expand_x=True)],
-                            [sg.Text(RIGHTS_MESSAGE_2, expand_x=True)],   
-                            [sg.Multiline("", key="-LOGGER-", size=(40,20), background_color=WHITE_COLOR, text_color=BLACK_COLOR, auto_size_text=True, expand_y=True, expand_x=True)],                                                    
+                            [sg.Text(RIGHTS_MESSAGE_2, expand_x=True)],                               
                         ]),
                     ]                                                      
                 ]
@@ -286,7 +299,7 @@ class DBMPlotterGUI:
         while True:
             event, values = self.window.read()
             
-            if event == "Exit" or event == sg.WIN_CLOSED or self.stop_application:
+            if event == "Exit" or event == sg.WIN_CLOSED:
                 break
         
             self.handle_event(event, values)            
@@ -298,15 +311,29 @@ class DBMPlotterGUI:
             self.main_gui.handle_changes_in_dbm_plotter()
         self.console.log("Closing the application...")
         
-        classifier_performance_path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
-        labels_changes_path = os.path.join(self.save_folder, LABELS_CHANGES_FILE)
+        files_to_delete = [
+                           CLASSIFIER_PERFORMANCE_HISTORY_FILE, 
+                           LABELS_CHANGES_FILE, 
+                           CLASSIFIER_STACKED_BOUNDARY_MAP_FILE, 
+                           CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE, 
+                           CLASSIFIER_STACKED_LABELS_FILE, 
+                           CLASSIFIER_STACKED_LABELS_CHANGES_FILE
+                          ]
         
-        if os.path.exists(classifier_performance_path):
-            os.remove(classifier_performance_path)
+        for file in files_to_delete:
+            file = os.path.join(self.save_folder, file)
+            if os.path.exists(file):
+                os.remove(file)
         
-        if os.path.exists(labels_changes_path):
-            os.remove(labels_changes_path)
-                    
+        folders_to_delete = [ 
+                                CLASSIFIER_STACKED_FOLDER
+                            ]
+        
+        for folder in folders_to_delete:
+            folder = os.path.join(self.save_folder, folder)            
+            if os.path.exists(folder):
+                shutil.rmtree(folder)
+        
         self.window.close()
     
     def handle_event(self, event, values):
@@ -322,6 +349,7 @@ class DBMPlotterGUI:
             "-SHOW LABELS CHANGES-": self.handle_checkbox_change_event,
             "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,            
             "-SHOW CLASSIFIER PERFORMANCE HISTORY-": self.handle_show_classifier_performance_history_event,
+            "-UNDO CHANGES-": self.handle_undo_changes_event,
         }
         
         EVENTS[event](event, values)    
@@ -638,6 +666,23 @@ class DBMPlotterGUI:
             
         self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(100 * accuracy):.2f} %  Loss: {loss:.2f}")
     
+    def pop_classifier_evaluation(self):
+        path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
+        # removing the last line
+        with open(path, "r") as f:
+            lines = f.readlines()            
+            lines = lines[:-1]
+        with open(path, "w") as f:
+            f.write("".join(lines))
+        
+        if len(lines) == 0:
+            return
+        
+        last_line = lines[-1].replace("\n", "")
+        accuracy, loss = float(last_line.split("Accuracy: ")[1].split("%")[0]), float(last_line.split("Loss: ")[1])        
+        self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(accuracy):.2f} %  Loss: {loss:.2f}")
+    
+    
     def handle_compute_inverse_projection_errors_event(self, event, values):
         self.window['-COMPUTE INVERSE PROJECTION ERRORS-'].update(visible=False, disabled=True)        
         self.updates_logger.log("Computing inverse projection errors, please wait...")
@@ -739,17 +784,42 @@ class DBMPlotterGUI:
         """
         epochs = 2
         
+        # store the changes done so far so we can restore them when needed
+        with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_LABELS_CHANGES_FILE), "wb") as f:
+            np.save(f, self.positions_of_labels_changes)
+        
+        
         self.console.log("Transforming changes...")
         Y, label_changes = self.transform_changes()
         
         self.console.log("Saving changes to a local folder...")
-        self.save_changes(self.save_folder, label_changes=label_changes)
+        self.save_labels_changes(self.save_folder, label_changes=label_changes)
         
         self.updates_logger.log("Applying changes... This might take a couple of seconds, after this the window will be closed")
-                
-        self.dbm_model.refit_classifier(self.X_train, Y, save_folder=os.path.join(self.save_folder, "refit_classifier"), epochs = epochs)
         
-        # Updating the main GUI with the new model     
+        save_folder = os.path.join(self.save_folder, CLASSIFIER_REFIT_FOLDER)
+        
+        # store the old model so we can restore it when needed
+        self.dbm_model.save_classifier(save_folder=os.path.join(self.save_folder, CLASSIFIER_STACKED_FOLDER))
+        # store the old labels so we can restore them when needed
+        with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_LABELS_FILE), "wb") as f:
+            np.save(f, self.Y_train)
+        
+        # store the old decision boundary map and confidence map so we can restore them when needed
+        with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_BOUNDARY_MAP_FILE), "wb") as f:
+            np.save(f, self.img)
+        with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE), "wb") as f:
+            np.save(f, self.img_confidence)
+        
+        self.dbm_model.refit_classifier(self.X_train, Y, save_folder=save_folder, epochs=epochs)
+
+        self.regenerate_bounary_map(event, values, Y)
+        self.compute_classifier_metrics()
+        
+        self.updates_logger.log("Changes applied successfully!")        
+    
+    def regenerate_bounary_map(self, event, values, Y):
+        
         if self.projection_technique is None:           
             dbm_info = self.dbm_model.generate_boundary_map(
                 self.X_train, 
@@ -789,12 +859,53 @@ class DBMPlotterGUI:
                         )
         
         self.draw_dbm_img()   
-        self.handle_checkbox_change_event(event, values)      
-        self.compute_classifier_metrics()
+        self.handle_checkbox_change_event(event, values)              
         
-        self.updates_logger.log("Changes applied successfully!")     
-            
-    def save_changes(self, folder:str="tmp", label_changes={}):
+    def handle_undo_changes_event(self, event, values):
+        if not os.path.exists(os.path.join(self.save_folder, CLASSIFIER_STACKED_FOLDER)):
+            self.updates_logger.log("Can not undo changes, no previous model found")
+            return
+                
+        if not os.path.exists(os.path.join(self.save_folder, CLASSIFIER_STACKED_LABELS_FILE)):
+            self.updates_logger.log("Can not undo changes, no previous labels found")
+            return    
+
+        if not os.path.exists(os.path.join(self.save_folder, CLASSIFIER_STACKED_BOUNDARY_MAP_FILE)):
+            self.updates_logger.log("Can not undo changes, no previous boundary map found")
+            return
+        
+        if not os.path.exists(os.path.join(self.save_folder, CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE)):
+            self.updates_logger.log("Can not undo changes, no previous confidence map found")
+            return
+        
+        if not os.path.exists(os.path.join(self.save_folder, CLASSIFIER_STACKED_LABELS_CHANGES_FILE)):
+            self.updates_logger.log("Can not undo changes, no previous labels changes found")
+            return
+        
+        self.dbm_model.load_classifier(os.path.join(self.save_folder, CLASSIFIER_STACKED_FOLDER))
+                
+        with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_LABELS_FILE), "rb") as f:
+            self.Y_train = np.load(f)
+        with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_BOUNDARY_MAP_FILE), "rb") as f:
+            self.img = np.load(f)
+        with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE), "rb") as f:
+            self.img_confidence = np.load(f)
+        with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_LABELS_CHANGES_FILE), "rb") as f:
+            self.positions_of_labels_changes = np.load(f)
+        
+        self.pop_classifier_evaluation()
+        
+        self.color_img, self.legend = self._build_2D_image_(self.img)        
+        self.fig, self.ax = self._build_plot_()        
+        self._build_annotation_mapper_()
+        
+        self.fig.legend(handles=self.legend, borderaxespad=0. )
+      
+        self.draw_dbm_img()        
+        
+        self.updates_logger.log("Undone changes successfully")
+        
+    def save_labels_changes(self, folder:str="tmp", label_changes={}):
         if not os.path.exists(folder):
             os.path.makedirs(folder)                        
         
@@ -818,9 +929,9 @@ class DBMPlotterGUI:
         
         for pos in self.expert_updates_labels_mapper:
             k = self.train_mapper[pos]
-            pos_x.append(int(pos.split(" ")[1]))
-            pos_y.append(int(pos.split(" ")[0]))
-            alphas.append(1)
+            pos_x = np.append(pos_x, int(pos.split(" ")[1]))
+            pos_y = np.append(pos_y, int(pos.split(" ")[0]))
+            alphas = np.append(alphas, 1)
             y = self.expert_updates_labels_mapper[pos][0]
             Y[k] = y
             labels_changes[pos] = self.expert_updates_labels_mapper[pos][0]
@@ -859,8 +970,8 @@ class DBMPlotterGUI:
         ax1.set_ylabel("Accuracy (%)")
         ax2.set_ylabel("Loss")
         
-        ax1.plot(times, accuracies)
-        ax2.plot(times, losses)
+        ax1.plot(times, accuracies, marker="o")
+        ax2.plot(times, losses, marker="o")
         plt.show()
         
     def load_2d_projection(self):    
