@@ -176,10 +176,20 @@ class DBM(DBMInterface):
         X2d_train = X2d_train.astype(int)
         X2d_test = X2d_test.astype(int)
         
-        for [i,j] in X2d_train:
+        encoded_2d_train = np.zeros((len(X2d_train), 3))
+        encoded_2d_test = np.zeros((len(X2d_test), 3))
+        
+        for k in range(len(X2d_train)):
+            [i,j] = X2d_train[k]
+            encoded_2d_train[k] = [i, j, img[i,j]]
+        for k in range(len(X2d_test)):
+            [i,j] = X2d_test[k]
+            encoded_2d_test[k] = [i, j, img[i,j]]            
+        
+        for [i,j] in X2d_train:    
             img[i,j] = -1
             img_confidence[i,j] = 1
-        for [i,j] in X2d_test:
+        for [i,j] in X2d_test:        
             img[i,j] = -2
             img_confidence[i,j] = 1
             
@@ -189,7 +199,7 @@ class DBM(DBMInterface):
             with open(history_file_path, 'r') as f:
                 history = json.load(f)
         
-        return (img, img_confidence, X2d_train, X2d_test, history)
+        return (img, img_confidence, encoded_2d_train, encoded_2d_test, history)
      
     def _predict2dspace_(self, X2d: np.ndarray):
         """ Predicts the labels for the given 2D data set.

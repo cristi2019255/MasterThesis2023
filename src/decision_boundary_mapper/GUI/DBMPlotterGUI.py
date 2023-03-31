@@ -253,6 +253,9 @@ class DBMPlotterGUI:
                                 sg.Checkbox("Show dbm confidence", default=True, key="-SHOW DBM CONFIDENCE-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),                                
                             ],
                             [
+                                sg.Checkbox("Show classifier predictions", default=False, key="-SHOW CLASSIFIER PREDICTIONS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),  
+                            ],
+                            [
                                 sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_inverse_projection_errors),
                             ],
                             [
@@ -348,6 +351,7 @@ class DBMPlotterGUI:
             "-SHOW INVERSE PROJECTION ERRORS-": self.handle_checkbox_change_event,
             "-SHOW PROJECTION ERRORS-": self.handle_checkbox_change_event,
             "-SHOW LABELS CHANGES-": self.handle_checkbox_change_event,
+            "-SHOW CLASSIFIER PREDICTIONS-": self.handle_checkbox_change_event,
             "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,            
             "-UNDO CHANGES-": self.handle_undo_changes_event,
         }
@@ -396,14 +400,14 @@ class DBMPlotterGUI:
         """
         train_mapper = {}
         for k in range(len(self.encoded_train)):
-            [x, y] = self.encoded_train[k]
-            train_mapper[f"{x} {y}"] = k
+            [i, j, _] = self.encoded_train[k]
+            train_mapper[f"{int(i)} {int(j)}"] = k
     
         test_mapper = {}
         for k in range(len(self.encoded_test)):
-            [x, y] = self.encoded_test[k]
-            test_mapper[f"{x} {y}"] = k
-        
+            [i, j, _] = self.encoded_test[k]
+            test_mapper[f"{int(i)} {int(j)}"] = k
+       
         return train_mapper, test_mapper
 
     def _build_plot_(self):                   
@@ -477,13 +481,13 @@ class DBMPlotterGUI:
                 k = self.train_mapper[f"{i} {j}"]
                 if f"{i} {j}" in self.expert_updates_labels_mapper:
                     l = self.expert_updates_labels_mapper[f"{i} {j}"][0]
-                    return self.X_train[k], f"Label {self.Y_train[k]} \nExpert label: {l}"  
-                return self.X_train[k], f"Label: {self.Y_train[k]}"
+                    return self.X_train[k], f"Label {self.Y_train[k]} \nClassifier label: {int(self.encoded_train[k][2])} \nExpert label: {l}"  
+                return self.X_train[k], f"Label: {self.Y_train[k]} \nClassifier label: {int(self.encoded_train[k][2])}"
             
             # search for the data point in the encoded test data
             if self.img[i][j] == TEST_DATA_POINT_MARKER:
                 k = self.test_mapper[f"{i} {j}"]
-                return self.X_test[k], None      
+                return self.X_test[k], f"Classifier label: {int(self.encoded_test[k][2])}"      
             
             # generate the nD data point on the fly using the inverse projection
             point = self.dbm_model.neural_network.decode([(i/self.img.shape[0], j/self.img.shape[1])])[0]            
@@ -501,7 +505,7 @@ class DBMPlotterGUI:
             self.console.log("Clicked on: " + str(event.xdata) + ", " + str(event.ydata))
             j, i = int(event.xdata), int(event.ydata)
 
-            if self.img[i][j] != -1:
+            if self.img[i][j] != TRAIN_DATA_POINT_MARKER:
                 self.console.log("Data point not in training set")
                 return
                     
@@ -625,7 +629,7 @@ class DBMPlotterGUI:
             positions = []
             for x in range(initial_x, final_x):
                 for y in range(initial_y, final_y):
-                    if (self.img[y, x] == -1) and ((x - cx)**2 + (y - cy)**2 <= circle_radius**2):
+                    if (self.img[y, x] == TRAIN_DATA_POINT_MARKER) and ((x - cx)**2 + (y - cy)**2 <= circle_radius**2):
                         positions.append((x,y))
             return positions
                               
@@ -650,7 +654,7 @@ class DBMPlotterGUI:
         img[:,:,:3] = self.color_img
         img[:,:,3] = self.img_confidence    
         self.axes_image = self.ax.imshow(img)                                    
-                    
+                             
         # draw the figure to the canvas
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)    
         self.window.refresh()
@@ -731,6 +735,7 @@ class DBMPlotterGUI:
         show_inverse_projection_errors = values["-SHOW INVERSE PROJECTION ERRORS-"]
         show_projection_errors = values["-SHOW PROJECTION ERRORS-"]
         show_labels_changes = values["-SHOW LABELS CHANGES-"]
+        show_classifier_predictions = values["-SHOW CLASSIFIER PREDICTIONS-"]
         
         color_img = np.zeros((self.img.shape[0], self.img.shape[1], 3))
         alphas = 1 + np.zeros((self.img.shape[0], self.img.shape[1]))
@@ -752,7 +757,17 @@ class DBMPlotterGUI:
         
         if hasattr(self, "axes_image"):
             self.axes_image.remove()
-        self.axes_image = self.ax.imshow(img) 
+        
+        if hasattr(self, "axes_classifier_scatter") and self.axes_classifier_scatter is not None:
+            self.axes_classifier_scatter.set_visible(False)
+            self.axes_classifier_scatter = None
+        
+        self.axes_image = self.ax.imshow(img)                 
+        
+        if show_classifier_predictions:
+            colors = [COLORS_MAPPER[label] for label in self.encoded_train[:, 2]]
+            self.axes_classifier_scatter = self.ax.scatter(self.encoded_train[:, 1], self.encoded_train[:, 0], s=10, c=colors)        
+            
         
         if hasattr(self, "ax_labels_changes") and self.ax_labels_changes is not None:            
             self.ax_labels_changes.set_visible(False)
@@ -762,7 +777,8 @@ class DBMPlotterGUI:
         
         positions_x, positions_y, alphas = self.positions_of_labels_changes   
         if show_labels_changes and len(positions_x) > 0 and len(positions_y) > 0  and len(alphas) > 0:                             
-            self.ax_labels_changes = self.ax.scatter(positions_x, positions_y, c='green', marker='^', alpha=alphas)   
+            self.ax_labels_changes = self.ax.scatter(positions_x, positions_y, s=10, c='green', marker='^', alpha=alphas)   
+        
         
         self.fig.canvas.draw_idle()
     
@@ -857,8 +873,7 @@ class DBMPlotterGUI:
         
         self.compute_classifier_metrics()
         self.draw_dbm_img()   
-        
-        
+           
     def handle_undo_changes_event(self, event, values):
         if not os.path.exists(os.path.join(self.save_folder, CLASSIFIER_STACKED_FOLDER)):
             self.updates_logger.log("Can not undo changes, no previous model found")
