@@ -176,15 +176,15 @@ class DBMPlotterGUI:
         self.color_img, self.legend = self._build_2D_image_(img)
         self.train_mapper, self.test_mapper = self._generate_encoded_mapping_()
         
-        # --------------------- Plotter related ---------------------                
-        self.fig, self.ax = self._build_plot_()        
+        # --------------------- Plotter related ---------------------                               
+        self.classifier_performance_fig, self.classifier_performance_ax = self._build_plot_()
+        self.fig, self.ax = self._build_plot_() 
         self._build_annotation_mapper_()
         
         self.fig.legend(handles=self.legend, borderaxespad=0. )
         # --------------------- Plotter related ---------------------
         
         # --------------------- Classifier related ---------------------
-        self.classifier_performance_fig, self.classifier_performance_ax = self._build_plot_()        
         
         
         # --------------------- Others ------------------------------           
@@ -583,7 +583,7 @@ class DBMPlotterGUI:
                 self.fig.canvas.mpl_disconnect(self.release_event_cid)
             self.fig.canvas.draw_idle()
 
-        def onkey_circle_strategy(event):
+        def onkey_circle_strategy(event):            
             if self.update_labels_circle is None:
                 return
 
@@ -811,9 +811,7 @@ class DBMPlotterGUI:
         self.dbm_model.refit_classifier(self.X_train, Y, save_folder=save_folder, epochs=epochs)
 
         self.regenerate_bounary_map(Y, use_fast_decoding=values["-USE FAST DBM-"])
-        self.handle_checkbox_change_event(event, values)              
-        
-        self.compute_classifier_metrics()
+        self.handle_checkbox_change_event(event, values)                
         
         self.updates_logger.log("Changes applied successfully!")        
     
@@ -857,7 +855,9 @@ class DBMPlotterGUI:
                             Y_test = self.Y_test,                          
                         )
         
+        self.compute_classifier_metrics()
         self.draw_dbm_img()   
+        
         
     def handle_undo_changes_event(self, event, values):
         if not os.path.exists(os.path.join(self.save_folder, CLASSIFIER_STACKED_FOLDER)):
@@ -978,17 +978,18 @@ class DBMPlotterGUI:
     
     def update_classifier_performance_canvas(self):
         times, accuracies, _ = self.get_classifier_performance_history()       
-        self.classifier_performance_fig.set_figwidth(4.5)
-        self.classifier_performance_fig.set_figheight(2) 
-        self.classifier_performance_ax.clear()
+        self.classifier_performance_fig, self.classifier_performance_ax = self._build_plot_()  
+        self.classifier_performance_fig.set_size_inches(4.5, 2)
+        self.classifier_performance_ax.set_axis_on()
         self.classifier_performance_ax.set_title("Classifier performance history")
         self.classifier_performance_ax.set_xlabel("Time")
         self.classifier_performance_ax.set_ylabel("Accuracy (%)")
-            
-        self.classifier_performance_ax.plot(times, accuracies, marker="o")
         self.classifier_performance_fig.canvas.mpl_connect('button_press_event', self.handle_show_classifier_performance_history_event)
        
-        self.classifier_performance_fig_agg = draw_figure_to_canvas(self.classifier_performance_canvas, self.classifier_performance_fig)    
+        self.classifier_performance_ax.plot(times, accuracies, marker="o")
+        self.classifier_performance_fig.canvas.draw_idle()
+        
+        self.classifier_performance_fig_agg = draw_figure_to_canvas(self.classifier_performance_canvas, self.classifier_performance_fig)
         self.window.refresh()
         
     def load_2d_projection(self):    
