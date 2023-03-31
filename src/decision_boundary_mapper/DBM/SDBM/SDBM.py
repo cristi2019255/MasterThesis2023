@@ -17,7 +17,7 @@ import os
 import numpy as np
 
 from .Autoencoder import DEFAULT_MODEL_PATH, Autoencoder
-from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
+from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION, FAST_DBM_STRATEGIES
 
 from ...utils import track_time_wrapper
 from ...Logger import LoggerInterface, Logger
@@ -73,6 +73,7 @@ class SDBM(DBMInterface):
                               train_epochs:int=300, train_batch_size:int=32,
                               resolution:int=DBM_DEFAULT_RESOLUTION,
                               use_fast_decoding:bool=False,
+                              fast_decoding_strategy:str=FAST_DBM_STRATEGIES[0],                              
                               load_folder:str = DEFAULT_MODEL_PATH,
                               projection:str = None # this parameter is not used in SDBM but is placed here to keep the same interface as DBM
                               ):
@@ -130,9 +131,12 @@ class SDBM(DBMInterface):
         self.resolution = resolution
         
         if use_fast_decoding:
-            img, img_confidence = self._get_img_dbm_fast_(resolution)
             save_img_path += "_fast"
-            save_img_confidence_path += "_fast"
+            save_img_confidence_path += "_fast"        
+            if fast_decoding_strategy == FAST_DBM_STRATEGIES[1]:
+                img, img_confidence = self._get_img_dbm_fast_confidences_strategy(resolution)
+            else:
+                img, img_confidence = self._get_img_dbm_fast_(resolution)
         else:
             img, img_confidence = self._get_img_dbm_(resolution)
         
@@ -161,12 +165,12 @@ class SDBM(DBMInterface):
         for k in range(len(encoded_training_data)):
             [i,j] = encoded_training_data[k]
             encoded_2d_test[k] = [i, j, img[i,j]]   
-            
-        for [i,j] in encoded_training_data:
-            img[i,j] = -1
-            img_confidence[i,j] = 1
+                    
         for [i,j] in encoded_testing_data:
             img[i,j] = -2
+            img_confidence[i,j] = 1
+        for [i,j] in encoded_training_data:
+            img[i,j] = -1
             img_confidence[i,j] = 1
         
         with open(os.path.join(load_folder, "history.json"), 'r') as f:

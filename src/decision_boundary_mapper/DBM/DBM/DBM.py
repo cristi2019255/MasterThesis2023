@@ -20,7 +20,7 @@ from .invNN import DEFAULT_MODEL_PATH, invNN
 from .projections import PROJECTION_METHODS
 
 
-from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION
+from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION, FAST_DBM_STRATEGIES
 
 from ...utils import track_time_wrapper
 from ...Logger import LoggerInterface, Logger
@@ -87,6 +87,7 @@ class DBM(DBMInterface):
                               train_batch_size:int=32,
                               resolution:int=DBM_DEFAULT_RESOLUTION,
                               use_fast_decoding:bool=False,
+                              fast_decoding_strategy:str=FAST_DBM_STRATEGIES[0],
                               load_folder:str=DEFAULT_MODEL_PATH,
                               projection:str='t-SNE'                              
                               ):
@@ -155,9 +156,12 @@ class DBM(DBMInterface):
         self.resolution = resolution   
         
         if use_fast_decoding:
-            img, img_confidence = self._get_img_dbm_fast_(resolution)
             save_img_path += "_fast"
-            save_img_confidence_path += "_fast"
+            save_img_confidence_path += "_fast"            
+            if fast_decoding_strategy == FAST_DBM_STRATEGIES[1]:
+                img, img_confidence = self._get_img_dbm_fast_confidences_strategy(resolution)
+            else:
+                img, img_confidence = self._get_img_dbm_fast_(resolution)                        
         else:
             img, img_confidence = self._get_img_dbm_(resolution)
     
@@ -186,12 +190,13 @@ class DBM(DBMInterface):
             [i,j] = X2d_test[k]
             encoded_2d_test[k] = [i, j, img[i,j]]            
         
-        for [i,j] in X2d_train:    
-            img[i,j] = -1
-            img_confidence[i,j] = 1
         for [i,j] in X2d_test:        
             img[i,j] = -2
             img_confidence[i,j] = 1
+        for [i,j] in X2d_train:    
+            img[i,j] = -1
+            img_confidence[i,j] = 1
+        
             
         history_file_path = os.path.join(load_folder, "history.json")
         history = {}
