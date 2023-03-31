@@ -17,9 +17,9 @@ from tests.DBM.test import test_dbm, test_projection_errors
 
 def main():
     #DBM_usage_example()
-    #DBM_usage_example_GUI()
+    DBM_usage_example_GUI()
     #SDBM_usage_example()
-    SDBM_usage_example_GUI()
+    #SDBM_usage_example_GUI()
     #test_projection_errors()
     #test_dbm()
 

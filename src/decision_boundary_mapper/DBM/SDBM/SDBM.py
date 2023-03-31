@@ -152,6 +152,16 @@ class SDBM(DBMInterface):
         with open(f"{save_img_confidence_path}.npy", 'wb') as f:
             np.save(f, img_confidence)
         
+        encoded_2d_train = np.zeros((len(encoded_training_data), 3))
+        encoded_2d_test = np.zeros((len(encoded_training_data), 3))
+        
+        for k in range(len(encoded_training_data)):
+            [i,j] = encoded_training_data[k]
+            encoded_2d_train[k] = [i, j, img[i,j]]
+        for k in range(len(encoded_training_data)):
+            [i,j] = encoded_training_data[k]
+            encoded_2d_test[k] = [i, j, img[i,j]]   
+            
         for [i,j] in encoded_training_data:
             img[i,j] = -1
             img_confidence[i,j] = 1
@@ -162,7 +172,7 @@ class SDBM(DBMInterface):
         with open(os.path.join(load_folder, "history.json"), 'r') as f:
             history = json.load(f)
         
-        return (img, img_confidence, encoded_training_data, encoded_testing_data, history)
+        return (img, img_confidence, encoded_2d_train, encoded_2d_test, history)
     
     def _predict2dspace_(self, X2d:np.ndarray):
         """ Predicts the labels for the given 2D data set.

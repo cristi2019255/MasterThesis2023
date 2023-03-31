@@ -20,6 +20,7 @@ from scipy import interpolate
 import dask.array as da
 from sklearn.neighbors import KDTree
 from numba_progress import ProgressBar
+import tensorflow as tf
 from tqdm import tqdm
 
 from .tools import get_decode_pixel_priority, get_inv_proj_error, get_nd_indices_parallel, euclidean, get_proj_error_parallel, get_projection_errors_using_inverse_projection
@@ -90,6 +91,22 @@ class DBMInterface:
         self.console.log("Saving a copy of the retrained classifier...")
         self.classifier.save(save_folder, save_format="tf")
         self.console.log("A copy of the retrained classifier was saved!")
+    
+    def save_classifier(self, save_folder:str):
+        """ Saves a copy of the classifier.
+
+        Args:
+            save_folder (str): The folder where the classifier will be saved
+        """
+        self.classifier.save(save_folder, save_format="tf")
+    
+    def load_classifier(self, load_folder:str):
+        """ Loads a copy of the classifier.
+
+        Args:
+            load_folder (str): The folder where the classifier is saved
+        """
+        self.classifier = tf.keras.models.load_model(load_folder)
     
     def generate_boundary_map(self, 
                               X_train:np.ndarray, Y_train:np.ndarray, 
