@@ -125,7 +125,11 @@ class DBM(DBMInterface):
             >>> plt.show()
         """
         assert projection in ['t-SNE', 'PCA', 'UMAP']
-                
+        
+        
+        if projection != load_folder.split(os.sep)[-1]:
+            load_folder = os.path.join(load_folder, projection)
+                    
         # creating a folder for the model if not present
         if not os.path.exists(os.path.join(load_folder)):
            os.makedirs(os.path.join(load_folder)) 
@@ -138,8 +142,6 @@ class DBM(DBMInterface):
             # Normalize the data to be in the range of [0,1]
             X2d_train, X2d_test = self.__normalize_2d__(X2d_train, X2d_test)
         
-        if projection != load_folder.split(os.sep)[-1]:
-            load_folder = os.path.join(load_folder, projection)
         
         if self.neural_network is None:
             X = np.concatenate((X2d_train, X2d_test), axis=0)

@@ -236,7 +236,7 @@ class DBMPlotterGUI:
                         ], pad=(0,0), expand_x=True, expand_y=True),                         
                         sg.VSeparator(),                
                         sg.Column([
-                            [sg.Canvas(key="-CLASSIFIER PERFORMANCE CANVAS-", size=(100,100), expand_y=True)],                                                         
+                            [sg.Canvas(key="-CLASSIFIER PERFORMANCE CANVAS-", size=(200,200), expand_y=True, expand_x=True)],                                                         
                             [
                                 sg.Text("Classifier accuracy: ", font=APP_FONT, expand_x=True, key="-CLASSIFIER ACCURACY-"),  
                             ],
@@ -276,7 +276,7 @@ class DBMPlotterGUI:
                             buttons_proj_errs[0],
                             buttons_proj_errs[1],
                             buttons_inv_proj_errs,
-                            [sg.Multiline("", key="-LOGGER-", size=(40,20), background_color=WHITE_COLOR, text_color=BLACK_COLOR, auto_size_text=True, expand_y=True, expand_x=True)],
+                            [sg.Multiline("", key="-LOGGER-", size=(40,20), background_color=WHITE_COLOR, text_color=BLACK_COLOR, auto_size_text=True, expand_y=True, expand_x=True, enable_events=False)],
                             [sg.Text(INFORMATION_CONTROLS_MESSAGE, expand_x=True)],
                             [sg.Text(RIGHTS_MESSAGE_1, expand_x=True)],
                             [sg.Text(RIGHTS_MESSAGE_2, expand_x=True)],                               

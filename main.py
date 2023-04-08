@@ -11,6 +11,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import tensorflow as tf
+import os
+import numpy as np
+import random
+
+SEED = 42
+
+def set_seeds(seed=SEED):
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    random.seed(seed)
+    tf.random.set_seed(seed)
+    np.random.seed(seed)
+    
+def set_global_determinism(seed=SEED):
+    set_seeds(seed=seed)
+
+    os.environ['TF_DETERMINISTIC_OPS'] = '1'
+    os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
+    
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+
+# Call the above function with seed value
+set_global_determinism(seed=SEED)
     
 from src import DBM_usage_example, SDBM_usage_example, DBM_usage_example_GUI, SDBM_usage_example_GUI
 from tests.DBM.test import test_dbm, test_projection_errors
