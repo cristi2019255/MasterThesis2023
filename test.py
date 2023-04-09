@@ -140,10 +140,10 @@ def test3():
     print("Time: ", end - start)
     
 def show_errors():
-    with open("img_confidence2.npy", "rb") as f:
+    with open("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/tmp/MNIST/DBM/t-SNE/boundary_map_fast_confidence_split.npy", "rb") as f:
         errors = np.load(f)
     
-    with open("img_confidence1.npy", "rb") as f:
+    with open("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/tmp/MNIST/DBM/t-SNE/boundary_map.npy", "rb") as f:
         errors2 = np.load(f)
     
     
@@ -154,13 +154,12 @@ def show_errors():
     errors_count = 0
     for i in range(errors.shape[0]):
         for j in range(errors.shape[1]):
-            if abs(errors[i,j] - errors2[i,j]) > 0.03:
+            if errors[i,j] != errors2[i,j]:
                 ax1.plot(j, i, 'ro')
                 errors_count += 1
-            if errors[i,j] == errors2[i,j]:
-                ax2.plot(j, i, 'go')
     
-    print(errors_count)
+    print("Errors count: ", errors_count)
+    print("Errors percentage:", errors_count / (errors.shape[0] * errors.shape[1]) * 100, "%")
     
     plt.show()
 
@@ -201,4 +200,5 @@ def test_interpolation():
 #test()
 #test2()
 #test3()
-test_interpolation()
+#test_interpolation()
+show_errors()

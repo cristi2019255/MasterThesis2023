@@ -31,12 +31,19 @@ def DBM_usage_example():
     # create the DBM
     dbm = DBM(classifier=classifier)
     
+    
+    X2d_train, X2d_test = import_2d_data()
+    
     # use the DBM to get the decision boundary map, if you don't have the 2D projection of the data
     # the DBM will get it for you, you just need to specify the projection method you would like to use (t-SNE, PCA or UMAP)
     img, img_confidence, _, _, _ = dbm.generate_boundary_map(X_train, Y_train, 
                                                                 X_test, Y_test, 
+                                                                X2d_train=X2d_train,
+                                                                X2d_test=X2d_test,
                                                                 resolution=256, 
-                                                                load_folder=os.path.join("tmp", "MNIST", "DBM"),                                                                                                                             
+                                                                load_folder=os.path.join("tmp", "MNIST", "DBM"),  
+                                                                use_fast_decoding=True,
+                                                                fast_decoding_strategy="confidence_split",                                                                                                                           
                                                                 projection="t-SNE")
     
     # if you have the 2D projection of the data, you can use the following function to get the decision boundary map
@@ -77,7 +84,7 @@ def DBM_usage_example():
     plt.imshow(color_img)
     plt.show()
     
-    
+    """
     # use the dbm to get the inverse projection errors
     img_inverse_projection_errors = dbm.generate_inverse_projection_errors(resolution=256)
     # plot the inverse projection errors
@@ -99,6 +106,7 @@ def DBM_usage_example():
     img_ax = ax.imshow(img_projection_errors)
     fig.colorbar(img_ax, ax=ax)
     plt.show()
+    """
     
 def DBM_usage_example_GUI():
     # import the dataset

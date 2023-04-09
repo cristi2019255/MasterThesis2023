@@ -161,8 +161,12 @@ class DBM(DBMInterface):
             save_img_path += "_fast"
             save_img_confidence_path += "_fast"            
             if fast_decoding_strategy == FAST_DBM_STRATEGIES[1]:
+                save_img_path += "_confidence_split"
+                save_img_confidence_path += "_confidence_split"
                 img, img_confidence = self._get_img_dbm_fast_confidences_strategy(resolution)
             else:
+                save_img_path += "_binary_split"
+                save_img_confidence_path += "_binary_split"
                 img, img_confidence = self._get_img_dbm_fast_(resolution)                        
         else:
             img, img_confidence = self._get_img_dbm_(resolution)

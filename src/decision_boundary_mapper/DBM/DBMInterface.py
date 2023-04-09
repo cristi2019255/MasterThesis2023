@@ -23,7 +23,7 @@ from numba_progress import ProgressBar
 import tensorflow as tf
 from tqdm import tqdm
 
-from .tools import get_decode_pixel_priority, get_inv_proj_error, get_nd_indices_parallel, euclidean, get_proj_error_parallel, get_projection_errors_using_inverse_projection
+from .tools import get_confidence_based_split, get_decode_pixel_priority, get_inv_proj_error, get_nd_indices_parallel, euclidean, get_pixel_priority, get_proj_error_parallel, get_projection_errors_using_inverse_projection
 from ..utils import track_time_wrapper
 from ..Logger import Logger, LoggerInterface
 
@@ -360,25 +360,22 @@ class DBMInterface:
                     next_priority, next_item = priority_queue.get()
                 if priority != next_priority:
                     priority_queue.put((next_priority, next_item))
-            
-            
+                       
             space2d, indices = [], []
             single_points_space, single_points_indices = [], []
-            valid_items = []
+            window_sizes = []
             
-            for item in items:            
-                (window_size, i, j) = item
-                
+            for (window_size, i, j) in items:            
                 if window_size == 1:
                     single_points_indices += [(int(i), int(j))]
                     single_points_space += [(i / resolution, j / resolution)]
                     continue
                 
-                window_size = window_size / NEIGHBORS_NUMBER
-                neighbors = [(i - window_size, j - window_size), (i - window_size, j + window_size), (i + window_size, j - window_size), (i + window_size, j + window_size)]
+                window_sizes += [window_size / 2] * NEIGHBORS_NUMBER      
+                w = window_size / NEIGHBORS_NUMBER
+                neighbors = [(i - w, j - w), (i - w, j + w), (i + w, j - w), (i + w, j + w)]
                 space2d += [(x / resolution, y / resolution) for (x, y) in neighbors]
-                indices += neighbors                                                
-                valid_items.append(item)
+                indices += neighbors
             
             
             space = space2d + single_points_space
@@ -398,44 +395,29 @@ class DBMInterface:
             # fill the new image with the single points
             single_points_labels = predicted_labels[len(space2d):]
             single_points_confidences  = predicted_confidence[len(space2d):]
-            #single_points_spaceNd = predicted_spaceNd[len(space2d):]
-            
-            for i in range(len(single_points_indices)):
-                new_img[single_points_indices[i]] = single_points_labels[i]
-                #img_space_Nd[single_points_indices[i]] = single_points_spaceNd[i]
-                confidence_map.append((single_points_indices[i][0], single_points_indices[i][1], single_points_confidences[i]))                
-                           
+                        
             predicted_labels = predicted_labels[:len(space2d)]
             predicted_confidence = predicted_confidence[:len(space2d)]
-            #predicted_spaceNd = predicted_spaceNd[:len(space2d)] 
             
-            # fill the new image with the new labels and update the priority queue
-            for index in range(len(valid_items)):
-                (window_size, i, j) = valid_items[index]
-                neighbors = indices[index*NEIGHBORS_NUMBER:(index+1)*NEIGHBORS_NUMBER]
-                neighbors_labels = predicted_labels[index*NEIGHBORS_NUMBER:(index+1)*NEIGHBORS_NUMBER]
-                confidences = predicted_confidence[index*NEIGHBORS_NUMBER:(index+1)*NEIGHBORS_NUMBER]
-                #spaceNd = predicted_spaceNd[index*NEIGHBORS_NUMBER:(index+1)*NEIGHBORS_NUMBER]
+            # fill the new image with the new labels and update the priority queue    
+            for w, (x, y), label, conf in zip(window_sizes, indices, predicted_labels, predicted_confidence):
+                # all the pixels in the window are set to the same label
+                # starting from the top left corner of the window
+                # ending at the bottom right corner of the window
+                # the +1 is because the range function is not inclusive
+                confidence_map.append((x, y, conf))
+                x0, x1, y0, y1 = ceil(x-w/2), floor(x + w/2), ceil(y - w/2), floor(y + w/2)
+                new_img[x0:x1 + 1, y0:y1 + 1] = label           
+
+            for i in range(len(single_points_indices)):
+                new_img[single_points_indices[i]] = single_points_labels[i]
+                confidence_map.append((single_points_indices[i][0], single_points_indices[i][1], single_points_confidences[i]))                
                 
-                new_window_size = window_size / NEIGHBORS_NUMBER
-                
-                for (x, y), label, conf in zip(neighbors, neighbors_labels, confidences):
-                    # all the pixels in the window are set to the same label
-                    # starting from the top left corner of the window
-                    # ending at the bottom right corner of the window
-                    # the +1 is because the range function is not inclusive
-                    confidence_map.append((x, y, conf))
-                    if new_window_size >= 1:
-                        x0, x1, y0, y1 = ceil(x-new_window_size), floor(x + new_window_size), ceil(y - new_window_size), floor(y + new_window_size)
-                        new_img[x0:x1 + 1, y0:y1 + 1] = label           
-                    else:
-                        new_img[int(x), int(y)] = label
-                
-                # update the priority queue after the window has been filled
-                for (x, y), label in zip(neighbors, neighbors_labels):
-                    priority = get_decode_pixel_priority(img, x, y, 2 * new_window_size, label)
-                    if priority != -1:
-                        priority_queue.put((priority, (2 * new_window_size, x, y)))
+            # update the priority queue after the window has been filled
+            for w, (x, y), label in zip(window_sizes, indices, predicted_labels):
+                priority = get_decode_pixel_priority(new_img, x, y, w, label)
+                if priority != -1:
+                    priority_queue.put((priority, (w, x, y)))
             
             # update the image        
             img = new_img
@@ -456,9 +438,7 @@ class DBMInterface:
     def _get_img_dbm_fast_confidences_strategy(self, resolution:int, computational_budget=None, interpolation_method:str="linear"):
         """
         This function generates the 2D image of the boundary map. It uses a fast algorithm that uses a confidence based strategy to generate the image.
-        
-        ATTENTION: Highly recommended to use resolution = 2 ^ n, where n is an integer number (powers of 2).
-        
+         
         Args:
             resolution (int): the resolution of the 2D image to be generated
             computational_budget (int, optional): The computational budget to be used. Defaults to None.
@@ -472,31 +452,28 @@ class DBMInterface:
         """
         # ------------------------------------------------------------
         # Setting the initial parameters
-        WINDOW_SIZE = 8
-        NEIGHBORS_NUMBER = 4
-        
-        assert(resolution > WINDOW_SIZE)
-        
-        INITIAL_RESOLUTION = resolution // WINDOW_SIZE
+        INITIAL_RESOLUTION = 32
         
         if computational_budget is None:
             computational_budget = resolution * resolution
         
+        assert(resolution > INITIAL_RESOLUTION)
         assert(computational_budget > INITIAL_RESOLUTION * INITIAL_RESOLUTION)
+        
         INITIAL_COMPUTATIONAL_BUDGET = computational_budget
         
+        # ------------------------------------------------------------
         if (resolution % INITIAL_RESOLUTION != 0):
-            self.console.warn(f"The required resolution is not a multiple of the initial window size ({WINDOW_SIZE} x {WINDOW_SIZE})")
-            self.console.log("The resolution will be set to the closest multiple of the window size")
-            resolution = INITIAL_RESOLUTION * WINDOW_SIZE
+            resolution = INITIAL_RESOLUTION * (resolution // INITIAL_RESOLUTION)
             self.resolution = resolution   
             self.console.log(f"Resolution was set to {resolution} x {resolution}")
-            
-        window_size = WINDOW_SIZE
-        # ------------------------------------------------------------
+        
+        window_size_w = resolution // INITIAL_RESOLUTION
+        window_size_h = resolution // INITIAL_RESOLUTION
         
         # ------------------------------------------------------------
         img = np.zeros((resolution, resolution))
+        pseudo_conf_img = np.zeros((resolution, resolution))
         priority_queue = PriorityQueue()
         # ------------------------------------------------------------
                 
@@ -504,7 +481,7 @@ class DBMInterface:
         # generate the initial points
         self.console.log(f"Generating the initial central points within each window... total number of windows ({(INITIAL_RESOLUTION * INITIAL_RESOLUTION)})")
         
-        space2d = [((i * window_size + window_size / 2 - 0.5) / resolution, (j * window_size + window_size / 2 - 0.5) / resolution) for i in range(INITIAL_RESOLUTION) for j in range(INITIAL_RESOLUTION)]
+        space2d = [((i * window_size_w + window_size_w / 2 - 0.5) / resolution, (j * window_size_h + window_size_h / 2 - 0.5) / resolution) for i in range(INITIAL_RESOLUTION) for j in range(INITIAL_RESOLUTION)]
         
         predicted_labels, predicted_confidence = self._predict2dspace_(space2d)
         
@@ -518,8 +495,9 @@ class DBMInterface:
         # fill the initial points in the 2D image
         for i in range(INITIAL_RESOLUTION):
             for j in range(INITIAL_RESOLUTION):
-                x0, x1, y0, y1 = i * window_size, (i+1) * window_size, j * window_size, (j+1) * window_size
+                x0, x1, y0, y1 = i * window_size_w, (i+1) * window_size_w, j * window_size_h, (j+1) * window_size_h
                 img[x0:x1, y0:y1] = predictions[i,j]
+                pseudo_conf_img[x0:x1, y0:y1] = confidences[i,j]
         # -------------------------------------
         
         # collecting the indexes of the actual computed pixels in the 2D image and the confidence of each pixel
@@ -527,19 +505,111 @@ class DBMInterface:
         confidence_map = []
         
         if interpolation_method != "nearest":
-            border_indices = [(i * window_size + window_size / 2 - 0.5, 0) for i in range(INITIAL_RESOLUTION)] + \
-                            [(i * window_size + window_size / 2 - 0.5, resolution - 1) for i in range(INITIAL_RESOLUTION)] + \
-                            [(0, i * window_size + window_size / 2 - 0.5) for i in range(-1, INITIAL_RESOLUTION+1)] + \
-                            [(resolution - 1, i * window_size + window_size / 2 - 0.5) for i in range(-1, INITIAL_RESOLUTION + 1)]
+            border_indices = [(i * window_size_h + window_size_h / 2 - 0.5, 0) for i in range(INITIAL_RESOLUTION)] + \
+                            [(i * window_size_h + window_size_h / 2 - 0.5, resolution - 1) for i in range(INITIAL_RESOLUTION)] + \
+                            [(0, i * window_size_h + window_size_h / 2 - 0.5) for i in range(-1, INITIAL_RESOLUTION+1)] + \
+                            [(resolution - 1, i * window_size_h + window_size_h / 2 - 0.5) for i in range(-1, INITIAL_RESOLUTION + 1)]
             
             space2d_border = [(i / resolution, j / resolution) for (i,j) in border_indices]
             _, confidences_border = self._predict2dspace_(space2d_border)
             computational_budget -= len(space2d_border)
             confidence_map = [(i, j, conf) for (i,j),conf in zip(border_indices, confidences_border)]
+           
+        # analyze the initial points and generate the priority queue        
+        for i in range(INITIAL_RESOLUTION):
+            for j in range(INITIAL_RESOLUTION):
+                y, x = i * window_size_w + window_size_w / 2 - 0.5, j * window_size_h + window_size_h / 2 - 0.5
+                confidence_map.append((y,x,confidences[i,j])) 
+                priority = get_pixel_priority(img, y, x, window_size_w, window_size_h, predictions[i,j])
+                if priority != -1:
+                    priority_queue.put((priority, (window_size_w, window_size_h, y, x)))
+
+        # -------------------------------------
+        # start the iterative process of filling the image
+        self.console.log(f"Starting the iterative process of refining windows...")
         
-        #ATTENTION (!!!): This function is just a scratch for the confidence based strategy and it is not implemented yet
-        #TODO: implement the confidence based strategy here        
-        
+        iteration = 0
+        while computational_budget > 0 and not priority_queue.empty():  
+            iteration += 1  
+            print(priority_queue.qsize())
+            # take the highest priority task
+            priority, item = priority_queue.get()
+            # getting all the items with the same priority
+            items = [item]
+            if not priority_queue.empty():
+                next_priority, next_item = priority_queue.get()
+                while priority == next_priority:
+                    items.append(next_item)
+                    if priority_queue.empty():
+                        break
+                    next_priority, next_item = priority_queue.get()
+                if priority != next_priority:
+                    priority_queue.put((next_priority, next_item))
+            
+            space2d, indices = [], []
+            single_points_space, single_points_indices = [], []
+            window_sizes = []
+            
+            for (w, h, i, j) in items:            
+                if w == 1 and h == 1:
+                    single_points_indices += [(int(i), int(j))]
+                    single_points_space += [(i / resolution, j / resolution)]
+                    continue
+                
+                neighbors, sizes = get_confidence_based_split(img, pseudo_conf_img, i, j, w, h)
+                space2d += [(y / resolution, x / resolution) for (x, y) in neighbors]
+                window_sizes += sizes
+                indices += neighbors
+                    
+            space = space2d + single_points_space
+            
+            
+            # check if the computational budget is enough and update it
+            if computational_budget - len(space) < 0:
+                self.console.warn("Computational budget exceeded, stopping the process")
+                break
+            
+            computational_budget -= len(space)
+            
+            # decode the space
+            predicted_labels, predicted_confidence = self._predict2dspace_(space)
+            # copy the image to a new one, the new image will be updated with the new labels, the old one will be used to calculate the priorities
+            new_img = np.copy(img)            
+            new_pseudo_conf_image = np.copy(pseudo_conf_img)
+            
+            # fill the new image with the single points
+            single_points_labels = predicted_labels[len(space2d):]
+            single_points_confidences  = predicted_confidence[len(space2d):]
+            
+            for i in range(len(single_points_indices)):
+                new_img[single_points_indices[i]] = single_points_labels[i]
+                new_pseudo_conf_image[single_points_indices[i]] = single_points_confidences[i]
+                confidence_map.append((single_points_indices[i][0], single_points_indices[i][1], single_points_confidences[i]))  
+            
+            predicted_labels = predicted_labels[:len(space2d)]
+            predicted_confidence = predicted_confidence[:len(space2d)]
+            
+            # fill the new image with the new labels and update the priority queue     
+            for (w,h), (x, y), label, conf in zip(window_sizes, indices, predicted_labels, predicted_confidence):
+                    # all the pixels in the window are set to the same label
+                    # starting from the top left corner of the window
+                    # ending at the bottom right corner of the window
+                    # the +1 is because the range function is not inclusive
+                    confidence_map.append((y, x, conf))
+                    x0, x1, y0, y1 = ceil(x- w / 2), floor(x + w / 2), ceil(y - h / 2), floor(y + h / 2)
+                    new_img[y0:y1 + 1, x0:x1 + 1] = label  
+                    new_pseudo_conf_image[y0:y1 + 1, x0:x1 + 1] = conf                       
+                 
+            # update the priority queue after the window has been filled
+            for (w,h), (x, y), label in zip(window_sizes, indices, predicted_labels):
+                priority = get_pixel_priority(new_img, y, x, w, h, label)
+                if priority != -1:
+                    priority_queue.put((priority, (w, h, y, x)))
+            
+            # update the image        
+            img = new_img
+            pseudo_conf_img = new_pseudo_conf_image
+
         # summary
         self.console.log(f"Finished decoding the image, initial computational budget: {INITIAL_COMPUTATIONAL_BUDGET} computational budget left: {computational_budget}")
         self.console.log(f"Items left in the priority queue: {priority_queue.qsize()}")

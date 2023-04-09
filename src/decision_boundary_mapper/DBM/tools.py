@@ -165,8 +165,8 @@ def get_decode_pixel_priority(img, i, j, window_size, label):
         neighbors.append(img[i - w, j])
     if i + w + 1 < resolution:
         neighbors.append(img[i + w + 1, j])
-    if j - w > 0 and i + 1 < resolution:
-        neighbors.append(img[i + 1, j - w])
+    if j - w > 0:
+        neighbors.append(img[i, j - w])
     if j + w + 1 < resolution:
         neighbors.append(img[i, j + w + 1])
         
@@ -182,6 +182,124 @@ def get_decode_pixel_priority(img, i, j, window_size, label):
     cost *= window_size      
     
     return 1/cost
+
+@jit
+def get_pixel_priority(img, i, j, window_width, window_height, label):
+    resolution = img.shape[0]
+    # getting the 4 neighbors
+    i, j = int(i), int(j)
+    w = int(window_width / 2)
+    h = int(window_height / 2)
+    neighbors = []
+    
+    if i - h > 0:
+        neighbors.append(img[i - h, j])
+    if i + h + 1 < resolution:
+        neighbors.append(img[i + h + 1, j])
+    
+    if j - w > 0:
+        neighbors.append(img[i , j - w])
+    if j + w + 1 < resolution:
+        neighbors.append(img[i, j + w + 1])
+        
+    cost = 0
+    for neighbor in neighbors:
+        if neighbor != label:
+            cost += 1
+    
+    if cost == 0:
+        return -1
+    
+    cost /= len(neighbors)
+    cost *= window_width * window_height      
+    
+    return 1/cost
+
+
+def get_confidence_based_split(img, conf_img, i, j, w, h):
+    resolution = img.shape[0]
+    initial_i, initial_j = i, j
+    i, j = int(i), int(j)
+    dw = int(w / 2)
+    dh = int(h / 2)
+    label = img[i,j]
+    conf = conf_img[i,j]
+
+    neighbors = []
+    
+    if i - dh > 0:
+        new_i = i - dh
+        if img[new_i, j] != label:
+            neighbors.append((new_i, -1, conf_img[new_i, j]))
+    if i + dh + 1 < resolution:
+        new_i = i + dh + 1
+        if img[new_i, j] != label:
+            neighbors.append((new_i, -1, conf_img[new_i, j]))
+    
+    if j - dw > 0:
+        new_j = j - dw
+        if img[i, new_j] != label:
+            neighbors.append((-1, new_j, conf_img[i, new_j]))
+    if j + dw + 1 < resolution:
+        new_j = j + dw + 1 
+        if img[i, new_j] != label:
+            neighbors.append((-1, new_j, conf_img[i, new_j]))
+    
+        
+    splits_x = []
+    splits_y = []
+
+    for (y,x,c) in neighbors:
+        if x == -1:
+            split = get_split_position(initial_i, conf, y, -c)
+            if split is not None:
+                splits_y.append(split)
+        if y == -1:
+            split = get_split_position(initial_j, conf, x, -c)
+            if split is not None:
+                splits_x.append(split)
+     
+    if len(splits_x) == 0 and len(splits_y) == 0:
+        splits_x = [j + 1]
+        splits_y = [i + 1]        
+    
+    splits_x = [j - dw + 1] + splits_x + [j + dw + 1]
+    splits_y = [i - dh + 1] + splits_y + [i + dh + 1]
+    
+    representatives = []
+    sizes = []
+    markers_x = []
+    
+    for index in range(len(splits_x) - 1):  
+        w = splits_x[index + 1] - splits_x[index]
+        x = (splits_x[index + 1] + splits_x[index] - 1) / 2
+        if w < 1:
+            w = 1
+            x = splits_x[index]
+        markers_x.append((x,w))
+            
+    for index in range(len(splits_y) - 1):   
+        h = splits_y[index + 1] - splits_y[index]
+        y = (splits_y[index + 1] + splits_y[index] - 1) / 2
+        if h < 1:
+            h = 1
+            y = splits_y[index]
+        for (x,w) in markers_x:
+            representatives.append((x,y))
+            sizes.append((w,h))    
+    
+    return representatives, sizes
+
+def get_split_position(x1, c1, x2, c2):
+    A = np.array([[x1,1],[x2,1]])
+    B = np.array([c1,c2])
+    coefficients = np.linalg.solve(A,B)
+    boundary = round(- coefficients[1] / coefficients[0])
+    if boundary <= x2 + 1 and x2 < x1:
+        return None
+    if boundary >= x2 - 1 and x2 > x1:
+        return None
+    return boundary
 
 @njit(parallel=True)
 def get_projection_errors_using_inverse_projection( Xnd: np.ndarray, X2d: np.ndarray, spaceNd: np.ndarray, space2d: np.ndarray, progress, k: int=10):  
