@@ -40,9 +40,10 @@ import numpy as np
 import PySimpleGUI as sg
 import os
 import matplotlib
-matplotlib.use("TkAgg")
 
 from .. import Logger, LoggerGUI, FAST_DBM_STRATEGIES
+
+matplotlib.use("TkAgg")
 
 TRAIN_DATA_POINT_MARKER = -1
 TEST_DATA_POINT_MARKER = -2
@@ -54,12 +55,20 @@ def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
     if canvas_toolbar is not None and canvas_toolbar.children:
         for child in canvas_toolbar.winfo_children():
             child.destroy()
-    figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
+    
+    
+    figure.set_dpi(100)
+    figure.set_size_inches(1,1)    
+    figure_canvas_agg = FigureCanvasTkAgg(figure, master=canvas)
     figure_canvas_agg.draw()
+    
     if canvas_toolbar is not None:
         toolbar = NavigationToolbar2Tk(figure_canvas_agg, canvas_toolbar)        
         toolbar.update()  
-    figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=True)
+    
+    canvas_widget = figure_canvas_agg.get_tk_widget()
+    canvas_widget.pack(side='top', fill='both', expand=True)
+
     return figure_canvas_agg
 
 def generate_color_mapper():
@@ -233,7 +242,7 @@ class DBMPlotterGUI:
         layout = [                                  
                     [ 
                         sg.Column([
-                            [sg.Canvas(key='-DBM CANVAS-', expand_x=True, expand_y=True, pad=(0,0))],     
+                            [sg.Canvas(key='-DBM CANVAS-',size=(200,200), expand_x=True, expand_y=True, pad=(0,0))],     
                             [sg.Canvas(key='-CONTROLS CANVAS-', expand_x=True, pad=(0,0))],                    
                         ], pad=(0,0), expand_x=True, expand_y=True),                         
                         sg.VSeparator(),                
@@ -434,7 +443,7 @@ class DBMPlotterGUI:
         return train_mapper, test_mapper
 
     def _build_plot_(self):                   
-        fig = figure.Figure()
+        fig = figure.Figure(figsize=(1, 1), dpi=100)
         ax = fig.add_subplot(111)
         ax.set_axis_off()
         return fig, ax
@@ -670,7 +679,7 @@ class DBMPlotterGUI:
         img.thumbnail((100, 100), Image.ANTIALIAS)
         img.show(title=f"Data point label: {label}")
     
-    def draw_dbm_img(self):    
+    def draw_dbm_img(self):
         # update the figure
         self.ax.set_title("Decision Boundary Mapper")    
         img = np.zeros((self.img.shape[0], self.img.shape[1], 4))
@@ -1015,7 +1024,6 @@ class DBMPlotterGUI:
     def update_classifier_performance_canvas(self):
         times, accuracies, _ = self.get_classifier_performance_history()       
         self.classifier_performance_fig, self.classifier_performance_ax = self._build_plot_()  
-        self.classifier_performance_fig.set_size_inches(4.5, 2)
         self.classifier_performance_ax.set_axis_on()
         self.classifier_performance_ax.set_title("Classifier performance history")
         self.classifier_performance_ax.set_xlabel("Time")
@@ -1023,7 +1031,6 @@ class DBMPlotterGUI:
         self.classifier_performance_fig.canvas.mpl_connect('button_press_event', self.handle_show_classifier_performance_history_event)
        
         self.classifier_performance_ax.plot(times, accuracies, marker="o")
-        self.classifier_performance_fig.canvas.draw_idle()
         
         self.classifier_performance_fig_agg = draw_figure_to_canvas(self.classifier_performance_canvas, self.classifier_performance_fig)
         self.window.refresh()

@@ -16,6 +16,9 @@ import tensorflow as tf
 import os
 import numpy as np
 import random
+from src import DBM_usage_example, SDBM_usage_example, DBM_usage_example_GUI, SDBM_usage_example_GUI
+from tests.DBM.test import test_dbm, test_projection_errors
+
 
 SEED = 42
 
@@ -37,8 +40,6 @@ def set_global_determinism(seed=SEED):
 # Call the above function with seed value
 set_global_determinism(seed=SEED)
     
-from src import DBM_usage_example, SDBM_usage_example, DBM_usage_example_GUI, SDBM_usage_example_GUI
-from tests.DBM.test import test_dbm, test_projection_errors
 
 def main():
     #DBM_usage_example()
