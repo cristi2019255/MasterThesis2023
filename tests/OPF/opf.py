@@ -1,11 +1,11 @@
 # Copyright 2022 Cristian Grosu
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,24 +24,28 @@ import numpy as np
 # The OPF algorithm works as follows:
 # 1. We split the data into training and unlabeled data
 # 2. Based on the training data labels we create a graph and then for each unlabeled data point we find the closest labeled data point and assign the label of the closest labeled data point to the unlabeled data point
+
+
 def opf(X_train, Y_train):
     # Splitting data into training and validation sets
-    #X_train, X_unlabeled, Y_train, Y_unlabeled = s.split(
+    # X_train, X_unlabeled, Y_train, Y_unlabeled = s.split(
     #    X_train, Y_train, percentage=0.25, random_state=1
-    #)
+    # )
     pr_x = int(0.1*len(X_train))
     pr_y = int(0.1*len(Y_train))
-    X_train, X_unlabeled, Y_train, Y_unlabeled = X_train[:pr_x], X_train[pr_x:], Y_train[:pr_y], Y_train[pr_y:]
+    X_train, X_unlabeled, Y_train, Y_unlabeled = X_train[:
+                                                         pr_x], X_train[pr_x:], Y_train[:pr_y], Y_train[pr_y:]
 
     # Creates a SemiSupervisedOPF instance
-    opf = SemiSupervisedOPF(distance="log_squared_euclidean", pre_computed_distance=None)
+    opf = SemiSupervisedOPF(
+        distance="log_squared_euclidean", pre_computed_distance=None)
 
     # Fits training data along with unlabeled data into the semi-supervised classifier
     opf.fit(X_train, Y_train, X_unlabeled)
-    
+
     # Predicts new data
     preds = opf.predict(X_unlabeled)
-    
+
     # Calculating accuracy
     acc = g.opf_accuracy(Y_unlabeled, preds)
     print(f"Accuracy: {acc}")

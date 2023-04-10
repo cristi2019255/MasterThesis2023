@@ -1,11 +1,11 @@
 # Copyright 2023 Cristian Grosu
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,22 +15,22 @@
 class LoggerInterface:
     """ Interface for the logger class
     """
-    
-    def log(self, message:str):
+
+    def log(self, message: str):
         """ Log a message to the console
         Args:
             message (str): the message to log
         """
         pass
-        
-    def warn(self, message:str):
+
+    def warn(self, message: str):
         pass
-    
-    def error(self, message:str):
+
+    def error(self, message: str):
         pass
-    
-    def debug(self, message:str):
+
+    def debug(self, message: str):
         pass
-        
-    def success(self, message:str):
+
+    def success(self, message: str):
         pass

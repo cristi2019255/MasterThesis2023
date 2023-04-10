@@ -17,11 +17,9 @@ If you want to use the functionalities directly from this repo the follow the ne
 ## :dart: Tasks to be done (This is for internal use only)
 
 1. Think about a way of how to upload the data to the GUI faster
+2. Solve the randering issue on Mac
+3. Check the confidence based algorithm
 
-This is not really an issue
+## For deveolpers
 
-2. Projection errors are taking too long to be generated
-   I do not even know if the way they are computed now is the correct way ...
-
-3.TODO:
-see if results make sense with more datasets
+1. each time doing a push to the repository run `autopep8 . --recursive --in-place` to automatically format the code
