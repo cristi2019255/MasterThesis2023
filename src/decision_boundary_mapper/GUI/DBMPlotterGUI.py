@@ -39,9 +39,13 @@ from PIL import Image
 import numpy as np
 import PySimpleGUI as sg
 import os
+import matplotlib
+matplotlib.use("TkAgg")
 
-from .. import Logger, LoggerGUI
-from .. import FAST_DBM_STRATEGIES
+from .. import Logger, LoggerGUI, FAST_DBM_STRATEGIES
+
+TRAIN_DATA_POINT_MARKER = -1
+TEST_DATA_POINT_MARKER = -2
 
 def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
     if canvas.children:
@@ -55,13 +59,13 @@ def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
     if canvas_toolbar is not None:
         toolbar = NavigationToolbar2Tk(figure_canvas_agg, canvas_toolbar)        
         toolbar.update()  
-    figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
+    figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=True)
     return figure_canvas_agg
 
 def generate_color_mapper():
     colors_mapper = {
-        -2: [0,0,0], # setting original test data to black
-        -1: [1,1,1], # setting original train data to white
+        TEST_DATA_POINT_MARKER: [0,0,0], # setting original test data to black
+        TRAIN_DATA_POINT_MARKER: [1,1,1], # setting original train data to white
         0: [1,0,0], 
         1: [0,1,0], 
         2: [0,0,1], 
@@ -99,8 +103,6 @@ CLASSIFIER_STACKED_BOUNDARY_MAP_FILE = "classifier_old_boundary_map.npy"
 CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE = "classifier_old_boundary_map_confidence.npy"
 
 LABELS_CHANGES_FILE = "label_changes.json"
-TRAIN_DATA_POINT_MARKER = -1
-TEST_DATA_POINT_MARKER = -2
 
 class DBMPlotterGUI:
     def __init__ (self, 
@@ -201,15 +203,14 @@ class DBMPlotterGUI:
         
     def _initialize_gui_(self):        
         # --------------------- GUI related ---------------------
-        self.window = self._build_GUI_()
-        self.canvas, self.fig_agg, self.canvas_controls = self._build_canvas_(self.fig, key = "-DBM CANVAS-", controls_key="-CONTROLS CANVAS-")
-        
+        self.window = self._build_GUI_()                
         self.classifier_performance_canvas, self.classifier_performance_fig_agg = self._build_canvas_(self.classifier_performance_fig, key = "-CLASSIFIER PERFORMANCE CANVAS-")        
+        self.canvas, self.fig_agg, self.canvas_controls = self._build_canvas_(self.fig, key = "-DBM CANVAS-", controls_key="-CONTROLS CANVAS-")
         
         # --------------------- Classifier related ---------------------
         self.compute_classifier_metrics()
         
-        self.draw_dbm_img()            
+        self.draw_dbm_img() 
         # --------------------- GUI related ---------------------        
         self.updates_logger = LoggerGUI(name = "Updates logger", output = self.window["-LOGGER-"], update_callback = self.window.refresh)
         self.dbm_model.console = self.updates_logger
@@ -311,7 +312,8 @@ class DBMPlotterGUI:
                            element_justification='center',
                            )
         
-        window.finalize()        
+        window.finalize() 
+        window.maximize()       
         return window
     
     def start(self):
@@ -370,9 +372,14 @@ class DBMPlotterGUI:
             "-SHOW CLASSIFIER PREDICTIONS-": self.handle_checkbox_change_event,
             "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,            
             "-UNDO CHANGES-": self.handle_undo_changes_event,
+            "-DBM FAST DECODING STRATEGY-": self.handle_decoding_strategy_change_event,
         }
         
         EVENTS[event](event, values)    
+    
+    def handle_decoding_strategy_change_event(self, event, values):
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)    
+        self.window.refresh()
     
     def _build_2D_image_(self, img, class_name_mapper = lambda x: str(x), colors_mapper = COLORS_MAPPER):
         """Combines the img and the img_confidence into a single image.
@@ -433,7 +440,7 @@ class DBMPlotterGUI:
         return fig, ax
     
     def _build_canvas_(self, fig, key, controls_key=None):        
-        canvas = self.window[key].TKCanvas
+        canvas = self.window[key].TKCanvas   
         if controls_key is None:
             fig_agg = draw_figure_to_canvas(canvas, fig)
             return canvas, fig_agg
@@ -663,16 +670,16 @@ class DBMPlotterGUI:
         img.thumbnail((100, 100), Image.ANTIALIAS)
         img.show(title=f"Data point label: {label}")
     
-    def draw_dbm_img(self):             
+    def draw_dbm_img(self):    
         # update the figure
         self.ax.set_title("Decision Boundary Mapper")    
         img = np.zeros((self.img.shape[0], self.img.shape[1], 4))
         img[:,:,:3] = self.color_img
         img[:,:,3] = self.img_confidence    
         self.axes_image = self.ax.imshow(img)                                    
-                             
-        # draw the figure to the canvas
-        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)    
+        
+        # draw the figure to the canvas 
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)   
         self.window.refresh()
         
     def compute_classifier_metrics(self):
@@ -787,8 +794,6 @@ class DBMPlotterGUI:
         
         if hasattr(self, "ax_labels_changes") and self.ax_labels_changes is not None:            
             self.ax_labels_changes.set_visible(False)
-            #for point in self.ax_labels_changes:                
-            #    point.remove()
             self.ax_labels_changes = None
         
         positions_x, positions_y, alphas = self.positions_of_labels_changes   
