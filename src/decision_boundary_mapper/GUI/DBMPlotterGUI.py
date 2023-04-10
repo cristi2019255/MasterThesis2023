@@ -41,6 +41,7 @@ import PySimpleGUI as sg
 import os
 
 from .. import Logger, LoggerGUI
+from .. import FAST_DBM_STRATEGIES
 
 def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
     if canvas.children:
@@ -262,7 +263,16 @@ class DBMPlotterGUI:
                                 sg.Checkbox("Show projection errors", default=False, key="-SHOW PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0), visible=computed_projection_errors),
                             ],
                             [
-                                sg.Checkbox("Use the fast DBM algorithm", default=True, key="-USE FAST DBM-", font=APP_FONT, expand_x=True, pad=(0,0)),  
+                                sg.Combo(
+                                    values=list(FAST_DBM_STRATEGIES.list()),
+                                    default_value=FAST_DBM_STRATEGIES.NONE.value,
+                                    expand_x=True,
+                                    enable_events=True,
+                                    key="-DBM FAST DECODING STRATEGY-",
+                                    background_color=WHITE_COLOR, 
+                                    text_color=BLACK_COLOR,
+                                    readonly=True
+                                ),
                             ],
                             [
                                 sg.Button("Apply Changes", font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
@@ -276,7 +286,13 @@ class DBMPlotterGUI:
                             buttons_proj_errs[0],
                             buttons_proj_errs[1],
                             buttons_inv_proj_errs,
-                            [sg.Multiline("", key="-LOGGER-", size=(40,20), background_color=WHITE_COLOR, text_color=BLACK_COLOR, auto_size_text=True, expand_y=True, expand_x=True, enable_events=False)],
+                            [sg.Multiline("", key="-LOGGER-", size=(40,20), 
+                                          background_color=WHITE_COLOR, 
+                                          text_color=BLACK_COLOR, 
+                                          auto_size_text=True, 
+                                          expand_y=True, expand_x=True, 
+                                          enable_events=False, 
+                                          disabled=True)],
                             [sg.Text(INFORMATION_CONTROLS_MESSAGE, expand_x=True)],
                             [sg.Text(RIGHTS_MESSAGE_1, expand_x=True)],
                             [sg.Text(RIGHTS_MESSAGE_2, expand_x=True)],                               
@@ -305,7 +321,7 @@ class DBMPlotterGUI:
             
             if event == "Exit" or event == sg.WIN_CLOSED:
                 break
-        
+            
             self.handle_event(event, values)            
         
         self.stop()
@@ -411,7 +427,7 @@ class DBMPlotterGUI:
         return train_mapper, test_mapper
 
     def _build_plot_(self):                   
-        fig = figure.Figure(figsize = (1, 1))
+        fig = figure.Figure()
         ax = fig.add_subplot(111)
         ax.set_axis_off()
         return fig, ax
@@ -826,12 +842,12 @@ class DBMPlotterGUI:
         
         self.dbm_model.refit_classifier(self.X_train, Y, save_folder=save_folder, epochs=epochs)
 
-        self.regenerate_bounary_map(Y, use_fast_decoding=values["-USE FAST DBM-"])
+        self.regenerate_bounary_map(Y, fast_decoding_strategy=FAST_DBM_STRATEGIES(values["-DBM FAST DECODING STRATEGY-"]))
         self.handle_checkbox_change_event(event, values)                
         
         self.updates_logger.log("Changes applied successfully!")        
     
-    def regenerate_bounary_map(self, Y, use_fast_decoding):
+    def regenerate_bounary_map(self, Y, fast_decoding_strategy):
         
         if self.projection_technique is None:           
             dbm_info = self.dbm_model.generate_boundary_map(
@@ -840,7 +856,7 @@ class DBMPlotterGUI:
                 self.X_test, 
                 self.Y_test, 
                 resolution=len(self.img),
-                use_fast_decoding=use_fast_decoding,
+                fast_decoding_strategy = fast_decoding_strategy,
                 load_folder=self.save_folder,
                 projection=self.projection_technique                                        
             )        
@@ -854,7 +870,7 @@ class DBMPlotterGUI:
                 X2d_train = X2d_train,
                 X2d_test = X2d_test,
                 resolution=len(self.img),
-                use_fast_decoding=use_fast_decoding,
+                fast_decoding_strategy = fast_decoding_strategy,
                 load_folder=self.save_folder,
                 projection=self.projection_technique                                        
             )

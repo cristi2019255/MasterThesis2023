@@ -15,7 +15,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from ..DBM import SDBM
+from ..DBM import SDBM, NNArchitecture
 from ..GUI import DBMPlotterGUI
 
 from .utils import *
@@ -33,6 +33,7 @@ def SDBM_usage_example():
     # use the SDBM to get the decision boundary map
     img, img_confidence, _, _, _ = sdbm.generate_boundary_map(X_train, Y_train, 
                                                                 X_test, Y_test,
+                                                                nn_architecture=NNArchitecture.AUTOENCODER,
                                                                 load_folder=os.path.join("tmp", "MNIST", "SDBM"),    
                                                                 resolution=256)
     
@@ -109,6 +110,7 @@ def SDBM_usage_example_GUI():
     dbm_info = sdbm.generate_boundary_map(X_train, Y, 
                                          X_test, Y_test,
                                          resolution=256,
+                                         nn_architecture=NNArchitecture.SSNP,
                                          load_folder=os.path.join("tmp", "MNIST", "SDBM"),                                                                                                                             
                                          )
     

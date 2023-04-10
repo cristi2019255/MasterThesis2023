@@ -15,14 +15,22 @@
 import json
 import os
 import numpy as np
+from enum import Enum
 
-from .Autoencoder import DEFAULT_MODEL_PATH, Autoencoder
+from .Autoencoder import Autoencoder
+from .SSNP import SSNP
 from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION, FAST_DBM_STRATEGIES
 
 from ...utils import track_time_wrapper
 from ...Logger import LoggerInterface, Logger
+
 time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
 
+DEFAULT_MODEL_PATH = os.path.join("tmp", "SDBM")
+
+class NNArchitecture(Enum):
+    AUTOENCODER = "autoencoder"
+    SSNP = "ssnp"
 
 class SDBM(DBMInterface):
     """
@@ -47,6 +55,7 @@ class SDBM(DBMInterface):
     @track_time_wrapper(logger=time_tracker_console)
     def fit(self, 
             X: np.ndarray, Y: np.ndarray,
+            architecture: NNArchitecture = NNArchitecture.AUTOENCODER,
             epochs:int=300, batch_size:int=32,
             load_folder:str = DEFAULT_MODEL_PATH):
         """Train an autoencoder on the training data (this will be used to reduce the dimensionality of the data (nD -> 2D) and decode the 2D space to nD)
@@ -63,17 +72,24 @@ class SDBM(DBMInterface):
         Returns:
             autoencoder (Autoencoder): The trained autoencoder
         """
-        autoencoder = Autoencoder(folder_path = load_folder)
-        autoencoder.fit(X, Y, epochs, batch_size)        
-        return autoencoder
+        match architecture:
+            case NNArchitecture.SSNP:
+                ssnp = SSNP(folder_path = load_folder)
+                ssnp.fit(X, Y, epochs, batch_size)
+                return ssnp
+            case _:
+                autoencoder = Autoencoder(folder_path = load_folder)
+                autoencoder.fit(X, epochs, batch_size)        
+                return autoencoder
     
+        
     def generate_boundary_map(self, 
                               X_train:np.ndarray, Y_train:np.ndarray,
                               X_test:np.ndarray, Y_test:np.ndarray,
                               train_epochs:int=300, train_batch_size:int=32,
+                              nn_architecture:NNArchitecture=NNArchitecture.AUTOENCODER,
                               resolution:int=DBM_DEFAULT_RESOLUTION,
-                              use_fast_decoding:bool=False,
-                              fast_decoding_strategy:str=FAST_DBM_STRATEGIES[0],                              
+                              fast_decoding_strategy:FAST_DBM_STRATEGIES=FAST_DBM_STRATEGIES.NONE,                              
                               load_folder:str = DEFAULT_MODEL_PATH,
                               projection:str = None # this parameter is not used in SDBM but is placed here to keep the same interface as DBM
                               ):
@@ -86,6 +102,7 @@ class SDBM(DBMInterface):
                 Y_test (np.ndarray): Testing labels
                 train_epochs (int, optional): The number of epochs to train the autoencoder. Defaults to 300.
                 train_batch_size (int, optional): Defaults to 32.
+                nn_architecture (NN)
                 resolution (int, optional): The resolution of the decision boundary map. Defaults to DBM_DEFAULT_RESOLUTION = 256.
                 use_fast_decoding (bool, optional): If True, a fast inference algorithm will be used to decode the 2D space and to generate the decision boundary map. Defaults to False.
                 load_folder (str, optional): The folder path which contains a pre-trained autoencoder. Defaults to DEFAULT_MODEL_PATH.
@@ -113,6 +130,7 @@ class SDBM(DBMInterface):
             X = np.concatenate((X_train, X_test), axis=0)
             Y = np.concatenate((Y_train, Y_test), axis=0)
             self.neural_network = self.fit(X, Y, 
+                                        architecture=nn_architecture,
                                         load_folder=load_folder,
                                         epochs=train_epochs, 
                                         batch_size=train_batch_size)
@@ -125,40 +143,18 @@ class SDBM(DBMInterface):
         # generate the 2D image in the encoded space
         self.console.log("Decoding the 2D space... 2D -> nD")
         
-        save_img_path = os.path.join(load_folder, "boundary_map")
-        save_img_confidence_path = os.path.join(load_folder, "boundary_map_confidence")
-        
         self.resolution = resolution
         
-        if use_fast_decoding:
-            save_img_path += "_fast"
-            save_img_confidence_path += "_fast"        
-            if fast_decoding_strategy == FAST_DBM_STRATEGIES[1]:
-                save_img_path += "_confidence_split"
-                save_img_confidence_path += "_confidence_split"
-                img, img_confidence = self._get_img_dbm_fast_confidences_strategy(resolution)
-            else:
-                save_img_path += "_binary_split"
-                save_img_confidence_path += "_binary_split"
-                img, img_confidence = self._get_img_dbm_fast_(resolution)
-        else:
-            img, img_confidence = self._get_img_dbm_(resolution)
-        
+        img, img_confidence = self.get_dbm(fast_decoding_strategy, resolution, load_folder)
                 
         self.X2d = np.concatenate((encoded_training_data, encoded_testing_data), axis=0)
         self.Xnd = np.concatenate((X_train.reshape((X_train.shape[0],-1)), X_test.reshape((X_test.shape[0],-1))), axis=0)
         
         # transform the encoded data to be in the range [0, resolution)
-        encoded_testing_data *= (self.resolution -1)
-        encoded_training_data *= (self.resolution -1)
+        encoded_testing_data *= (resolution -1)
+        encoded_training_data *= (resolution -1)
         encoded_training_data = encoded_training_data.astype(int)
         encoded_testing_data = encoded_testing_data.astype(int)
-        
-        
-        with open(f"{save_img_path}.npy", 'wb') as f:
-            np.save(f, img)
-        with open(f"{save_img_confidence_path}.npy", 'wb') as f:
-            np.save(f, img_confidence)
         
         encoded_2d_train = np.zeros((len(encoded_training_data), 3))
         encoded_2d_test = np.zeros((len(encoded_training_data), 3))

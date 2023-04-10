@@ -21,12 +21,15 @@ from ...Logger import LoggerInterface, LoggerModel
 
 DECODER_NAME = "decoder"
 ENCODER_NAME = "encoder"
-AUTOENCODER_NAME = "autoencoder"
+SSNP_NAME = "ssnp"
 CLASSIFIER_NAME = "classifier"
 
-LOSS = "mean_squared_error"
+DECODER_LOSS = "mean_squared_error"
+CLASSIFIER_LOSS = "sparse_categorical_crossentropy"
+DECODER_LOSS_WEIGHT = 1.0
+CLASSIFIER_LOSS_WEIGHT = 0.125
 
-class Autoencoder(NNinterface):
+class SSNP(NNinterface):
     def __init__(self,                 
                  folder_path, 
                  logger:LoggerInterface = None):
@@ -39,9 +42,9 @@ class Autoencoder(NNinterface):
                 logger: The logger used to log the model's progress.
                 classifier: The classifier part of the autoencoder.
         """
-        super().__init__(folder_path=folder_path, logger=logger, nn_name=AUTOENCODER_NAME)                
+        super().__init__(folder_path=folder_path, logger=logger, nn_name=SSNP_NAME)                
     
-    def __build__(self, input_shape:tuple = (28, 28), show_summary:bool = False):
+    def __build__(self, input_shape:tuple = (28, 28), num_classes:int=10, show_summary:bool = False):
         """
             Assembles the autoencoder model and compiles it. 
             
@@ -68,31 +71,41 @@ class Autoencoder(NNinterface):
             tf.keras.layers.Reshape(input_shape)
         ], name=DECODER_NAME)       
         
+        classifier = tf.keras.models.Sequential([
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(num_classes, activation=tf.nn.softmax)
+        ], name=CLASSIFIER_NAME) 
         
         input_layer = tf.keras.Input(shape=input_shape, name="input")           
         
         encoder_output = encoder(input_layer)
         decoder_output = decoder(encoder_output)
+        classifier_output = classifier(decoder_output)
         
         self.neural_network = tf.keras.models.Model(inputs=input_layer,
-                                                    outputs=[decoder_output],
-                                                    name=AUTOENCODER_NAME)
+                                                    outputs=[decoder_output, classifier_output],
+                                                    name=SSNP_NAME)
         
         self.neural_network.compile(optimizer=tf.keras.optimizers.Adam(), 
-                                    loss = LOSS,
-                                    metrics = ["accuracy"])
+                                    loss = {DECODER_NAME:DECODER_LOSS,
+                                            CLASSIFIER_NAME:CLASSIFIER_LOSS},
+                                    loss_weights = {DECODER_NAME:DECODER_LOSS_WEIGHT,
+                                                    CLASSIFIER_NAME:CLASSIFIER_LOSS_WEIGHT},
+                                    metrics = {DECODER_NAME: "accuracy", CLASSIFIER_NAME: "accuracy"})
         
         if show_summary:
             self.neural_network.summary()
         
         
-    def fit(self, X: np.ndarray,             
-            epochs:int = 10, 
-            batch_size:int = 128):
+    def fit(self, X: np.ndarray, Y: np.ndarray,             
+            epochs:int = 10, batch_size:int = 128):
         """ Fits the model to the specified data.
 
         Args:
             x_train (np.ndarray): Train input values
+            y_train (np.ndarray): Train target values
+            x_test (np.ndarray): Test input values
+            y_test (np.ndarray): Test target values
             epochs (int, optional): The number of epochs. Defaults to 10.
             batch_size (int, optional): Data points used for one batch. Defaults to 128.
         """
@@ -104,14 +117,15 @@ class Autoencoder(NNinterface):
         
         
         self.console.log("Building model according to the data shape.")
-        self.__build__(input_shape=X.shape[1:], show_summary=True)
+        num_classes = len(np.unique(Y))
+        self.__build__(input_shape=X.shape[1:], num_classes=num_classes, show_summary=True)
             
         stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=0.00001, mode='min', patience=20, restore_best_weights=True)
-        logger_callback = LoggerModel(name=AUTOENCODER_NAME, show_init=False, epochs=epochs)
+        logger_callback = LoggerModel(name=SSNP_NAME, show_init=False, epochs=epochs)
 
         self.console.log("Fitting model...")
         
-        history = self.neural_network.fit(X, X, 
+        history = self.neural_network.fit(X, [X, Y], 
                             epochs=epochs, 
                             batch_size=batch_size, 
                             shuffle=True,
@@ -123,7 +137,9 @@ class Autoencoder(NNinterface):
         self.save(history)    
         self.encoder = self.neural_network.get_layer(ENCODER_NAME)
         self.decoder = self.neural_network.get_layer(DECODER_NAME)
-                       
+            
+        #self.show_predictions(dataNd=x_test, labels=y_test)    
+           
     def encode(self, data:np.ndarray, verbose:int = 0):
         """ Encodes the data using the encoder part of the autoencoder.
 

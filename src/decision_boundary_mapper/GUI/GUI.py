@@ -23,7 +23,7 @@ from tensorflow.keras.utils import plot_model
 
 from .DBMPlotterGUI import DBMPlotterGUI
 from ..Logger import LoggerGUI, Logger
-from ..DBM import SDBM, DBM
+from ..DBM import SDBM, DBM, NNArchitecture
 from ..utils import import_csv_dataset, import_mnist_dataset, import_cifar10_dataset, import_fashion_mnist_dataset
 
 sg.theme('DarkBlue1')
@@ -51,8 +51,9 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Disable tensorflow logs
 """
 
 DBM_TECHNIQUES = {
-    "Autoencoder": SDBM,
-    "Inverse Projection": DBM,
+    "autoencoder": SDBM,
+    "ssnp": SDBM,
+    "nnInv": DBM,
 }
 
 PROJECTION_TECHNIQUES = [
@@ -409,7 +410,7 @@ class GUI:
      
     def handle_dbm_technique_event(self, event, values):
         dbm_technique = values["-DBM TECHNIQUE-"]
-        if dbm_technique == "Inverse Projection":
+        if dbm_technique == "nnInv":
             self.switch_visibility(["-PROJECTION TECHNIQUE TEXT-", "-PROJECTION TECHNIQUE-"], True)
         else:
             self.switch_visibility(["-PROJECTION TECHNIQUE TEXT-", "-PROJECTION TECHNIQUE-"], False)
@@ -446,30 +447,25 @@ class GUI:
         show_dbm_history = values["-DBM HISTORY CHECKBOX-"]
         resolution = 256 #values["-DBM IMAGE RESOLUTION INPUT-"]
         
-        #if resolution.isdigit() and int(resolution) > 50 and int(resolution) < 800:
-        #    resolution = int(resolution)
-        #else:
-        #    self.dbm_logger.log("Invalid resolution, using default value 256, please enter a value between 50 and 800")
-        #    resolution = 256
-        
         self.dbm_logger.log(f"DBM resolution: {resolution}")
         
         TMP_FOLDER = os.path.join("tmp", self.dataset_name)
         save_folder = TMP_FOLDER
-        if values["-DBM TECHNIQUE-"] == "Inverse Projection":
-            DEFAULT_MODEL_FOLDER = os.path.join(TMP_FOLDER, "DBM")        
+        dbm_technique = values["-DBM TECHNIQUE-"]
+        if dbm_technique == "nnInv":
+            save_folder = os.path.join(TMP_FOLDER, "DBM")        
             
-            if not os.path.exists(os.path.join(DEFAULT_MODEL_FOLDER, projection_technique, "train_2d.npy")):
+            if not os.path.exists(os.path.join(save_folder, projection_technique, "train_2d.npy")):
                 X_train_2d = None
             else:
-                with open(os.path.join(DEFAULT_MODEL_FOLDER, projection_technique, "train_2d.npy"), "rb") as f:
+                with open(os.path.join(save_folder, projection_technique, "train_2d.npy"), "rb") as f:
                     X_train_2d = np.load(f)
-            if not os.path.exists(os.path.join(DEFAULT_MODEL_FOLDER, projection_technique, "test_2d.npy")):
+            if not os.path.exists(os.path.join(save_folder, projection_technique, "test_2d.npy")):
                 X_test_2d = None
             else:
-                with open(os.path.join(DEFAULT_MODEL_FOLDER, projection_technique, "test_2d.npy"), "rb") as f:
+                with open(os.path.join(save_folder, projection_technique, "test_2d.npy"), "rb") as f:
                     X_test_2d = np.load(f)
-            save_folder = os.path.join(DEFAULT_MODEL_FOLDER, projection_technique)
+                    
             dbm_info = dbm.generate_boundary_map(
                                         self.X_train, 
                                         self.Y_train, 
@@ -478,7 +474,7 @@ class GUI:
                                         X2d_train=X_train_2d,
                                         X2d_test=X_test_2d,
                                         resolution=resolution,
-                                        load_folder=DEFAULT_MODEL_FOLDER,
+                                        load_folder=save_folder,
                                         projection=projection_technique
                                         )
         else:
@@ -488,6 +484,7 @@ class GUI:
                                         self.Y_train, 
                                         self.X_test, 
                                         self.Y_test, 
+                                        nn_architecture=NNArchitecture(dbm_technique),
                                         resolution=resolution,
                                         load_folder=save_folder,
                                         projection=projection_technique

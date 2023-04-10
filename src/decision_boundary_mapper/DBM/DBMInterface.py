@@ -22,14 +22,24 @@ from sklearn.neighbors import KDTree
 from numba_progress import ProgressBar
 import tensorflow as tf
 from tqdm import tqdm
+from enum import Enum
 
 from .tools import get_confidence_based_split, get_decode_pixel_priority, get_inv_proj_error, get_nd_indices_parallel, euclidean, get_pixel_priority, get_proj_error_parallel, get_projection_errors_using_inverse_projection
 from ..utils import track_time_wrapper
 from ..Logger import Logger, LoggerInterface
 
 DBM_DEFAULT_RESOLUTION = 256
-FAST_DBM_STRATEGIES = ["binary_split", "confidence_split"]
+DBM_IMAGE_NAME = "boundary_map"
+DBM_CONFIDENCE_IMAGE_NAME = "boundary_map_confidence"
 time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
+class FAST_DBM_STRATEGIES(Enum):
+    NONE = "none"
+    BINARY = "binary_split"
+    CONFIDENCE_BASED = "confidence_split"
+    
+    @classmethod
+    def list(cls):
+        return list(map(lambda c: c.value, cls))
 
 class DBMInterface:
     """ Decision Boundary Mapper Interface
@@ -148,6 +158,29 @@ class DBMInterface:
             spaceNd (np.array): The decoded nD space
         """
         pass
+    
+    def get_dbm(self, fast_decoding_strategy, resolution, load_folder):
+        save_img_path = os.path.join(load_folder, DBM_IMAGE_NAME)
+        save_img_confidence_path = os.path.join(load_folder, DBM_CONFIDENCE_IMAGE_NAME)
+        
+        match fast_decoding_strategy:
+            case FAST_DBM_STRATEGIES.NONE:
+                img, img_confidence = self._get_img_dbm_(resolution)
+            case FAST_DBM_STRATEGIES.BINARY:
+                save_img_path += f"_fast_{FAST_DBM_STRATEGIES.BINARY.value}"
+                save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.BINARY.value}"
+                img, img_confidence = self._get_img_dbm_fast_(resolution)
+            case FAST_DBM_STRATEGIES.CONFIDENCE_BASED:
+                save_img_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
+                save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
+                img, img_confidence = self._get_img_dbm_fast_confidences_strategy(resolution)
+        
+        with open(f"{save_img_path}.npy", 'wb') as f:
+            np.save(f, img)
+        with open(f"{save_img_confidence_path}.npy", 'wb') as f:
+            np.save(f, img_confidence)
+        
+        return img, img_confidence
     
     @track_time_wrapper(logger=time_tracker_console)
     def generate_inverse_projection_errors(self, resolution:int, save_folder:str = None):

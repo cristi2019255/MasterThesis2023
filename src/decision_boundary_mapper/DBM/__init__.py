@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from .DBM import DBM
-from .SDBM import SDBM
-from .DBMInterface import DBMInterface
+from .SDBM import SDBM, NNArchitecture
+from .DBMInterface import DBMInterface, FAST_DBM_STRATEGIES
 from .NNinterface import NNinterface
 from .tools import *

@@ -16,7 +16,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-from ..DBM import DBM
+from ..DBM import DBM, FAST_DBM_STRATEGIES
 from ..GUI import DBMPlotterGUI
 
 from .utils import *
@@ -42,8 +42,7 @@ def DBM_usage_example():
                                                                 X2d_test=X2d_test,
                                                                 resolution=256, 
                                                                 load_folder=os.path.join("tmp", "MNIST", "DBM"),  
-                                                                use_fast_decoding=True,
-                                                                fast_decoding_strategy="confidence_split",                                                                                                                           
+                                                                fast_decoding_strategy=FAST_DBM_STRATEGIES.CONFIDENCE_BASED,                                                                                                                           
                                                                 projection="t-SNE")
     
     # if you have the 2D projection of the data, you can use the following function to get the decision boundary map
@@ -54,7 +53,6 @@ def DBM_usage_example():
                                                                 X2d_train=X2d_train, 
                                                                 X2d_test=X2d_test,
                                                                 load_folder=os.path.join("tmp", "MNIST", "DBM"), 
-                                                                use_fast_decoding=True,  
                                                                 resolution=256)
     """                                                                  
     
@@ -84,7 +82,6 @@ def DBM_usage_example():
     plt.imshow(color_img)
     plt.show()
     
-    """
     # use the dbm to get the inverse projection errors
     img_inverse_projection_errors = dbm.generate_inverse_projection_errors(resolution=256)
     # plot the inverse projection errors
@@ -106,7 +103,7 @@ def DBM_usage_example():
     img_ax = ax.imshow(img_projection_errors)
     fig.colorbar(img_ax, ax=ax)
     plt.show()
-    """
+    
     
 def DBM_usage_example_GUI():
     # import the dataset

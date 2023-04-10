@@ -86,8 +86,7 @@ class DBM(DBMInterface):
                               train_epochs:int=300, 
                               train_batch_size:int=32,
                               resolution:int=DBM_DEFAULT_RESOLUTION,
-                              use_fast_decoding:bool=False,
-                              fast_decoding_strategy:str=FAST_DBM_STRATEGIES[0],
+                              fast_decoding_strategy:FAST_DBM_STRATEGIES=FAST_DBM_STRATEGIES.NONE,
                               load_folder:str=DEFAULT_MODEL_PATH,
                               projection:str='t-SNE'                              
                               ):
@@ -152,37 +151,17 @@ class DBM(DBMInterface):
         
         self.console.log("Decoding the 2D space... 2D -> nD")
         
-        save_img_path = os.path.join(load_folder, "boundary_map")
-        save_img_confidence_path = os.path.join(load_folder, "boundary_map_confidence")
-        
         self.resolution = resolution   
         
-        if use_fast_decoding:
-            save_img_path += "_fast"
-            save_img_confidence_path += "_fast"            
-            if fast_decoding_strategy == FAST_DBM_STRATEGIES[1]:
-                save_img_path += "_confidence_split"
-                save_img_confidence_path += "_confidence_split"
-                img, img_confidence = self._get_img_dbm_fast_confidences_strategy(resolution)
-            else:
-                save_img_path += "_binary_split"
-                save_img_confidence_path += "_binary_split"
-                img, img_confidence = self._get_img_dbm_fast_(resolution)                        
-        else:
-            img, img_confidence = self._get_img_dbm_(resolution)
-    
-        with open(f"{save_img_path}.npy", 'wb') as f:
-            np.save(f, img)
-        with open(f"{save_img_confidence_path}.npy", 'wb') as f:
-            np.save(f, img_confidence)        
+        img, img_confidence = self.get_dbm(fast_decoding_strategy, resolution, load_folder)      
                  
         self.X2d = np.concatenate((X2d_train, X2d_test), axis=0)
         self.Xnd = np.concatenate((Xnd_train.reshape((Xnd_train.shape[0],-1)), Xnd_test.reshape((Xnd_test.shape[0],-1))), axis=0)
         self.console.log("Map the 2D embedding of the data to the 2D image")
         
         # transform the encoded data to be in the range [0, resolution)
-        X2d_train *= (self.resolution - 1)
-        X2d_test *= (self.resolution - 1)
+        X2d_train *= (resolution - 1)
+        X2d_test *= (resolution - 1)
         X2d_train = X2d_train.astype(int)
         X2d_test = X2d_test.astype(int)
         
@@ -211,7 +190,7 @@ class DBM(DBMInterface):
                 history = json.load(f)
         
         return (img, img_confidence, encoded_2d_train, encoded_2d_test, history)
-     
+    
     def _predict2dspace_(self, X2d: np.ndarray):
         """ Predicts the labels for the given 2D data set.
 
