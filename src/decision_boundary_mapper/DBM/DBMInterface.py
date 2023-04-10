@@ -84,7 +84,7 @@ class DBMInterface:
 
     def fit(self, X_train: np.ndarray, Y_train: np.ndarray,
             X_test: np.ndarray, Y_test: np.ndarray,
-            epochs: int = 10, batch_size: int = 128, 
+            epochs: int = 10, batch_size: int = 128,
             load_folder: str | None = None):
         """ Trains the classifier on the given data set.
 
@@ -107,10 +107,11 @@ class DBMInterface:
         """
         self.console.log(
             f"Refiting classifier for {epochs} epochs and batch size {batch_size}, please wait...")
-        self.classifier.fit(Xnd, Y, epochs=epochs, batch_size=batch_size, verbose=0) # type: ignore
+        self.classifier.fit(Xnd, Y, epochs=epochs,             # type: ignore
+                            batch_size=batch_size, verbose=0)  # type: ignore
         self.console.log("Finished refitting classifier")
         self.console.log("Saving a copy of the retrained classifier...")
-        self.classifier.save(save_folder, save_format="tf")                         # type: ignore
+        self.classifier.save(save_folder, save_format="tf")   # type: ignore
         self.console.log("A copy of the retrained classifier was saved!")
 
     def save_classifier(self, save_folder: str):
@@ -119,7 +120,7 @@ class DBMInterface:
         Args:
             save_folder (str): The folder where the classifier will be saved
         """
-        self.classifier.save(save_folder, save_format="tf") # type: ignore
+        self.classifier.save(save_folder, save_format="tf")  # type: ignore
 
     def load_classifier(self, load_folder: str):
         """ Loads a copy of the classifier.
@@ -156,7 +157,7 @@ class DBMInterface:
         """
         pass
 
-    def _predict2dspace_(self, X2d: np.ndarray | list[tuple[float,float]]) -> tuple:
+    def _predict2dspace_(self, X2d: np.ndarray | list[tuple[float, float]]) -> tuple:
         """ Predicts the labels for the given 2D data set.
 
         Args:
@@ -188,14 +189,14 @@ class DBMInterface:
                     resolution)
 
         with open(f"{save_img_path}.npy", 'wb') as f:
-            np.save(f, img)  # type: ignore 
+            np.save(f, img)  # type: ignore
         with open(f"{save_img_confidence_path}.npy", 'wb') as f:
-            np.save(f, img_confidence) # type: ignore
+            np.save(f, img_confidence)  # type: ignore
 
-        return img, img_confidence # type: ignore
+        return img, img_confidence  # type: ignore
 
     @track_time_wrapper(logger=time_tracker_console)
-    def generate_inverse_projection_errors(self, resolution: int, save_folder: str | None  = None):
+    def generate_inverse_projection_errors(self, resolution: int, save_folder: str | None = None):
         """ Calculates the inverse projection errors of the given data.
 
         Args:
@@ -245,7 +246,7 @@ class DBMInterface:
                     [((i + 2) / resolution, j / resolution) for j in range(resolution)])
                 next_row_nd = self.neural_network.decode(next_row)
             else:
-                next_row_nd = None # type: ignore
+                next_row_nd = None  # type: ignore
 
         # normalizing the errors to be in the range [0,1]
         errors = (errors - np.min(errors)) / (np.max(errors) - np.min(errors))
@@ -291,9 +292,11 @@ class DBMInterface:
             chunk_index += 1
             self.console.log(
                 f"Predicting labels for the 2D boundary mapping using the nD data and the trained classifier... (chunk {chunk_index}/{len(space2d_chunks)})")
-            predicted_labels, predicted_confidence = self._predict2dspace_(space2d_chunk) # type: ignore
+            predicted_labels, predicted_confidence = self._predict2dspace_(
+                space2d_chunk)
             img = np.concatenate((img, predicted_labels))
-            img_confidence = np.concatenate((img_confidence, predicted_confidence))
+            img_confidence = np.concatenate(
+                (img_confidence, predicted_confidence))
 
         img = img.reshape((resolution, resolution))
         img_confidence = img_confidence.reshape((resolution, resolution))
@@ -457,7 +460,8 @@ class DBMInterface:
             computational_budget -= len(space)
 
             # decode the space
-            predicted_labels, predicted_confidence = self._predict2dspace_(space)
+            predicted_labels, predicted_confidence = self._predict2dspace_(
+                space)
             # copy the image to a new one, the new image will be updated with the new labels, the old one will be used to calculate the priorities
             new_img = np.copy(img)
 
@@ -661,7 +665,8 @@ class DBMInterface:
             computational_budget -= len(space)
 
             # decode the space
-            predicted_labels, predicted_confidence = self._predict2dspace_(space)
+            predicted_labels, predicted_confidence = self._predict2dspace_(
+                space)
             # copy the image to a new one, the new image will be updated with the new labels, the old one will be used to calculate the priorities
             new_img = np.copy(img)
             new_pseudo_conf_image = np.copy(pseudo_conf_img)
@@ -766,10 +771,10 @@ class DBMInterface:
         # the result is then merged together
         # the number of chunks is equal to the number of cores
         cores = 4
-    
-        ix = da.from_array(xx, chunks=(1, cores))  # type: ignore 
-        iy = da.from_array(yy, chunks=(1, cores))  # type: ignore 
-        iz = da.map_blocks(rbf, ix, iy)            # type: ignore 
+
+        ix = da.from_array(xx, chunks=(1, cores))  # type: ignore
+        iy = da.from_array(yy, chunks=(1, cores))  # type: ignore
+        iz = da.map_blocks(rbf, ix, iy)            # type: ignore
         zz = iz.compute()
         self.console.log(
             "Finished computing the interpolated image using RBF interpolation")

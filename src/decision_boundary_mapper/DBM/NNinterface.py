@@ -89,7 +89,10 @@ class NNinterface:
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        self.neural_network.save(os.path.join(folder_path, self.neural_network.name), save_format="tf") # type: ignore
+        path = os.path.join(
+            folder_path, self.neural_network.name)  # type: ignore
+        self.neural_network.save(                   # type: ignore
+            path, save_format="tf")
         self.console.log(f"Model saved to {folder_path}")
 
         if history is None:
@@ -142,7 +145,7 @@ class NNinterface:
         Returns:
             Xnd, labels_predictions: The decoded data points and the predictions of the classifier.
         """
-        return self.neural_network.predict(data, verbose=verbose) # type: ignore
+        return self.neural_network.predict(data, verbose=verbose)  # type: ignore
 
     def encode(self, data: np.ndarray, verbose: int = 0) -> np.ndarray:
         """ Encodes the data points.

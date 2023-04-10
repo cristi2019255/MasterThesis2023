@@ -1,11 +1,11 @@
 # Copyright 2023 Cristian Grosu
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,7 +24,8 @@ from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION, FAST_DBM_STRATE
 
 from ...utils import track_time_wrapper
 from ...Logger import LoggerInterface, Logger
-time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
+time_tracker_console = Logger(
+    name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
 
 
 class DBM(DBMInterface):
@@ -34,7 +35,7 @@ class DBM(DBMInterface):
     Methods:
         fit: Trains the classifier on the given data set.
         get_decision_boundary_map: Returns the decision boundary map for the given classifier.
-        
+
     Example:
         >>> from DBM import DBM
         >>> classifier = ...
@@ -43,8 +44,8 @@ class DBM(DBMInterface):
         >>> plt.imshow(img)
         >>> plt.show()
     """
-    
-    def __init__(self, classifier, logger:LoggerInterface=None):
+
+    def __init__(self, classifier, logger: LoggerInterface | None = None):
         """ Initializes the DBM class.
 
         Args:
@@ -52,13 +53,13 @@ class DBM(DBMInterface):
             logger (LoggerInterface, optional): The logger for outputting info messages. Defaults to console logging.
         """
         super().__init__(classifier, logger)
-        self.neural_network = None       
-    
-    @track_time_wrapper(logger=time_tracker_console)                                             
-    def fit(self, 
-            X2d: np.ndarray, Xnd: np.ndarray,            
-            epochs:int=300, batch_size:int=32, 
-            load_folder:str=DEFAULT_MODEL_PATH):
+        self.neural_network = None  # type: ignore
+
+    @track_time_wrapper(logger=time_tracker_console)
+    def fit(self,
+            X2d: np.ndarray, Xnd: np.ndarray,
+            epochs: int = 300, batch_size: int = 32,
+            load_folder: str = DEFAULT_MODEL_PATH):
         """ 
         Trains the classifier on the given data set.
 
@@ -67,28 +68,29 @@ class DBM(DBMInterface):
             Xnd (np.ndarray): Training data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
             epochs (int, optional): The number of epochs for which the DBM is trained. Defaults to 300.
             batch_size (int, optional): Train batch size. Defaults to 32.
-        
+
         Returns:
             inverse_porjection_NN (invNN): The trained inverse projection neural network.
         """
-        
-        inverse_projection_NN = invNN(classifier=self.classifier, folder_path=load_folder)
+
+        inverse_projection_NN = invNN(
+            classifier=self.classifier, folder_path=load_folder)
         inverse_projection_NN.fit(X2d, Xnd,
-                                  epochs=epochs, 
+                                  epochs=epochs,
                                   batch_size=batch_size)
         return inverse_projection_NN
-    
-    def generate_boundary_map(self, 
-                              Xnd_train: np.ndarray, Y_train: np.ndarray, 
+
+    def generate_boundary_map(self,
+                              Xnd_train: np.ndarray, Y_train: np.ndarray,
                               Xnd_test: np.ndarray, Y_test: np.ndarray,
-                              X2d_train: np.ndarray = None,
-                              X2d_test: np.ndarray = None,
-                              train_epochs:int=300, 
-                              train_batch_size:int=32,
-                              resolution:int=DBM_DEFAULT_RESOLUTION,
-                              fast_decoding_strategy:FAST_DBM_STRATEGIES=FAST_DBM_STRATEGIES.NONE,
-                              load_folder:str=DEFAULT_MODEL_PATH,
-                              projection:str='t-SNE'                              
+                              X2d_train: np.ndarray | None = None,
+                              X2d_test: np.ndarray | None = None,
+                              train_epochs: int = 300,
+                              train_batch_size: int = 32,
+                              resolution: int = DBM_DEFAULT_RESOLUTION,
+                              fast_decoding_strategy: FAST_DBM_STRATEGIES = FAST_DBM_STRATEGIES.NONE,
+                              load_folder: str = DEFAULT_MODEL_PATH,
+                              projection: str = 't-SNE'
                               ):
         """ Generates a 2D boundary map of the classifier's decision boundary.
 
@@ -106,7 +108,7 @@ class DBM(DBMInterface):
             use_fast_decoding (bool, optional): If set to true the fast decoding method is used. Defaults to False.
             load_folder (str, optional): The folder in which the model will be stored or if exists loaded from. Defaults to DEFAULT_MODEL_PATH
             projection (str, optional): The projection method to be used. Defaults to 't-SNE'.
-        
+
         Returns:
             img (np.array): A 2D numpy array with the decision boundary map, each element is an integer representing the class of the corresponding point.
             img_confidence (np.array): A 2D numpy array with the decision boundary map, each element is a float representing the confidence of the classifier for the corresponding point.
@@ -114,7 +116,7 @@ class DBM(DBMInterface):
             X2d_test (np.array): A 2D matrix representing the projection of the testing data set, each element is an integer representing the class of the corresponding point.
             space_nd (np.array): A 2D matrix representing the nD space in which the decision boundary map is generated.
             history (dict): A dictionary containing the training history of the neural network.
-        
+
         Example:
             >>> dbm = DBM(classifier)
             >>> img, img_confidence, X2d_train, X2d_test, history = dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
@@ -124,91 +126,92 @@ class DBM(DBMInterface):
             >>> plt.show()
         """
         assert projection in ['t-SNE', 'PCA', 'UMAP']
-        
-        
+
         if projection != load_folder.split(os.sep)[-1]:
             load_folder = os.path.join(load_folder, projection)
-                    
+
         # creating a folder for the model if not present
         if not os.path.exists(os.path.join(load_folder)):
-           os.makedirs(os.path.join(load_folder)) 
-        
+            os.makedirs(os.path.join(load_folder))
+
         if X2d_train is None or X2d_test is None:
             Xnd_train_flatten = Xnd_train.reshape((Xnd_train.shape[0], -1))
             Xnd_test_flatten = Xnd_test.reshape((Xnd_test.shape[0], -1))
-            X2d_train, X2d_test = self.__transform_2d__(Xnd_train_flatten, Xnd_test_flatten, load_folder, projection)
+            X2d_train, X2d_test = self.__transform_2d__(
+                Xnd_train_flatten, Xnd_test_flatten, load_folder, projection)
         else:
             # Normalize the data to be in the range of [0,1]
             X2d_train, X2d_test = self.__normalize_2d__(X2d_train, X2d_test)
-        
-        
+
         if self.neural_network is None:
             X = np.concatenate((X2d_train, X2d_test), axis=0)
             Y = np.concatenate((Xnd_train, Xnd_test), axis=0)
             self.neural_network = self.fit(X, Y,
-                                          train_epochs, train_batch_size,
-                                          load_folder=load_folder)   
-        
+                                           train_epochs, train_batch_size,
+                                           load_folder=load_folder)
+
         self.console.log("Decoding the 2D space... 2D -> nD")
-        
-        self.resolution = resolution   
-        
-        img, img_confidence = self.get_dbm(fast_decoding_strategy, resolution, load_folder)      
-                 
+
+        self.resolution = resolution
+
+        img, img_confidence = self.get_dbm(
+            fast_decoding_strategy, resolution, load_folder)
+
         self.X2d = np.concatenate((X2d_train, X2d_test), axis=0)
-        self.Xnd = np.concatenate((Xnd_train.reshape((Xnd_train.shape[0],-1)), Xnd_test.reshape((Xnd_test.shape[0],-1))), axis=0)
+        self.Xnd = np.concatenate((Xnd_train.reshape(
+            (Xnd_train.shape[0], -1)), Xnd_test.reshape((Xnd_test.shape[0], -1))), axis=0)
         self.console.log("Map the 2D embedding of the data to the 2D image")
-        
+
         # transform the encoded data to be in the range [0, resolution)
         X2d_train *= (resolution - 1)
         X2d_test *= (resolution - 1)
         X2d_train = X2d_train.astype(int)
         X2d_test = X2d_test.astype(int)
-        
+
         encoded_2d_train = np.zeros((len(X2d_train), 3))
         encoded_2d_test = np.zeros((len(X2d_test), 3))
-        
+
         for k in range(len(X2d_train)):
-            [i,j] = X2d_train[k]
-            encoded_2d_train[k] = [i, j, img[i,j]]
+            [i, j] = X2d_train[k]
+            encoded_2d_train[k] = [i, j, img[i, j]]
         for k in range(len(X2d_test)):
-            [i,j] = X2d_test[k]
-            encoded_2d_test[k] = [i, j, img[i,j]]            
-        
-        for [i,j] in X2d_test:        
-            img[i,j] = -2
-            img_confidence[i,j] = 1
-        for [i,j] in X2d_train:    
-            img[i,j] = -1
-            img_confidence[i,j] = 1
-        
-            
+            [i, j] = X2d_test[k]
+            encoded_2d_test[k] = [i, j, img[i, j]]
+
+        for [i, j] in X2d_test:
+            img[i, j] = -2
+            img_confidence[i, j] = 1
+        for [i, j] in X2d_train:
+            img[i, j] = -1
+            img_confidence[i, j] = 1
+
         history_file_path = os.path.join(load_folder, "history.json")
         history = {}
         if os.path.exists(history_file_path):
             with open(history_file_path, 'r') as f:
                 history = json.load(f)
-        
+
         return (img, img_confidence, encoded_2d_train, encoded_2d_test, history)
-    
+
     def _predict2dspace_(self, X2d: np.ndarray):
         """ Predicts the labels for the given 2D data set.
 
         Args:
             X2d (np.ndarray): The 2D data set
-        
+
         Returns:
             predicted_labels (np.ndarray): The predicted labels for the given 2D data set
             predicted_confidence (np.ndarray): The predicted probabilities for the given 2D data set
             spaceNd (np.ndarray): The decoded nD space
         """
         spaceNd = self.neural_network.decode(X2d, verbose=0)
-        predictions = self.classifier.predict(spaceNd, verbose=0)
+        predictions = self.classifier.predict(      # type: ignore
+            spaceNd, verbose=0)                     # type: ignore
         predicted_labels = np.array([np.argmax(p) for p in predictions])
         predicted_confidence = np.array([np.max(p) for p in predictions])
         return predicted_labels, predicted_confidence
- 
-    def __transform_2d__(self, X_train: np.ndarray, X_test: np.ndarray, folder:str=DEFAULT_MODEL_PATH, projection:str='t-SNE'):
+
+    def __transform_2d__(self, X_train: np.ndarray, X_test: np.ndarray, folder: str = DEFAULT_MODEL_PATH, projection: str = 't-SNE'):
         """ Transforms the given data to 2D using a projection method.
 
         Args:
@@ -216,36 +219,37 @@ class DBM(DBMInterface):
             X_test (np.ndarray): The test data.
             folder (str, optional): The folder where the 2D data will be stored. Defaults to DEFAULT_MODEL_PATH.
             projection (str, optional): The projection method to be used. Defaults to 't-SNE'.
-            
+
         Returns:
             X2d (np.ndarray): The transformed data in 2D.
         """
-        self.console.log(f"Transforming the data to 2D using {projection}")        
+        self.console.log(f"Transforming the data to 2D using {projection}")
         X = np.concatenate((X_train, X_test), axis=0)
         X2d = PROJECTION_METHODS[projection](X)
-            
-        self.console.log(f"Finished transforming the data to 2D using {projection}")
+
+        self.console.log(
+            f"Finished transforming the data to 2D using {projection}")
         X2d_train = X2d[:len(X_train)]
         X2d_test = X2d[len(X_train):]
-        
+
         # rescale to [0,1]
         X2d_train, X2d_test = self.__normalize_2d__(X2d_train, X2d_test)
         # ---------------------
         if not os.path.exists(os.path.join(folder)):
             os.makedirs(os.path.join(folder))
-            
+
         file_path = os.path.join(folder, "train_2d.npy")
         self.console.log("Saving the 2D data to the disk: " + file_path)
         with open(file_path, 'wb') as f:
             np.save(f, X2d_train)
-        
+
         file_path = os.path.join(folder, "test_2d.npy")
         self.console.log("Saving the 2D data to the disk: " + file_path)
         with open(file_path, 'wb') as f:
             np.save(f, X2d_test)
-        
+
         return X2d_train, X2d_test
-    
+
     def __normalize_2d__(self, X2d_train: np.ndarray, X2d_test: np.ndarray):
         """ Normalizes the given 2D data to [0,1].
 
@@ -257,11 +261,13 @@ class DBM(DBMInterface):
             X2d_train (np.ndarray): normalized training data
             X2d_test (np.ndarray): normalized test data
         """
-        x_min = min(np.min(X2d_train[:,0]), np.min(X2d_test[:,0]))
-        y_min = min(np.min(X2d_train[:,1]), np.min(X2d_test[:,1]))
-        x_max = max(np.max(X2d_train[:,0]), np.max(X2d_test[:,0]))
-        y_max = max(np.max(X2d_train[:,1]), np.max(X2d_test[:,1]))
-        X2d_train = (X2d_train - np.array([x_min, y_min])) / np.array([x_max - x_min, y_max - y_min])
-        X2d_test = (X2d_test - np.array([x_min, y_min])) / np.array([x_max - x_min, y_max - y_min])
+        x_min = min(np.min(X2d_train[:, 0]), np.min(X2d_test[:, 0]))
+        y_min = min(np.min(X2d_train[:, 1]), np.min(X2d_test[:, 1]))
+        x_max = max(np.max(X2d_train[:, 0]), np.max(X2d_test[:, 0]))
+        y_max = max(np.max(X2d_train[:, 1]), np.max(X2d_test[:, 1]))
+        mins = np.array([x_min, y_min])
+        ranges = np.array([x_max - x_min, y_max - y_min])
+
+        X2d_train = (X2d_train - mins) / ranges  # type: ignore
+        X2d_test = (X2d_test - mins) / ranges   # type: ignore
         return X2d_train, X2d_test
-    

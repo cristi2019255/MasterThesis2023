@@ -1,11 +1,11 @@
 # Copyright 2023 Cristian Grosu
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -29,76 +29,87 @@ CLASSIFIER_LOSS = "sparse_categorical_crossentropy"
 DECODER_LOSS_WEIGHT = 1.0
 CLASSIFIER_LOSS_WEIGHT = 0.125
 
+
 class SSNP(NNinterface):
-    def __init__(self,                 
-                 folder_path, 
-                 logger:LoggerInterface = None):
+    def __init__(self,
+                 folder_path,
+                 logger: LoggerInterface | None = None):
         """
             Creates an autoencoder model.
             Classifier: The classifier part of the autoencoder.
-            
+
             Args:
                 folder_path: The path to the folder where the model will be saved/loaded.
                 logger: The logger used to log the model's progress.
                 classifier: The classifier part of the autoencoder.
         """
-        super().__init__(folder_path=folder_path, logger=logger, nn_name=SSNP_NAME)                
-    
-    def __build__(self, input_shape:tuple = (28, 28), num_classes:int=10, show_summary:bool = False):
+        super().__init__(folder_path=folder_path, logger=logger, nn_name=SSNP_NAME)
+
+    def __build__(self, input_shape: tuple = (28, 28), num_classes: int = 10, show_summary: bool = False):
         """
             Assembles the autoencoder model and compiles it. 
-            
+
             Args:
                 input_shape: The input and output shape of the autoencoder.
                 show_summary: If True, the model summary will be printed.
         """
-        
+
         encoder = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
-            tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform', bias_initializer=tf.keras.initializers.Constant(0.01)),
-            tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform', bias_initializer=tf.keras.initializers.Constant(0.01)),
-            tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform', bias_initializer=tf.keras.initializers.Constant(0.01)),
-            tf.keras.layers.Dense(2, activation='sigmoid', bias_initializer=tf.keras.initializers.Constant(0.01)),            
+            tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform',
+                                  kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
+            tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform',
+                                  bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
+            tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform',
+                                  bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
+            tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform',
+                                  bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
+            tf.keras.layers.Dense(
+                2, activation='sigmoid', bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
         ], name=ENCODER_NAME)
 
         decoder = tf.keras.models.Sequential([
-            tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
-            tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform', bias_initializer=tf.keras.initializers.Constant(0.01)),
-            tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform', bias_initializer=tf.keras.initializers.Constant(0.01)),
-            tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform', bias_initializer=tf.keras.initializers.Constant(0.01)),
-            tf.keras.layers.Dense(input_shape[0] * input_shape[1], activation='sigmoid'),
+            tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform',
+                                  kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
+            tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform',
+                                  bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
+            tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform',
+                                  bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
+            tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform',
+                                  bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
+            tf.keras.layers.Dense(
+                input_shape[0] * input_shape[1], activation='sigmoid'),
             tf.keras.layers.Reshape(input_shape)
-        ], name=DECODER_NAME)       
-        
+        ], name=DECODER_NAME)
+
         classifier = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(num_classes, activation=tf.nn.softmax)
-        ], name=CLASSIFIER_NAME) 
-        
-        input_layer = tf.keras.Input(shape=input_shape, name="input")           
-        
+        ], name=CLASSIFIER_NAME)
+
+        input_layer = tf.keras.Input(shape=input_shape, name="input")
+
         encoder_output = encoder(input_layer)
         decoder_output = decoder(encoder_output)
         classifier_output = classifier(decoder_output)
-        
+
         self.neural_network = tf.keras.models.Model(inputs=input_layer,
-                                                    outputs=[decoder_output, classifier_output],
+                                                    outputs=[
+                                                        decoder_output, classifier_output],
                                                     name=SSNP_NAME)
-        
-        self.neural_network.compile(optimizer=tf.keras.optimizers.Adam(), 
-                                    loss = {DECODER_NAME:DECODER_LOSS,
-                                            CLASSIFIER_NAME:CLASSIFIER_LOSS},
-                                    loss_weights = {DECODER_NAME:DECODER_LOSS_WEIGHT,
-                                                    CLASSIFIER_NAME:CLASSIFIER_LOSS_WEIGHT},
-                                    metrics = {DECODER_NAME: "accuracy", CLASSIFIER_NAME: "accuracy"})
-        
+
+        self.neural_network.compile(optimizer=tf.keras.optimizers.Adam(),
+                                    loss={DECODER_NAME: DECODER_LOSS,
+                                          CLASSIFIER_NAME: CLASSIFIER_LOSS},
+                                    loss_weights={DECODER_NAME: DECODER_LOSS_WEIGHT,
+                                                  CLASSIFIER_NAME: CLASSIFIER_LOSS_WEIGHT},
+                                    metrics={DECODER_NAME: "accuracy", CLASSIFIER_NAME: "accuracy"})
+
         if show_summary:
             self.neural_network.summary()
-        
-        
-    def fit(self, X: np.ndarray, Y: np.ndarray,             
-            epochs:int = 10, batch_size:int = 128):
+
+    def fit(self, X: np.ndarray, Y: np.ndarray,
+            epochs: int = 10, batch_size: int = 128):
         """ Fits the model to the specified data.
 
         Args:
@@ -114,33 +125,36 @@ class SSNP(NNinterface):
             self.encoder = self.neural_network.get_layer(ENCODER_NAME)
             self.decoder = self.neural_network.get_layer(DECODER_NAME)
             return
-        
-        
+
         self.console.log("Building model according to the data shape.")
         num_classes = len(np.unique(Y))
-        self.__build__(input_shape=X.shape[1:], num_classes=num_classes, show_summary=True)
-            
-        stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=0.00001, mode='min', patience=20, restore_best_weights=True)
-        logger_callback = LoggerModel(name=SSNP_NAME, show_init=False, epochs=epochs)
+        self.__build__(
+            input_shape=X.shape[1:], num_classes=num_classes, show_summary=True)
+
+        stopping_callback = tf.keras.callbacks.EarlyStopping(
+            monitor='val_loss', mode='min', patience=20, restore_best_weights=True)
+        logger_callback = LoggerModel(
+            name=SSNP_NAME, show_init=False, epochs=epochs)
 
         self.console.log("Fitting model...")
-        
-        history = self.neural_network.fit(X, [X, Y], 
-                            epochs=epochs, 
-                            batch_size=batch_size, 
-                            shuffle=True,
-                            validation_split=0.2,
-                            callbacks=[stopping_callback, logger_callback],
-                            verbose=0)
-        
+
+        history = self.neural_network.fit(X, [X, Y],
+                                          epochs=epochs,
+                                          batch_size=batch_size,
+                                          shuffle=True,
+                                          validation_split=0.2,
+                                          callbacks=[
+                                              stopping_callback, logger_callback],
+                                          verbose=0)
+
         self.console.log("Model fitted!")
-        self.save(history)    
+        self.save(history)
         self.encoder = self.neural_network.get_layer(ENCODER_NAME)
         self.decoder = self.neural_network.get_layer(DECODER_NAME)
-            
-        #self.show_predictions(dataNd=x_test, labels=y_test)    
-           
-    def encode(self, data:np.ndarray, verbose:int = 0):
+
+        # self.show_predictions(dataNd=x_test, labels=y_test)
+
+    def encode(self, data: np.ndarray, verbose: int = 0):
         """ Encodes the data using the encoder part of the autoencoder.
 
         Args:
@@ -151,8 +165,8 @@ class SSNP(NNinterface):
             np.ndarray: The encoded 2D data.
         """
         return self.encoder.predict(data, verbose=verbose)
-        
-    def decode(self, data:np.ndarray, verbose:int = 0):
+
+    def decode(self, data: np.ndarray, verbose: int = 0):
         """ Decodes the data using the decoder part of the autoencoder.
 
         Args:
@@ -164,4 +178,3 @@ class SSNP(NNinterface):
         """
         xNd = self.decoder.predict(data, verbose=verbose)
         return xNd
-    
