@@ -273,7 +273,7 @@ def get_confidence_based_split(img, conf_img, i, j, w, h):
     for index in range(len(splits_x) - 1):  
         w = splits_x[index + 1] - splits_x[index]
         x = (splits_x[index + 1] + splits_x[index] - 1) / 2
-        if w < 1:
+        if w == 0:
             w = 1
             x = splits_x[index]
         markers_x.append((x,w))
@@ -281,7 +281,7 @@ def get_confidence_based_split(img, conf_img, i, j, w, h):
     for index in range(len(splits_y) - 1):   
         h = splits_y[index + 1] - splits_y[index]
         y = (splits_y[index + 1] + splits_y[index] - 1) / 2
-        if h < 1:
+        if h == 0:
             h = 1
             y = splits_y[index]
         for (x,w) in markers_x:
