@@ -34,11 +34,7 @@ BUTTON_PRIMARY_COLOR = "#007acc"
 WHITE_COLOR = "#ffffff"
 RIGHTS_MESSAGE = "© 2023 Cristian Grosu. All rights reserved."
 RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"
-APP_ICON_PATH = os.path.join(os.path.dirname(
-    __file__), "assets", "main_icon.png")
-
-DEFAULT_DBM_IMAGE_PATH = os.path.join(
-    os.getcwd(), "results", "MNIST", "2D_boundary_mapping.png")  # unused
+APP_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "main_icon.png")
 TMP_FOLDER = os.path.join(os.getcwd(), "tmp")
 
 SAMPLES_LIMIT = 5000  # Limit the number of samples to be loaded from the dataset
@@ -504,6 +500,7 @@ class GUI:
         TMP_FOLDER = os.path.join("tmp", self.dataset_name)
         save_folder = TMP_FOLDER
         dbm_technique = values["-DBM TECHNIQUE-"]
+        
         if dbm_technique == "nnInv":
             save_folder = os.path.join(TMP_FOLDER, "DBM")
 
@@ -520,9 +517,7 @@ class GUI:
 
             dbm_info = dbm.generate_boundary_map(
                 self.X_train,
-                self.Y_train,
                 self.X_test,
-                self.Y_test,
                 X2d_train=X_train_2d,
                 X2d_test=X_test_2d,
                 resolution=resolution,

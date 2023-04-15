@@ -904,7 +904,7 @@ class DBMPlotterGUI:
             np.save(f, self.positions_of_labels_changes)
 
         self.console.log("Transforming changes...")
-        Y, label_changes = self.transform_changes()
+        Y_transformed, label_changes = self.transform_changes()
 
         self.console.log("Saving changes to a local folder...")
         self.save_labels_changes(self.save_folder, label_changes=label_changes)
@@ -928,20 +928,20 @@ class DBMPlotterGUI:
             np.save(f, self.img_confidence)
 
         self.dbm_model.refit_classifier(
-            self.X_train, Y, save_folder=save_folder, epochs=epochs)
+            self.X_train, Y_transformed, save_folder=save_folder, epochs=epochs)
 
-        self.regenerate_bounary_map(Y, fast_decoding_strategy=FAST_DBM_STRATEGIES(
+        self.regenerate_bounary_map(Y_transformed, fast_decoding_strategy=FAST_DBM_STRATEGIES(
             values["-DBM FAST DECODING STRATEGY-"]))
         self.handle_checkbox_change_event(event, values)
 
         self.updates_logger.log("Changes applied successfully!")
 
-    def regenerate_bounary_map(self, Y, fast_decoding_strategy):
+    def regenerate_bounary_map(self, Y_transformed, fast_decoding_strategy):
 
         if self.projection_technique is None:
             dbm_info = self.dbm_model.generate_boundary_map(
                 self.X_train,
-                Y,
+                Y_transformed,
                 self.X_test,
                 self.Y_test,
                 resolution=len(self.img),
@@ -953,9 +953,7 @@ class DBMPlotterGUI:
             X2d_train, X2d_test = self.load_2d_projection()
             dbm_info = self.dbm_model.generate_boundary_map(
                 Xnd_train=self.X_train,
-                Y_train=Y,
                 Xnd_test=self.X_test,
-                Y_test=self.Y_test,
                 X2d_train=X2d_train,
                 X2d_test=X2d_test,
                 resolution=len(self.img),
@@ -971,7 +969,7 @@ class DBMPlotterGUI:
                         encoded_train=encoded_training_data,
                         encoded_test=encoded_testing_data,
                         X_train=self.X_train,
-                        Y_train=Y,
+                        Y_train=Y_transformed,
                         X_test=self.X_test,
                         Y_test=self.Y_test,
                         )

@@ -36,8 +36,8 @@ def DBM_usage_example():
 
     # use the DBM to get the decision boundary map, if you don't have the 2D projection of the data
     # the DBM will get it for you, you just need to specify the projection method you would like to use (t-SNE, PCA or UMAP)
-    img, img_confidence, _, _, _ = dbm.generate_boundary_map(X_train, Y_train,
-                                                             X_test, Y_test,
+    img, img_confidence, _, _, _ = dbm.generate_boundary_map(X_train,
+                                                             X_test,
                                                              X2d_train=X2d_train,
                                                              X2d_test=X2d_test,
                                                              resolution=256,
@@ -49,12 +49,12 @@ def DBM_usage_example():
     # if you have the 2D projection of the data, you can use the following function to get the decision boundary map
     """
     X2d_train, X2d_test = None, None # get the 2D projection of the data by yourself
-    img, img_confidence, _, _, _ = dbm.generate_boundary_map(X_train, Y_train, 
-                                                                X_test, Y_test,
-                                                                X2d_train=X2d_train, 
-                                                                X2d_test=X2d_test,
-                                                                load_folder=os.path.join("tmp", "MNIST", "DBM"), 
-                                                                resolution=256)
+    img, img_confidence, _, _, _ = dbm.generate_boundary_map(X_train,
+                                                             X_test,
+                                                             X2d_train=X2d_train, 
+                                                             X2d_test=X2d_test,
+                                                             load_folder=os.path.join("tmp", "MNIST", "DBM"), 
+                                                             resolution=256)
     """
 
     # make the decision boundary map pretty, by adding the colors and the confidence
@@ -122,8 +122,8 @@ def DBM_usage_example_GUI():
 
     # use the DBM to get the decision boundary map, if you don't have the 2D projection of the data
     # the DBM will get it for you, you just need to specify the projection method you would like to use (t-SNE, PCA or UMAP)
-    dbm_info = dbm.generate_boundary_map(X_train, Y_train,
-                                         X_test, Y_test,
+    dbm_info = dbm.generate_boundary_map(X_train,
+                                         X_test,
                                          X2d_train=X2d_train,
                                          X2d_test=X2d_test,
                                          resolution=256,

@@ -81,8 +81,8 @@ class DBM(DBMInterface):
         return inverse_projection_NN
 
     def generate_boundary_map(self,
-                              Xnd_train: np.ndarray, Y_train: np.ndarray,
-                              Xnd_test: np.ndarray, Y_test: np.ndarray,
+                              Xnd_train: np.ndarray,
+                              Xnd_test: np.ndarray,
                               X2d_train: np.ndarray | None = None,
                               X2d_test: np.ndarray | None = None,
                               train_epochs: int = 300,
@@ -96,9 +96,7 @@ class DBM(DBMInterface):
 
         Args:
             X_train (np.ndarray): Training data set
-            Y_train (np.ndarray): Training data labels
             X_test (np.ndarray): Testing data set
-            Y_test (np.ndarray): Testing data labels
             X2d_train (np.ndarray | None): The 2D projection of the training data. If None, the data is projected using the given projection method. Defaults to None.
             X2d_test (np.ndarray | None): The 2D projection of the testing data. If None, the data is projected using the given projection method. Defaults to None.            
             train_epochs (int, optional): The number of epochs for which the DBM is trained. Defaults to 300.
@@ -119,7 +117,7 @@ class DBM(DBMInterface):
 
         Example:
             >>> dbm = DBM(classifier)
-            >>> img, img_confidence, X2d_train, X2d_test, history = dbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
+            >>> img, img_confidence, X2d_train, X2d_test, history = dbm.generate_boundary_map(X_train, X_test)
             >>> fig, [ax1, ax2] = plt.subplots(1, 2, figsize=(10, 5))
             >>> ax1.imshow(img)
             >>> ax2.imshow(img_confidence)

@@ -78,8 +78,8 @@ def test():
     dbm = DBM(classifier)
     resolution = 600
 
-    dbm.generate_boundary_map(X_train, Y_train,
-                              X_test, Y_test,
+    dbm.generate_boundary_map(X_train,
+                              X_test,
                               X2d_train,
                               X2d_test,
                               resolution=10,
@@ -131,8 +131,8 @@ def test3():
     dbm = DBM(classifier)
     resolution = 256
 
-    dbm.generate_boundary_map(X_train, Y_train,
-                              X_test, Y_test,
+    dbm.generate_boundary_map(X_train, 
+                              X_test,
                               X2d_train,
                               X2d_test,
                               resolution=10,
