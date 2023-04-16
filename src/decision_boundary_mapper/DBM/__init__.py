@@ -14,6 +14,6 @@
 
 from .DBM import DBM
 from .SDBM import SDBM, NNArchitecture
-from .DBMInterface import DBMInterface, FAST_DBM_STRATEGIES
-from .NNinterface import NNinterface
+from .AbstractDBM import AbstractDBM, FAST_DBM_STRATEGIES
+from .AbstractNN import AbstractNN
 from .tools import *

@@ -15,7 +15,7 @@
 import tensorflow as tf
 import numpy as np
 
-from ..NNinterface import NNinterface
+from ..AbstractNN import AbstractNN
 from ...Logger import LoggerInterface, LoggerModel
 
 DECODER_NAME = "decoder"
@@ -29,7 +29,7 @@ DECODER_LOSS_WEIGHT = 1.0
 CLASSIFIER_LOSS_WEIGHT = 0.125
 
 
-class SSNP(NNinterface):
+class SSNP(AbstractNN):
     def __init__(self,
                  folder_path: str,
                  logger: LoggerInterface | None = None):

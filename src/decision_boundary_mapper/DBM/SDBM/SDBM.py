@@ -19,7 +19,7 @@ from enum import Enum
 
 from .Autoencoder import Autoencoder
 from .SSNP import SSNP
-from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION, FAST_DBM_STRATEGIES
+from ..AbstractDBM import AbstractDBM, DBM_DEFAULT_RESOLUTION, FAST_DBM_STRATEGIES
 
 from ...utils import track_time_wrapper
 from ...Logger import LoggerInterface, Logger
@@ -33,15 +33,15 @@ class NNArchitecture(Enum):
     SSNP = "ssnp"
 
 
-class SDBM(DBMInterface):
+class SDBM(AbstractDBM):
     """
         Self Decision Boundary Mapper (SDBM)
         
         This class can generate a decision boundary map (DBM), without any need to provide a projection method.
         
         Public methods:
-            fit: Learns a direct and an inverse projection by training a neural network.
-            get_decision_boundary_map: Returns the decision boundary map for the given classifier.
+            fit: Learns a direct and an inverse projection by training a neural network. \n
+            get_decision_boundary_map: Returns the decision boundary map for the given classifier. \n
 
         Example:
             >>> from SDBM import SDBM

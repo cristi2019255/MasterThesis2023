@@ -16,11 +16,11 @@ import json
 import os
 import numpy as np
 
-from .invNN import DEFAULT_MODEL_PATH, invNN
+from .NNInv import DEFAULT_MODEL_PATH, NNInv
 from .projections import PROJECTION_METHODS
 
 
-from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION, FAST_DBM_STRATEGIES
+from ..AbstractDBM import AbstractDBM, DBM_DEFAULT_RESOLUTION, FAST_DBM_STRATEGIES
 
 from ...utils import track_time_wrapper
 from ...Logger import LoggerInterface, Logger
@@ -30,14 +30,14 @@ CUSTOM_PROJECTION_NAME = "Custom"
 TRAIN_DATA_2D_EMBEDDING_FILE_NAME = "train_2d.npy"
 TEST_DATA_2D_EMBEDDING_FILE_NAME = "test_2d.npy"
 
-class DBM(DBMInterface):
+class DBM(AbstractDBM):
     """
     This is a class that generated the DBM
     The core purpose of this class is to learn the inverse projection given a direct projection and construct the decision boundary map of a given classifier
     
     Public methods:
-        fit: Learns an inverse projection by training a neural network.
-        get_decision_boundary_map: Returns the decision boundary map for the given classifier.
+        fit: Learns an inverse projection by training a neural network. \n
+        get_decision_boundary_map: Returns the decision boundary map for the given classifier. \n
 
     Example:
         >>> from DBM import DBM
@@ -75,10 +75,10 @@ class DBM(DBMInterface):
             batch_size (int, optional): Train batch size. Defaults to 32.
 
         Returns:
-            inverse_porjection_NN (invNN): The trained inverse projection neural network.
+            inverse_porjection_NN (NNInv): The trained inverse projection neural network.
         """
 
-        inverse_projection_NN = invNN(folder_path=load_folder)
+        inverse_projection_NN = NNInv(folder_path=load_folder)
         inverse_projection_NN.fit(X2d, Xnd,
                                   epochs=epochs,
                                   batch_size=batch_size)

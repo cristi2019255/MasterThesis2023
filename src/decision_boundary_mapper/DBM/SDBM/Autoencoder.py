@@ -15,7 +15,7 @@
 import tensorflow as tf
 import numpy as np
 
-from ..NNinterface import NNinterface
+from ..AbstractNN import AbstractNN
 from ...Logger import LoggerInterface, LoggerModel
 
 DECODER_NAME = "decoder"
@@ -26,7 +26,7 @@ CLASSIFIER_NAME = "classifier"
 LOSS = "mean_squared_error"
 
 
-class Autoencoder(NNinterface):
+class Autoencoder(AbstractNN):
     def __init__(self,
                  folder_path: str,
                  logger: LoggerInterface | None = None):
