@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import json
 from shutil import rmtree
 import matplotlib.pyplot as plt
 import PySimpleGUI as sg
@@ -69,8 +70,7 @@ class GUI:
 
         # --------------- DBM ---------------
         self.dbm_plotter_gui = None
-        self.dbm_logger = LoggerGUI(
-            name="DBM logger", output=self.window["-LOGGER-"], update_callback=self.window.refresh)
+        self.dbm_logger = LoggerGUI(name="DBM logger", output=self.window["-LOGGER-"], update_callback=self.window.refresh)
 
         # --------------- Data set ----------
         self.dataset_name = "Dataset"
@@ -411,10 +411,8 @@ class GUI:
         X_train = X_train.astype('float32') / 255
         X_test = X_test.astype('float32') / 255
 
-        X_train, Y_train = X_train[:int(
-            0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
-        X_test, Y_test = X_test[:int(
-            0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
+        X_train, Y_train = X_train[:int(0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
+        X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
 
         self.dataset_name = "FASION_MNIST"
         self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
@@ -502,50 +500,50 @@ class GUI:
         dbm_technique = values["-DBM TECHNIQUE-"]
         
         if dbm_technique == "nnInv":
-            save_folder = os.path.join(TMP_FOLDER, "DBM")
+            dbm_folder = os.path.join(TMP_FOLDER, "DBM")
+            save_folder = os.path.join(dbm_folder, projection_technique)
 
-            if not os.path.exists(os.path.join(save_folder, projection_technique, "train_2d.npy")):
+            if not os.path.exists(os.path.join(save_folder, "train_2d.npy")):
                 X_train_2d = None
             else:
-                with open(os.path.join(save_folder, projection_technique, "train_2d.npy"), "rb") as f:
+                with open(os.path.join(save_folder, "train_2d.npy"), "rb") as f:
                     X_train_2d = np.load(f)
-            if not os.path.exists(os.path.join(save_folder, projection_technique, "test_2d.npy")):
+            if not os.path.exists(os.path.join(save_folder, "test_2d.npy")):
                 X_test_2d = None
             else:
-                with open(os.path.join(save_folder, projection_technique, "test_2d.npy"), "rb") as f:
+                with open(os.path.join(save_folder, "test_2d.npy"), "rb") as f:
                     X_test_2d = np.load(f)
 
             dbm_info = dbm.generate_boundary_map(
-                self.X_train,
-                self.X_test,
+                Xnd_train=self.X_train,
+                Xnd_test=self.X_test,
                 X2d_train=X_train_2d,
                 X2d_test=X_test_2d,
                 resolution=resolution,
-                load_folder=save_folder,
+                load_folder=dbm_folder,
                 projection=projection_technique
             )
         else:
             save_folder = os.path.join(TMP_FOLDER, "SDBM")
             dbm_info = dbm.generate_boundary_map(
-                self.X_train,
-                self.Y_train,
-                self.X_test,
-                self.Y_test,
+                X_train=self.X_train,
+                Y_train=self.Y_train,
+                X_test=self.X_test,
+                Y_test=self.Y_test,
                 nn_architecture=NNArchitecture(dbm_technique),
                 resolution=resolution,
                 load_folder=save_folder,
-                projection=projection_technique
             )
 
         img, img_confidence, encoded_training_data, encoded_testing_data = dbm_info
         
-        # TODO: training history should be uploaded by the GUI controller
-        # example: with open(os.path.join(load_folder, "history.json"), 'r') as f:
-        #    history = json.load(f)
-
-        training_history = None
-
+        
         if show_dbm_history:
+            path = os.path.join(save_folder, "history.json")
+            training_history = None
+            if os.path.exists(path):   
+                with open(path, 'r') as f:
+                    training_history = json.load(f)
             self.show_dbm_history(training_history)
 
         # ---------------------------------
@@ -599,24 +597,20 @@ class GUI:
     def show_dbm_history(self, training_history):
         # this is for plotting the training history
         plt.close()
-        fig, [ax1, ax2, ax3] = plt.subplots(1, 3, figsize=(20, 5))
+        fig, [ax1, ax2] = plt.subplots(1, 2, figsize=(10, 5))
         ax1.set_title("Loss")
         ax1.plot(training_history["loss"], label="loss")
         ax1.plot(training_history["val_loss"], label="val_loss")
         ax1.legend()
 
         ax2.set_title("Decoder Accuracy")
-        ax2.plot(training_history["decoder_accuracy"],
-                 label="decoder_accuracy")
-        ax2.plot(training_history["val_decoder_accuracy"],
-                 label="val_decoder_accuracy")
+        if "decoder_accuracy" in training_history and "val_decoder_accuracy" in training_history:
+            ax2.plot(training_history["decoder_accuracy"], label="decoder_accuracy")
+            ax2.plot(training_history["val_decoder_accuracy"], label="val_decoder_accuracy")
+        else:
+            ax2.plot(training_history["accuracy"], label="accuracy")
+            ax2.plot(training_history["val_accuracy"], label="val_accuracy")
+            
         ax2.legend()
-
-        ax3.set_title("Classifier Accuracy")
-        ax3.plot(training_history["classifier_accuracy"],
-                 label="classifier_accuracy")
-        ax3.plot(training_history["val_classifier_accuracy"],
-                 label="val_classifier_accuracy")
-        ax3.legend()
 
         plt.show()
