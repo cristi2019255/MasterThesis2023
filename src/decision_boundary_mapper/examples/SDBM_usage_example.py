@@ -32,12 +32,11 @@ def SDBM_usage_example():
     sdbm = SDBM(classifier=classifier)
 
     # use the SDBM to get the decision boundary map
-    img, img_confidence, _, _, _ = sdbm.generate_boundary_map(X_train, Y_train,
-                                                              X_test, Y_test,
-                                                              nn_architecture=NNArchitecture.AUTOENCODER,
-                                                              load_folder=os.path.join(
-                                                                  "tmp", "MNIST", "SDBM"),
-                                                              resolution=256)
+    img, img_confidence, _, _ = sdbm.generate_boundary_map(X_train, Y_train,
+                                                           X_test, Y_test,
+                                                           nn_architecture=NNArchitecture.SSNP,
+                                                           load_folder=os.path.join("tmp", "MNIST", "SDBM"),
+                                                            resolution=256)
 
     # make the decision boundary map pretty, by adding the colors and the confidence
     COLORS_MAPPER = {
@@ -93,31 +92,19 @@ def SDBM_usage_example_GUI():
     # import the dataset
     X_train, X_test, Y_train, Y_test = import_data()
 
-    Y = np.copy(Y_train)
-
-    # use the opf to generate the labels for the training data if the data is not completely labelled
-    Y_train = opf(X_train=X_train, Y_train=Y_train)
-
-    # generate a classifier
-    classifier = generate_classifier(X_train, Y_train)
-
     # import the classifier
-    # classifier = import_classifier()
+    classifier = import_classifier()
 
     # create the DBM
     sdbm = SDBM(classifier=classifier)
 
-    # use the DBM to get the decision boundary map, if you don't have the 2D projection of the data
-    # the DBM will get it for you, you just need to specify the projection method you would like to use (t-SNE, PCA or UMAP)
-    dbm_info = sdbm.generate_boundary_map(X_train, Y,
-                                          X_test, Y_test,
-                                          resolution=256,
-                                          nn_architecture=NNArchitecture.SSNP,
-                                          load_folder=os.path.join(
-                                              "tmp", "MNIST", "SDBM"),
-                                          )
-
-    img, img_confidence, encoded_training_data, encoded_testing_data, training_history = dbm_info
+    # use the SDBM to get the decision boundary map
+    img, img_confidence, encoded_training_data, encoded_testing_data = sdbm.generate_boundary_map(X_train, Y_train,
+                                                                                                  X_test, Y_test,
+                                                                                                  resolution=256,
+                                                                                                  nn_architecture=NNArchitecture.SSNP,
+                                                                                                  load_folder=os.path.join("tmp", "MNIST", "SDBM"),
+                                                                                                  )
 
     dbm_plotter_gui = DBMPlotterGUI(dbm_model=sdbm,
                                     img=img,
@@ -128,8 +115,6 @@ def SDBM_usage_example_GUI():
                                     Y_train=Y_train,
                                     X_test=X_test,
                                     Y_test=Y_test,
-                                    # this is the folder where the DBM will save the changes in data the user makes
-                                    save_folder=os.path.join(
-                                        "tmp", "MNIST", "SDBM"),
+                                    save_folder=os.path.join("tmp", "MNIST", "SDBM"),
                                     )
     dbm_plotter_gui.start()

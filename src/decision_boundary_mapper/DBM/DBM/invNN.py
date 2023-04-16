@@ -20,36 +20,34 @@ from ..NNinterface import NNinterface
 from ...Logger import LoggerInterface, LoggerModel
 
 DEFAULT_MODEL_PATH = os.path.join("tmp", "DBM")
-INVNN_NAME = "invNN"
+NNINV_NAME = "invNN"
 DECODER_NAME = "decoder"
-
+DECODER_LOSS = "mean_squared_error"
 
 class invNN(NNinterface):
     """
         Inverse Projection Neural Network.        
-        The inverse projection 2D -> nD. (Sequential model 2 -> 32 -> 64 -> 128 -> 512 -> nD)            
+        The inverse projection 2D -> nD. 
+        (Sequential model 2 -> 32 -> 64 -> 128 -> 512 -> nD)            
     """
 
     def __init__(self,
-                 classifier=None,
                  logger: LoggerInterface | None = None,
                  folder_path: str = DEFAULT_MODEL_PATH):
         """
             Creates an inverse Projection Neural Network model.
         """
-        super().__init__(folder_path=folder_path, nn_name=INVNN_NAME, logger=logger)
+        super().__init__(folder_path=folder_path, nn_name=NNINV_NAME, logger=logger)
 
     def __build__(self, output_shape: tuple = (2, 2), show_summary: bool = False):
-        """Builds an invNN (Sequential 2D -> 32 -> 64 -> 128 -> 512 -> nD)
+        """
+        Builds an NNinv model
+        (Sequential 2D -> 32 -> 64 -> 128 -> 512 -> nD)
 
         Args:
             output_shape (tuple, optional): The output shape of the Nd data. Defaults to (2,2).
             show_summary (bool, optional): If True, the model summary will be printed. Defaults to False.
         """
-
-        # assert len(output_shape) == 2, "Output shape must be a 2D tuple"
-
-        DECODER_LOSS = "mean_squared_error"
 
         # computing the output size
         output_size = 1
@@ -65,17 +63,15 @@ class invNN(NNinterface):
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
             tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform',
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(
-                output_size, activation='sigmoid', kernel_initializer='he_uniform'),
+            tf.keras.layers.Dense(output_size, activation='sigmoid', kernel_initializer='he_uniform'),
             tf.keras.layers.Reshape(output_shape)
         ], name=DECODER_NAME)
 
         input_layer = tf.keras.Input(shape=(2,), name="input")
 
         self.neural_network = tf.keras.models.Model(inputs=input_layer,
-                                                    outputs=[
-                                                        self.decoder(input_layer)],
-                                                    name=INVNN_NAME)
+                                                    outputs=[self.decoder(input_layer)],
+                                                    name=NNINV_NAME)
 
         self.neural_network.compile(optimizer=tf.keras.optimizers.Adam(),
                                     loss=DECODER_LOSS,
@@ -87,7 +83,8 @@ class invNN(NNinterface):
     def fit(self,
             x2d: np.ndarray, xNd: np.ndarray,
             epochs: int = 300, batch_size: int = 32):
-        """ Fits the model to the specified data.
+        """ 
+        Fits the model to the specified data.
 
         Args:
             x2d (np.ndarray): Train input values (2D)
@@ -102,10 +99,8 @@ class invNN(NNinterface):
         self.console.log("Building model according to the data shape.")
         self.__build__(output_shape=xNd.shape[1:], show_summary=True)
 
-        stopping_callback = tf.keras.callbacks.EarlyStopping(
-            monitor='val_loss', mode='min', patience=20, restore_best_weights=True)
-        logger_callback = LoggerModel(
-            name=INVNN_NAME, show_init=False, epochs=epochs)
+        stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=20, restore_best_weights=True)
+        logger_callback = LoggerModel(name=NNINV_NAME, show_init=False, epochs=epochs)
         self.console.log("Fitting model...")
 
         hist = self.neural_network.fit(x2d, xNd,

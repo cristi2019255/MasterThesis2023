@@ -21,26 +21,31 @@ import matplotlib.pyplot as plt
 
 from ..Logger import Logger, LoggerInterface
 
+TRAINING_HISTORY_FILE_NAME = "history.json"
 
 class NNinterface:
     """ 
-    Defines the interface for the neural networks used by the Decision Boundary Mapper.
+    Defines an abstract class for the neural networks used by the Decision Boundary Mapper.
+
+    Public methods:
+        load
+        save
+        show_predictions
 
     Methods to be implemented by the classes that inherit from this class.
-    fit: Fits the model to the specified data.
-    encode: Encodes the input data. (optional)
+        encode: Encodes the input data.
     """
 
     def __init__(self,
                  folder_path: str,
-                 nn_name: str = "invNN",
+                 nn_name: str,
                  logger: LoggerInterface | None = None):
-        """ Initializes the NN interface.
+        """ 
+        Initializes an NN object.
 
         Args:
             folder_path (str): the folder path where the model will be saved/loaded.
-            classifier (tf.keras.model): The classifier model. Defaults to None.
-            nn_name (str, optional): Name of the neural network that uses the classifier. Defaults to "invNN".
+            nn_name (str): Name of the neural network that uses the classifier.
             logger (LoggerInterface, optional): Defaults to console logging.
 
         Raises:
@@ -59,12 +64,7 @@ class NNinterface:
             self.load()
         except Exception as e:
             self.console.error("Error loading the model: {}".format(e))
-            self.console.warn(
-                "The model will be built and trained from scratch.")
-
-    def fit(self):
-        """ Fits the model to the specified data."""
-        raise NotImplementedError("The fit method is not implemented.")
+            self.console.warn("The model will be built and trained from scratch.")
 
     def load(self):
         """
@@ -73,8 +73,7 @@ class NNinterface:
                 folder_path (str): The path to the folder where the model is saved.
         """
         try:
-            self.neural_network = tf.keras.models.load_model(
-                os.path.join(self.save_folder_path, self.nn_name), compile=False)
+            self.neural_network = tf.keras.models.load_model(os.path.join(self.save_folder_path, self.nn_name), compile=False)
             self.console.log("NN loaded successfully")
         except Exception as e:
             self.console.log(
@@ -89,16 +88,14 @@ class NNinterface:
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        path = os.path.join(
-            folder_path, self.neural_network.name)  # type: ignore
-        self.neural_network.save(                   # type: ignore
-            path, save_format="tf")
+        path = os.path.join(folder_path, self.neural_network.name)  # type: ignore
+        self.neural_network.save(path, save_format="tf")            # type: ignore
         self.console.log(f"Model saved to {folder_path}")
 
         if history is None:
             return
 
-        with open(os.path.join(folder_path, "history.json"), "w") as f:
+        with open(os.path.join(folder_path, TRAINING_HISTORY_FILE_NAME), "w") as f:
             f.write(json.dumps(history.history))
             self.console.log(f"History saved to {folder_path}")
 
@@ -124,13 +121,11 @@ class NNinterface:
         for i in range(1, 2*n, 2):
             plt.subplot(m, 2*m, i)
             plt.imshow(dataNd[i], cmap='gray')
-            plt.title(f"Actual: {labels[i]}", color='green' if predicted_labels[i]
-                      == labels[i] else 'red', fontsize=12)
+            plt.title(f"Actual: {labels[i]}", color='green' if predicted_labels[i]== labels[i] else 'red', fontsize=12)
             plt.axis('off')
             plt.subplot(m, 2*m, i+1)
             plt.imshow(decoded[i], cmap='gray')
-            plt.title(
-                f"Predicted: {predicted_labels[i]}", color='green' if predicted_labels[i] == labels[i] else 'red', fontsize=12)
+            plt.title(f"Predicted: {predicted_labels[i]}", color='green' if predicted_labels[i] == labels[i] else 'red', fontsize=12)
             plt.axis('off')
 
         plt.show()

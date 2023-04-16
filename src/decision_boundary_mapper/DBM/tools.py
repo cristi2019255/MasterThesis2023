@@ -15,7 +15,6 @@
 import numpy as np
 from numba import jit, njit, prange
 
-
 @njit(parallel=True)
 def get_nd_indices_parallel(X_nd, metric):
     """ Generates the indices of the nearest neighbors for each point in the nD space.
@@ -35,7 +34,6 @@ def get_nd_indices_parallel(X_nd, metric):
 
     return indices
 
-
 @njit()
 def generate_point_indices(X, point, metric):
     """ Generates the indices of the nearest neighbors for a point.
@@ -52,7 +50,6 @@ def generate_point_indices(X, point, metric):
 
     return np.argsort(dist_vector)
 
-
 @njit(fastmath=True)
 def euclidean(x, y):
     r"""Standard euclidean distance.
@@ -65,13 +62,9 @@ def euclidean(x, y):
         result += (x[i] - y[i]) ** 2
     return np.sqrt(result)
 
-
 @jit
 def get_inv_proj_error(dx, dy):
-    """ TODO: add docstring
-    """
     return np.sqrt(np.linalg.norm(dx)**2 + np.linalg.norm(dy)**2)
-
 
 @njit(parallel=True)
 def get_proj_error_parallel(indices_source: np.ndarray, indices_embedding: np.ndarray, k: int = 10):
@@ -108,7 +101,6 @@ def get_proj_error_parallel(indices_source: np.ndarray, indices_embedding: np.nd
 
     return (continuity + trustworthiness) / 2
 
-
 @njit()
 def get_proj_error(indices_source: np.ndarray, indices_embedding: np.ndarray, k: int = 10):
     """ Calculates the projection error for a given data point.
@@ -144,10 +136,10 @@ def get_proj_error(indices_source: np.ndarray, indices_embedding: np.ndarray, k:
 
     return (continuity + trustworthiness) / 2
 
-
 @jit
 def get_decode_pixel_priority(img, i, j, window_size, label):
-    """Calculates the priority of decoding a chunk of pixels.
+    """
+       Calculates the priority of decoding a chunk of pixels.
        The chunk is defined by the window size and the pixel coordinates (i,j).
 
     Args:
@@ -187,7 +179,6 @@ def get_decode_pixel_priority(img, i, j, window_size, label):
 
     return 1/cost
 
-
 @jit
 def get_pixel_priority(img, i, j, window_width, window_height, label):
     resolution = img.shape[0]
@@ -219,7 +210,6 @@ def get_pixel_priority(img, i, j, window_width, window_height, label):
     cost *= window_width * window_height
 
     return 1/cost
-
 
 def get_confidence_based_split(img, conf_img, i, j, w, h):
     resolution = img.shape[0]
@@ -294,7 +284,6 @@ def get_confidence_based_split(img, conf_img, i, j, w, h):
 
     return representatives, sizes
 
-
 def get_split_position(x1: float, c1: float, x2: float, c2: float) -> int | None:
     A = np.array([[x1, 1.0], [x2, 1.0]])
     B = np.array([c1, c2])
@@ -306,7 +295,6 @@ def get_split_position(x1: float, c1: float, x2: float, c2: float) -> int | None
         return None
     return boundary
 
-
 @njit(parallel=True)
 def get_projection_errors_using_inverse_projection(Xnd: np.ndarray, X2d: np.ndarray, spaceNd: np.ndarray, space2d: np.ndarray, progress, k: int = 10):
 
@@ -315,12 +303,9 @@ def get_projection_errors_using_inverse_projection(Xnd: np.ndarray, X2d: np.ndar
     errors = np.zeros(n_points, dtype=np.float64)
 
     for index in prange(n_points):
-        indices_embedded, indices_source = np.zeros(
-            data_samples, dtype=np.int64), np.zeros(data_samples, dtype=np.int64)
-        indices_embedded = generate_point_indices(
-            X2d, space2d[index], metric=euclidean)
-        indices_source = generate_point_indices(
-            Xnd, spaceNd[index], metric=euclidean)
+        indices_embedded, indices_source = np.zeros(data_samples, dtype=np.int64), np.zeros(data_samples, dtype=np.int64)
+        indices_embedded = generate_point_indices(X2d, space2d[index], metric=euclidean)
+        indices_source = generate_point_indices(Xnd, spaceNd[index], metric=euclidean)
         errors[index] = get_proj_error(indices_source, indices_embedded, k=k)
         progress.update(1)
 

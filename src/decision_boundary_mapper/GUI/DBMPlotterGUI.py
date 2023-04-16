@@ -962,7 +962,7 @@ class DBMPlotterGUI:
                 projection=self.projection_technique
             )
 
-        img, img_confidence, encoded_training_data, encoded_testing_data, training_history = dbm_info
+        img, img_confidence, encoded_training_data, encoded_testing_data = dbm_info
         self.initialize(dbm_model=self.dbm_model,
                         img=img,
                         img_confidence=img_confidence,
@@ -1107,12 +1107,10 @@ class DBMPlotterGUI:
         times, accuracies, _ = self.get_classifier_performance_history()
         self.classifier_performance_fig, self.classifier_performance_ax = self._build_plot_()
         self.classifier_performance_ax.set_axis_on()
-        self.classifier_performance_ax.set_title(
-            "Classifier performance history")
+        self.classifier_performance_ax.set_title("Classifier performance history")
         self.classifier_performance_ax.set_xlabel("Time")
         self.classifier_performance_ax.set_ylabel("Accuracy (%)")
-        self.classifier_performance_fig.canvas.mpl_connect(
-            'button_press_event', self.handle_show_classifier_performance_history_event)
+        self.classifier_performance_fig.canvas.mpl_connect('button_press_event', self.handle_show_classifier_performance_history_event)
 
         self.classifier_performance_ax.plot(times, accuracies, marker="o")
 

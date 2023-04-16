@@ -24,11 +24,9 @@ from ..DBMInterface import DBMInterface, DBM_DEFAULT_RESOLUTION, FAST_DBM_STRATE
 from ...utils import track_time_wrapper
 from ...Logger import LoggerInterface, Logger
 
-time_tracker_console = Logger(
-    name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
+time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
 
 DEFAULT_MODEL_PATH = os.path.join("tmp", "SDBM")
-
 
 class NNArchitecture(Enum):
     AUTOENCODER = "autoencoder"
@@ -38,18 +36,30 @@ class NNArchitecture(Enum):
 class SDBM(DBMInterface):
     """
         Self Decision Boundary Mapper (SDBM)
-        Uses an auto encoder: 
-        1) The encoder part of which is used to reduce the dimensionality of the data (nD -> 2D)
-        2) The decoder part of which is used to reconstruct the data (2D -> nD)
-        3) The classifier is used to predict the class of the data (nD -> 1D) 
+        
+        This class can generate a decision boundary map (DBM), without any need to provide a projection method.
+        
+        Public methods:
+            fit: Learns a direct and an inverse projection by training a neural network.
+            get_decision_boundary_map: Returns the decision boundary map for the given classifier.
 
+        Example:
+            >>> from SDBM import SDBM
+            >>> import matplotlib.pyplot as plt
+            >>> classifier = ...
+            >>> sdbm = SDBM(classifier)
+            >>> img, img_confidence, encoded_2d_train, encoded_2d_test = sdbm.get_decision_boundary_map(Xnd_train, Xnd_test, X2d_train, X2d_test)
+            >>> plt.imshow(img)
+            >>> plt.show()
+    
     """
 
     def __init__(self, classifier, logger: LoggerInterface | None = None):
-        """Initialize an Self Decision Boundary Mapper
+        """
+        Initialize an Self Decision Boundary Mapper
 
         Args:
-            classifier (tensorflow.keras.Model): The classifier to be used for the autoencoder
+            classifier (tensorflow.keras.Model): The classifier to be used for the generation of SDBM.
             logger (LoggerInterface, optional): The logger class to be used for outputting the info messages. Defaults to None.
         """
         super().__init__(classifier, logger)
@@ -61,19 +71,20 @@ class SDBM(DBMInterface):
             architecture: NNArchitecture = NNArchitecture.AUTOENCODER,
             epochs: int = 300, batch_size: int = 32,
             load_folder: str = DEFAULT_MODEL_PATH):
-        """Train an autoencoder on the training data (this will be used to reduce the dimensionality of the data (nD -> 2D) and decode the 2D space to nD)
+        """
+        Train a neural network that will contain the direct projection and the inverse projection.
+        This neural network will be used to reduce the dimensionality of the data (nD -> 2D) and decode the 2D space to nD.
 
         Args:
-            X_train (np.ndarray): Training data
-            Y_train (np.ndarray): Training labels
-            X_test (np.ndarray): Testing data
-            Y_test (np.ndarray): Testing labels
-            epochs (int, optional): The number of epochs to train the autoencoder. Defaults to 300.
+            X (np.ndarray): Training data
+            Y (np.ndarray): Training labels
+            architecture (NNArchitecture): The architecture of the neural network. Defaults to NNArchitecture.AUTOENCODER.
+            epochs (int, optional): The number of epochs to train the neural network. Defaults to 300.
             batch_size (int, optional): Defaults to 32.
-            load_folder (str, optional): The folder path which contains a pre-trained autoencoder. Defaults to DEFAULT_MODEL_PATH.
+            load_folder (str, optional): The folder path which contains a pre-trained network or will be used to store it if not exists. Defaults to DEFAULT_MODEL_PATH.
 
         Returns:
-            autoencoder (Autoencoder): The trained autoencoder
+            neural_network (Autoencoder | SSNP): The trained neural network.
         """
         match architecture:
             case NNArchitecture.SSNP:
@@ -88,7 +99,8 @@ class SDBM(DBMInterface):
     def generate_boundary_map(self,
                               X_train: np.ndarray, Y_train: np.ndarray,
                               X_test: np.ndarray, Y_test: np.ndarray,
-                              train_epochs: int = 300, train_batch_size: int = 32,
+                              nn_train_epochs: int = 300, 
+                              nn_train_batch_size: int = 32,
                               nn_architecture: NNArchitecture = NNArchitecture.AUTOENCODER,
                               resolution: int = DBM_DEFAULT_RESOLUTION,
                               fast_decoding_strategy: FAST_DBM_STRATEGIES = FAST_DBM_STRATEGIES.NONE,
@@ -101,27 +113,24 @@ class SDBM(DBMInterface):
                 Y_train (np.ndarray): Training labels
                 X_test (np.ndarray): Testing data
                 Y_test (np.ndarray): Testing labels
-                train_epochs (int, optional): The number of epochs to train the autoencoder. Defaults to 300.
-                train_batch_size (int, optional): Defaults to 32.
-                nn_architecture (NN)
+                nn_train_epochs (int, optional): The number of epochs to train the neural network that will give the direct and inverse projections. Defaults to 300.
+                nn_train_batch_size (int, optional): Defaults to 32.
+                nn_architecture (NNArchitecture): The architecture to use for the SDBM. Defaults to NNArchitecture.AUTOENCODER
                 resolution (int, optional): The resolution of the decision boundary map. Defaults to DBM_DEFAULT_RESOLUTION = 256.
-                use_fast_decoding (bool, optional): If True, a fast inference algorithm will be used to decode the 2D space and to generate the decision boundary map. Defaults to False.
-                load_folder (str, optional): The folder path which contains a pre-trained autoencoder. Defaults to DEFAULT_MODEL_PATH.
-                projection (str, optional): The projection is not used in SDBM, is placed here just to match the DBM signature. Defaults to None.
-
+                fast_decoding_strategy (FAST_DBM_STRATEGIES, optional): The strategy to use for the generation of the DBM. Defaults to FAST_DBM_STRATEGIES.NONE
+                load_folder (str, optional): The folder path which contains a pre-trained neural network or in which it will be stored. Defaults to DEFAULT_MODEL_PATH.
+                
             Returns:
                 img (np.ndarray): The decision boundary map
                 img_confidence (np.ndarray): The confidence map
-                encoded_training_data (np.ndarray): The 2D coordinates of the training data for each pixel of the decision boundary map
-                encdoded_testing_data (np.ndarray): The 2D coordinates of the testing data for each pixel of the decision boundary map
-                space_Nd (np.ndarray): The Nd coordinates of the decision boundary map
-                history (dict): The history of the training process
-
+                encoded_2d_train (np.ndarray): The 2D coordinates of the training data for each pixel of the decision boundary map and the assigned classifier label
+                encoded_2d_test (np.ndarray): The 2D coordinates of the testing data for each pixel of the decision boundary map and the assigned classifier label
+                
             Example:
                 >>> import SDBM
                 >>> classifier = build_classifier(...)
                 >>> sdbm = SDBM.SDBM(classifier)
-                >>> img, img_confidence, _, _, history = sdbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
+                >>> img, img_confidence, _, _ = sdbm.generate_boundary_map(X_train, Y_train, X_test, Y_test)
                 >>> plt.imshow(img)
                 >>> plt.show()
         """
@@ -133,8 +142,8 @@ class SDBM(DBMInterface):
             self.neural_network = self.fit(X, Y,
                                            architecture=nn_architecture,
                                            load_folder=load_folder,
-                                           epochs=train_epochs,
-                                           batch_size=train_batch_size)
+                                           epochs=nn_train_epochs,
+                                           batch_size=nn_train_batch_size)
 
         # encoder the train and test data and show the encoded data in 2D space
         self.console.log("Encoding the training data to 2D space")
@@ -146,13 +155,10 @@ class SDBM(DBMInterface):
 
         self.resolution = resolution
 
-        img, img_confidence = self.get_dbm(
-            fast_decoding_strategy, resolution, load_folder)
+        img, img_confidence = self.get_dbm(fast_decoding_strategy, resolution, load_folder)
 
-        self.X2d = np.concatenate(
-            (encoded_training_data, encoded_testing_data), axis=0)
-        self.Xnd = np.concatenate((X_train.reshape(
-            (X_train.shape[0], -1)), X_test.reshape((X_test.shape[0], -1))), axis=0)
+        self.X2d = np.concatenate((encoded_training_data, encoded_testing_data), axis=0)
+        self.Xnd = np.concatenate((X_train.reshape((X_train.shape[0], -1)), X_test.reshape((X_test.shape[0], -1))), axis=0)
 
         # transform the encoded data to be in the range [0, resolution)
         encoded_testing_data *= (resolution - 1)
@@ -177,13 +183,11 @@ class SDBM(DBMInterface):
             img[i, j] = -1
             img_confidence[i, j] = 1
 
-        with open(os.path.join(load_folder, "history.json"), 'r') as f:
-            history = json.load(f)
-
-        return (img, img_confidence, encoded_2d_train, encoded_2d_test, history)
+        return (img, img_confidence, encoded_2d_train, encoded_2d_test)
 
     def _predict2dspace_(self, X2d: np.ndarray):
-        """ Predicts the labels for the given 2D data set.
+        """ 
+        Predicts the labels for the given 2D data set.
 
         Args:
             X2d (np.ndarray): The 2D data set
@@ -191,11 +195,9 @@ class SDBM(DBMInterface):
         Returns:
             predicted_labels (np.array): The predicted labels for the given 2D data set
             predicted_confidence (np.array): The predicted probabilities for the given 2D data set
-            spaceNd (np.array): The decoded nD space
         """
         spaceNd = self.neural_network.decode(X2d, verbose=0)
-        predictions = self.classifier.predict(  # type: ignore
-            spaceNd, verbose=0)                 # type: ignore
+        predictions = self.classifier.predict(spaceNd, verbose=0)                 # type: ignore
         predicted_labels = np.array([np.argmax(p) for p in predictions])
         predicted_confidence = np.array([np.max(p) for p in predictions])
         return predicted_labels, predicted_confidence

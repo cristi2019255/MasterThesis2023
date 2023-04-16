@@ -32,16 +32,11 @@ class LoggerModel(Callback):
         if show_init:
             sep = "=" * 30
             time = datetime.now().strftime("%H:%M:%S:%f")
-            print(
-                colored(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color))
-            print(colored(
-                f"[INFO] [{time}] [{self.name}] {self.name} initialized", self.info_color))
-            print(
-                colored(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color))
+            print(colored(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color))
+            print(colored(f"[INFO] [{time}] [{self.name}] {self.name} initialized", self.info_color))
+            print(colored(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color))
 
     def on_epoch_end(self, epoch, logs={}):
         if self.active:
-            logs = ", ".join(
-                [f"{key}: {value:.4f}" for key, value in logs.items()])
-            print(colored(
-                f"[INFO] [{self.name}] [Epoch {epoch}/{self.epochs}] {logs}", self.info_color))
+            logs = ", ".join([f"{key}: {value:.4f}" for key, value in logs.items()])
+            print(colored(f"[INFO] [{self.name}] [Epoch {epoch}/{self.epochs}] {logs}", self.info_color))

@@ -40,12 +40,9 @@ class Logger(LoggerInterface):
         if show_init:
             sep = "=" * 30
             time = datetime.now().strftime("%H:%M:%S:%f")
-            print(
-                colored(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color))
-            print(colored(
-                f"[INFO] [{time}] [{self.name}] {self.name} initialized", self.info_color))
-            print(
-                colored(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color))
+            print(colored(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color))
+            print(colored(f"[INFO] [{time}] [{self.name}] {self.name} initialized", self.info_color))
+            print(colored(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color))
 
     def log(self, message: str):
         """ Log a message to the console
@@ -54,14 +51,12 @@ class Logger(LoggerInterface):
         """
         if self.active:
             time = datetime.now().strftime("%H:%M:%S:%f")
-            print(
-                colored(f"[INFO] [{time}] [{self.name}] {message}", self.info_color))
+            print(colored(f"[INFO] [{time}] [{self.name}] {message}", self.info_color))
 
     def warn(self, message: str):
         if self.active:
             time = datetime.now().strftime("%H:%M:%S:%f")
-            print(
-                colored(f"[WARNING] [{time}] [{self.name}] {message}", "yellow"))
+            print(colored(f"[WARNING] [{time}] [{self.name}] {message}", "yellow"))
 
     def error(self, message: str):
         if self.active:
@@ -76,5 +71,4 @@ class Logger(LoggerInterface):
     def success(self, message: str):
         if self.active:
             time = datetime.now().strftime("%H:%M:%S:%f")
-            print(
-                colored(f"[SUCCESS] [{time}] [{self.name}] {message}", "green"))
+            print(colored(f"[SUCCESS] [{time}] [{self.name}] {message}", "green"))

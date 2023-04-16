@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import tensorflow as tf
 import numpy as np
 
@@ -32,16 +31,14 @@ CLASSIFIER_LOSS_WEIGHT = 0.125
 
 class SSNP(NNinterface):
     def __init__(self,
-                 folder_path,
+                 folder_path: str,
                  logger: LoggerInterface | None = None):
         """
-            Creates an autoencoder model.
-            Classifier: The classifier part of the autoencoder.
+            Creates an SSNP model.
 
             Args:
                 folder_path: The path to the folder where the model will be saved/loaded.
                 logger: The logger used to log the model's progress.
-                classifier: The classifier part of the autoencoder.
         """
         super().__init__(folder_path=folder_path, logger=logger, nn_name=SSNP_NAME)
 
@@ -53,6 +50,11 @@ class SSNP(NNinterface):
                 input_shape: The input and output shape of the autoencoder.
                 show_summary: If True, the model summary will be printed.
         """
+
+        output_size = 1
+        for i in range(len(input_shape)):
+            output_size *= input_shape[i]
+
 
         encoder = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
@@ -77,8 +79,7 @@ class SSNP(NNinterface):
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
             tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform',
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(
-                input_shape[0] * input_shape[1], activation='sigmoid'),
+            tf.keras.layers.Dense(output_size, activation='sigmoid'),
             tf.keras.layers.Reshape(input_shape)
         ], name=DECODER_NAME)
 
@@ -94,8 +95,7 @@ class SSNP(NNinterface):
         classifier_output = classifier(decoder_output)
 
         self.neural_network = tf.keras.models.Model(inputs=input_layer,
-                                                    outputs=[
-                                                        decoder_output, classifier_output],
+                                                    outputs=[decoder_output, classifier_output],
                                                     name=SSNP_NAME)
 
         self.neural_network.compile(optimizer=tf.keras.optimizers.Adam(),
@@ -113,10 +113,8 @@ class SSNP(NNinterface):
         """ Fits the model to the specified data.
 
         Args:
-            x_train (np.ndarray): Train input values
-            y_train (np.ndarray): Train target values
-            x_test (np.ndarray): Test input values
-            y_test (np.ndarray): Test target values
+            X (np.ndarray): Train input values
+            Y (np.ndarray): Train target values
             epochs (int, optional): The number of epochs. Defaults to 10.
             batch_size (int, optional): Data points used for one batch. Defaults to 128.
         """
@@ -128,13 +126,10 @@ class SSNP(NNinterface):
 
         self.console.log("Building model according to the data shape.")
         num_classes = len(np.unique(Y))
-        self.__build__(
-            input_shape=X.shape[1:], num_classes=num_classes, show_summary=True)
+        self.__build__(input_shape=X.shape[1:], num_classes=num_classes, show_summary=True)
 
-        stopping_callback = tf.keras.callbacks.EarlyStopping(
-            monitor='val_loss', mode='min', patience=20, restore_best_weights=True)
-        logger_callback = LoggerModel(
-            name=SSNP_NAME, show_init=False, epochs=epochs)
+        stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=20, restore_best_weights=True)
+        logger_callback = LoggerModel(name=SSNP_NAME, show_init=False, epochs=epochs)
 
         self.console.log("Fitting model...")
 
@@ -143,8 +138,7 @@ class SSNP(NNinterface):
                                           batch_size=batch_size,
                                           shuffle=True,
                                           validation_split=0.2,
-                                          callbacks=[
-                                              stopping_callback, logger_callback],
+                                          callbacks=[stopping_callback, logger_callback],
                                           verbose=0)
 
         self.console.log("Model fitted!")
@@ -155,7 +149,8 @@ class SSNP(NNinterface):
         # self.show_predictions(dataNd=x_test, labels=y_test)
 
     def encode(self, data: np.ndarray, verbose: int = 0):
-        """ Encodes the data using the encoder part of the autoencoder.
+        """ 
+        Encodes the data using the encoder part of the autoencoder.
 
         Args:
             data (np.ndarray): The data to encode.
@@ -167,7 +162,8 @@ class SSNP(NNinterface):
         return self.encoder.predict(data, verbose=verbose)
 
     def decode(self, data: np.ndarray, verbose: int = 0):
-        """ Decodes the data using the decoder part of the autoencoder.
+        """ 
+        sDecodes the data using the decoder part of the autoencoder.
 
         Args:
             data (np.ndarray): The data to decode.

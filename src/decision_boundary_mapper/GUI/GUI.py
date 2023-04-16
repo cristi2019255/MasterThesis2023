@@ -537,7 +537,13 @@ class GUI:
                 projection=projection_technique
             )
 
-        img, img_confidence, encoded_training_data, encoded_testing_data, training_history = dbm_info
+        img, img_confidence, encoded_training_data, encoded_testing_data = dbm_info
+        
+        # TODO: training history should be uploaded by the GUI controller
+        # example: with open(os.path.join(load_folder, "history.json"), 'r') as f:
+        #    history = json.load(f)
+
+        training_history = None
 
         if show_dbm_history:
             self.show_dbm_history(training_history)

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import tensorflow as tf
 import numpy as np
 
@@ -29,7 +28,7 @@ LOSS = "mean_squared_error"
 
 class Autoencoder(NNinterface):
     def __init__(self,
-                 folder_path,
+                 folder_path: str,
                  logger: LoggerInterface | None = None):
         """
             Creates an autoencoder model.
@@ -38,7 +37,6 @@ class Autoencoder(NNinterface):
             Args:
                 folder_path: The path to the folder where the model will be saved/loaded.
                 logger: The logger used to log the model's progress.
-                classifier: The classifier part of the autoencoder.
         """
         super().__init__(folder_path=folder_path, logger=logger, nn_name=AUTOENCODER_NAME)
 
@@ -50,6 +48,10 @@ class Autoencoder(NNinterface):
                 input_shape: The input and output shape of the autoencoder.
                 show_summary: If True, the model summary will be printed.
         """
+
+        output_size = 1
+        for i in range(len(input_shape)):
+            output_size *= input_shape[i]
 
         encoder = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
@@ -74,8 +76,7 @@ class Autoencoder(NNinterface):
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
             tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform',
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(
-                input_shape[0] * input_shape[1], activation='sigmoid'),
+            tf.keras.layers.Dense(output_size, activation='sigmoid'),
             tf.keras.layers.Reshape(input_shape)
         ], name=DECODER_NAME)
 
@@ -98,10 +99,11 @@ class Autoencoder(NNinterface):
     def fit(self, X: np.ndarray,
             epochs: int = 10,
             batch_size: int = 128):
-        """ Fits the model to the specified data.
+        """ 
+        Fits the model to the specified data.
 
         Args:
-            x_train (np.ndarray): Train input values
+            X (np.ndarray): Train input values
             epochs (int, optional): The number of epochs. Defaults to 10.
             batch_size (int, optional): Data points used for one batch. Defaults to 128.
         """
@@ -114,10 +116,8 @@ class Autoencoder(NNinterface):
         self.console.log("Building model according to the data shape.")
         self.__build__(input_shape=X.shape[1:], show_summary=True)
 
-        stopping_callback = tf.keras.callbacks.EarlyStopping(
-            monitor='val_loss', mode='min', patience=20, restore_best_weights=True)
-        logger_callback = LoggerModel(
-            name=AUTOENCODER_NAME, show_init=False, epochs=epochs)
+        stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=20, restore_best_weights=True)
+        logger_callback = LoggerModel(name=AUTOENCODER_NAME, show_init=False, epochs=epochs)
 
         self.console.log("Fitting model...")
 
@@ -126,8 +126,7 @@ class Autoencoder(NNinterface):
                                           batch_size=batch_size,
                                           shuffle=True,
                                           validation_split=0.2,
-                                          callbacks=[
-                                              stopping_callback, logger_callback],
+                                          callbacks=[stopping_callback, logger_callback],
                                           verbose=0)
 
         self.console.log("Model fitted!")
@@ -136,7 +135,8 @@ class Autoencoder(NNinterface):
         self.decoder = self.neural_network.get_layer(DECODER_NAME)
 
     def encode(self, data: np.ndarray, verbose: int = 0):
-        """ Encodes the data using the encoder part of the autoencoder.
+        """ 
+        Encodes the data using the encoder part of the autoencoder.
 
         Args:
             data (np.ndarray): The data to encode.
@@ -148,7 +148,8 @@ class Autoencoder(NNinterface):
         return self.encoder.predict(data, verbose=verbose)
 
     def decode(self, data: np.ndarray, verbose: int = 0):
-        """ Decodes the data using the decoder part of the autoencoder.
+        """ 
+        Decodes the data using the decoder part of the autoencoder.
 
         Args:
             data (np.ndarray): The data to decode.

@@ -17,45 +17,29 @@ from umap import UMAP
 import numpy as np
 
 
-def transform_tsne(X: np.ndarray):
-    """ Transforms the given data to 2D using t-SNE.
-
-    Args:
-        X (np.ndarray): The data to be transformed
+def generate_transformation(projection: TSNE | PCA | UMAP):
     """
-    X_flat = X.reshape(X.shape[0], -1)
-    projection = TSNE(n_components=2, random_state=0,
-                      learning_rate="auto", init="random")
-    X2d = projection.fit_transform(X_flat)
-    return X2d
-
-
-def transform_umap(X: np.ndarray):
-    """ Transforms the given data to 2D using UMAP.
-
-    Args:
-        X (np.ndarray): The data to be transformed
+    Generates a 2D projection functionality
+    
+    Returns:
+        function: X: (nd data) -> 2d projection
     """
-    X_flat = X.reshape(X.shape[0], -1)
-    projection = UMAP(n_components=2, random_state=0)
-    X2d = projection.fit_transform(X_flat)
-    return X2d
+    def transform(X: np.ndarray):
+        """ 
+        Transforms the given data to 2D using the projection method.
 
-
-def transform_pca(X: np.ndarray):
-    """ Transforms the given data to 2D using PCA.
-
-    Args:
-        X (np.ndarray): The data to be transformed
-    """
-    X_flat = X.reshape(X.shape[0], -1)
-    projection = PCA(n_components=2, random_state=0)
-    X2d = projection.fit_transform(X_flat)
-    return X2d
-
+        Args:
+            X (np.ndarray): The data to be transformed
+        """
+        X_flat = X.reshape(X.shape[0], -1)
+        X2d = projection.fit_transform(X_flat)
+        return X2d
+    
+    return transform
 
 PROJECTION_METHODS = {
-    "t-SNE": transform_tsne,
-    "PCA": transform_pca,
-    "UMAP": transform_umap
+    "t-SNE": generate_transformation(TSNE(n_components=2, random_state=0, learning_rate="auto", init="random")),
+    "PCA": generate_transformation(PCA(n_components=2, random_state=0)),
+    "UMAP": generate_transformation(UMAP(n_components=2, random_state=0)),
+    "custom": None,
 }

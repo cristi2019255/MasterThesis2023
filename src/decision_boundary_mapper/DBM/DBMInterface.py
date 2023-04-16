@@ -29,12 +29,18 @@ from .NNinterface import NNinterface
 from ..utils import track_time_wrapper
 from ..Logger import Logger, LoggerInterface
 
+DBM_DEFAULT_CHUNK_SIZE = 10000
 DBM_DEFAULT_RESOLUTION = 256
 DBM_IMAGE_NAME = "boundary_map"
 DBM_CONFIDENCE_IMAGE_NAME = "boundary_map_confidence"
-time_tracker_console = Logger(
-    name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
 
+INVERSE_PROJECTION_ERRORS_NAME = "inverse_projection_errors"
+
+PROJECTION_ERRORS_INTERPOLATED_NAME = "projection_errors_interpolated"
+PROJECTION_ERRORS_INVERSE_PROJECTION_NAME = "projection_errors_inv_proj"
+PROJECTION_ERRORS_NEIGHBORS_NUMBER = 10
+
+time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
 
 class FAST_DBM_STRATEGIES(Enum):
     NONE = "none"
@@ -47,25 +53,29 @@ class FAST_DBM_STRATEGIES(Enum):
 
 
 class DBMInterface:
-    """ Decision Boundary Mapper Interface
+    """ 
+    Decision Boundary Mapper Abstract class
 
-    Methods to be implemented by the class that implements the DBMInterface:
-        fit (X_train, Y_train, X_test, Y_test, epochs=10, batch_size=128, load_folder = None)
-        generate_boundary_map (X_train, Y_train, X_test, Y_test, train_epochs=10, train_batch_size=128, resolution=DBM_DEFAULT_RESOLUTION)
+    Public methods that can be used:
+        refit_classifier
+        save_classifier
+        load_classifier
+        get_dbm
+        generate_inverse_projection_errors
+        generate_projection_errors
+
+    Methods to be implemented by the class that implements this class:
         _predict2dspace_ (X)
 
     Example of usage: 
         class SuperBoundaryMapper(DBMInterface):
-            def fit (....):
-                # To be implemented
-            def generate_boundary_map (....):
-                # To be implemented
-            def _predict2dspace_ (....):
+            def _predict2dspace_ (X):
                 # To be implemented
     """
 
     def __init__(self, classifier, logger: LoggerInterface | None = None):
-        """Initializes the classifier and the logger
+        """
+        Initializes the classifier and the logger
 
         Args:
             classifier (tf.keras.Model): The classifier to be used
@@ -82,83 +92,47 @@ class DBMInterface:
         self.X2d: np.ndarray
         self.Xnd: np.ndarray
 
-    def fit(self, X_train: np.ndarray, Y_train: np.ndarray,
-            X_test: np.ndarray, Y_test: np.ndarray,
-            epochs: int = 10, batch_size: int = 128,
-            load_folder: str | None = None):
-        """ Trains the classifier on the given data set.
-
-        Args:
-            X_train (np.ndarray): Training data set
-            Y_train (np.ndarray): Training data labels
-            X_test (np.ndarray): Testing data set
-            Y_test (np.ndarray): Testing data labels
-            epochs (int, optional): The number of epochs for which the DBM is trained. Defaults to 10.
-            batch_size (int, optional): Train batch size. Defaults to 128.
-        """
-        pass
-
     def refit_classifier(self, Xnd: np.ndarray, Y: np.ndarray, save_folder: str, epochs: int = 2, batch_size: int = 32):
-        """ Refits the classifier on the given data set.
+        """ 
+        Refits the classifier on the given data set.
 
         Args:             
-            Xnd (np.ndarray): 
-            Y (np.ndarray): 
+            Xnd (np.ndarray): The data set
+            Y (np.ndarray): The new labels
+            save_folder (str): Saving folder of the classifier
+            epochs (int, optional): Number of epochs. Defaults to 2.
+            batch_size (int): Number of training samples to be taken in a single batch. Defaults to 32.
         """
-        self.console.log(
-            f"Refiting classifier for {epochs} epochs and batch size {batch_size}, please wait...")
+        self.console.log(f"Refiting classifier for {epochs} epochs and batch size {batch_size}, please wait...")
         self.classifier.fit(Xnd, Y, epochs=epochs,             # type: ignore
                             batch_size=batch_size, verbose=0)  # type: ignore
         self.console.log("Finished refitting classifier")
-        self.console.log("Saving a copy of the retrained classifier...")
-        self.classifier.save(save_folder, save_format="tf")   # type: ignore
-        self.console.log("A copy of the retrained classifier was saved!")
+        self.save_classifier(save_folder=save_folder)
 
     def save_classifier(self, save_folder: str):
-        """ Saves a copy of the classifier.
+        """ 
+        Saves a copy of the classifier.
 
         Args:
             save_folder (str): The folder where the classifier will be saved
         """
+        self.console.log("Saving the classifier...")
         self.classifier.save(save_folder, save_format="tf")  # type: ignore
+        self.console.log("A copy of the classifier was saved!")
 
     def load_classifier(self, load_folder: str):
-        """ Loads a copy of the classifier.
+        """ 
+        Loads a copy of the classifier.
 
         Args:
             load_folder (str): The folder where the classifier is saved
         """
         self.classifier = tf.keras.models.load_model(load_folder)
 
-    def generate_boundary_map(self,
-                              X_train: np.ndarray, Y_train: np.ndarray,
-                              X_test: np.ndarray, Y_test: np.ndarray,
-                              train_epochs: int = 10, train_batch_size: int = 128,
-                              resolution: int = DBM_DEFAULT_RESOLUTION,
-                              use_fast_decoding: bool = False,
-                              projection: str | None = None
-                              ):
-        """ Generates a 2D boundary map of the classifier's decision boundary.
-
-        Args:
-            X_train (np.ndarray): Training data set
-            Y_train (np.ndarray): Training data labels
-            X_test (np.ndarray): Testing data set
-            Y_test (np.ndarray): Testing data labels
-            train_epochs (int, optional): The number of epochs for which the DBM is trained. Defaults to 10.
-            train_batch_size (int, optional): Train batch size. Defaults to 128.
-            show_predictions (bool, optional): If set to true 10 prediction examples are shown. Defaults to True.
-            resolution (int, optional): _description_. Defaults to DBM_DEFAULT_RESOLUTION = 256.
-            use_fast_decoding (bool, optional): If set to true the fast decoding algorithm is used. Defaults to False.
-            projection (str, optional): The projection to be used for the 2D space. Defaults to None.
-        Returns:
-            np.array: A 2D numpy array with the decision boundary map
-
-        """
-        pass
-
     def _predict2dspace_(self, X2d: np.ndarray | list[tuple[float, float]]) -> tuple:
-        """ Predicts the labels for the given 2D data set.
+        """ 
+        Predicts the labels for the given 2D data set.
+        IMPORTANT: This method should be implemented by the classes that implement this class
 
         Args:
             X2d (np.ndarray): The 2D data set
@@ -166,14 +140,24 @@ class DBMInterface:
         Returns:
             predicted_labels (np.array): The predicted labels for the given 2D data set
             predicted_confidences (np.array): The predicted probabilities for the given 2D data set
-            spaceNd (np.array): The decoded nD space
         """
         return None, None
 
-    def get_dbm(self, fast_decoding_strategy, resolution, load_folder) -> tuple:
+    def get_dbm(self, fast_decoding_strategy: FAST_DBM_STRATEGIES, resolution: int, load_folder: str) -> tuple:
+        """
+        Delegates the generation of the DBM to the according functionality based on the fast_decoding_strategy
+
+        Args:
+            fast_decoding_strategy (FAST_DBM_STRATEGIES): The strategy to use for the generation of the DBM
+            resolution (int): The desired resolution of the DBM image
+            load_folder (str): The folder in which we save the results
+
+        Returns:
+            img (np.ndarray): The DBM image
+            img_confidence (np.ndarray): The DBM confidence image
+        """
         save_img_path = os.path.join(load_folder, DBM_IMAGE_NAME)
-        save_img_confidence_path = os.path.join(
-            load_folder, DBM_CONFIDENCE_IMAGE_NAME)
+        save_img_confidence_path = os.path.join(load_folder, DBM_CONFIDENCE_IMAGE_NAME)
 
         match fast_decoding_strategy:
             case FAST_DBM_STRATEGIES.NONE:
@@ -185,8 +169,7 @@ class DBMInterface:
             case FAST_DBM_STRATEGIES.CONFIDENCE_BASED:
                 save_img_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
                 save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
-                img, img_confidence = self._get_img_dbm_fast_confidences_strategy(
-                    resolution)
+                img, img_confidence = self._get_img_dbm_fast_confidences_strategy(resolution)
 
         with open(f"{save_img_path}.npy", 'wb') as f:
             np.save(f, img)  # type: ignore
@@ -196,74 +179,9 @@ class DBMInterface:
         return img, img_confidence  # type: ignore
 
     @track_time_wrapper(logger=time_tracker_console)
-    def generate_inverse_projection_errors(self, resolution: int, save_folder: str | None = None):
-        """ Calculates the inverse projection errors of the given data.
-
-        Args:
-            Xnd (np.array): The nd inverse projection of the data.
-
-        Returns:
-            errors (np.ndarray): The inverse projection errors matrix of the given data. (resolution x resolution)
-        """
-
-        self.console.log(
-            "Calculating the inverse projection errors of the given data")
-        errors = np.zeros((resolution, resolution))
-
-        w, h = 1, 1
-
-        i = 0
-
-        current_row = np.array([(i / resolution, j / resolution)
-                               for j in range(resolution)])
-        next_row = np.array([((i + 1) / resolution, j / resolution)
-                            for j in range(resolution)])
-        data_2d = np.concatenate((current_row, next_row))
-        data_nd = self.neural_network.decode(data_2d)
-
-        previous_row_nd = None
-        current_row_nd: np.ndarray = data_nd[:resolution]
-        next_row_nd: np.ndarray = data_nd[resolution:]
-
-        for i in tqdm(range(resolution)):
-            for j in range(resolution):
-                dw = w if (j - w < 0) or (j + w >= resolution) else 2 * w
-                dh = h if (i - h < 0) or (i + h >= resolution) else 2 * h
-                xnd = current_row_nd[j]
-                xl = current_row_nd[j-w] if j - w >= 0 else xnd
-                xr = current_row_nd[j+w] if j + w < resolution else xnd
-                yl = previous_row_nd[j] if previous_row_nd is not None else xnd
-                yr = next_row_nd[j] if next_row_nd is not None else xnd
-
-                dx = (xl - xr) / dw
-                dy = (yl - yr) / dh
-                errors[i, j] = get_inv_proj_error(dx, dy)
-
-            previous_row_nd = current_row_nd
-            current_row_nd = next_row_nd
-            if i + 2 < resolution:
-                next_row = np.array(
-                    [((i + 2) / resolution, j / resolution) for j in range(resolution)])
-                next_row_nd = self.neural_network.decode(next_row)
-            else:
-                next_row_nd = None  # type: ignore
-
-        # normalizing the errors to be in the range [0,1]
-        errors = (errors - np.min(errors)) / (np.max(errors) - np.min(errors))
-
-        if save_folder is not None:
-            self.console.log("Saving the inverse projection errors results")
-            save_path = os.path.join(
-                save_folder, "inverse_projection_errors.npy")
-            with open(save_path, "wb") as f:
-                np.save(f, errors)
-            self.console.log("Saved inverse projection errors results!")
-
-        return errors
-
-    @track_time_wrapper(logger=time_tracker_console)
     def _get_img_dbm_(self, resolution: int):
-        """ This function generates the 2D image of the boundary map using the trained autoencoder and classifier.
+        """ 
+        This function generates the 2D image of the boundary map using the trained neural network and the classifier.
 
         Args:
             resolution (int): The resolution of the 2D image to be generated 
@@ -271,17 +189,14 @@ class DBMInterface:
         Returns:
             img (np.array): The 2D image of the boundary map
             img_confidence (np.array): The confidence of map of each pixel of the 2D image of the boundary map
-            img_space_Nd (np.array): The nD space points
-
+            
         Example:
             >>> img, img_confidence = self._get_img_dbm_(resolution = 100)
         """
-        space2d = np.array([(i / resolution, j / resolution)
-                           for i in range(resolution) for j in range(resolution)])
-        self.console.log(
-            "Predicting labels for the 2D boundary mapping using the nD data and the trained classifier...")
+        space2d = np.array([(i / resolution, j / resolution) for i in range(resolution) for j in range(resolution)])
+        self.console.log("Predicting labels for the 2D boundary mapping using the nD data and the trained classifier...")
 
-        chunk_size = 10000
+        chunk_size = DBM_DEFAULT_CHUNK_SIZE
         chunks = (resolution * resolution) // chunk_size + 1
         space2d_chunks = np.array_split(space2d, chunks)
 
@@ -290,13 +205,10 @@ class DBMInterface:
         chunk_index = 0
         for space2d_chunk in space2d_chunks:
             chunk_index += 1
-            self.console.log(
-                f"Predicting labels for the 2D boundary mapping using the nD data and the trained classifier... (chunk {chunk_index}/{len(space2d_chunks)})")
-            predicted_labels, predicted_confidence = self._predict2dspace_(
-                space2d_chunk)
+            self.console.log(f"Predicting labels for the 2D boundary mapping using the nD data and the trained classifier... (chunk {chunk_index}/{len(space2d_chunks)})")
+            predicted_labels, predicted_confidence = self._predict2dspace_(space2d_chunk)
             img = np.concatenate((img, predicted_labels))
-            img_confidence = np.concatenate(
-                (img_confidence, predicted_confidence))
+            img_confidence = np.concatenate((img_confidence, predicted_confidence))
 
         img = img.reshape((resolution, resolution))
         img_confidence = img_confidence.reshape((resolution, resolution))
@@ -337,14 +249,11 @@ class DBMInterface:
         INITIAL_COMPUTATIONAL_BUDGET = computational_budget
 
         if (resolution % INITIAL_RESOLUTION != 0):
-            self.console.warn(
-                f"The required resolution is not a multiple of the initial window size ({WINDOW_SIZE} x {WINDOW_SIZE})")
-            self.console.log(
-                "The resolution will be set to the closest multiple of the window size")
+            self.console.warn(f"The required resolution is not a multiple of the initial window size ({WINDOW_SIZE} x {WINDOW_SIZE})")
+            self.console.log("The resolution will be set to the closest multiple of the window size")
             resolution = INITIAL_RESOLUTION * WINDOW_SIZE
             self.resolution = resolution
-            self.console.log(
-                f"Resolution was set to {resolution} x {resolution}")
+            self.console.log(f"Resolution was set to {resolution} x {resolution}")
 
         window_size = WINDOW_SIZE
         # ------------------------------------------------------------
@@ -356,11 +265,9 @@ class DBMInterface:
 
         # ------------------------------------------------------------
         # generate the initial points
-        self.console.log(
-            f"Generating the initial central points within each window... total number of windows ({(INITIAL_RESOLUTION * INITIAL_RESOLUTION)})")
+        self.console.log(f"Generating the initial central points within each window... total number of windows ({(INITIAL_RESOLUTION * INITIAL_RESOLUTION)})")
 
-        space2d = [((i * window_size + window_size / 2 - 0.5) / resolution, (j * window_size + window_size /
-                    2 - 0.5) / resolution) for i in range(INITIAL_RESOLUTION) for j in range(INITIAL_RESOLUTION)]
+        space2d = [((i * window_size + window_size / 2 - 0.5) / resolution, (j * window_size + window_size / 2 - 0.5) / resolution) for i in range(INITIAL_RESOLUTION) for j in range(INITIAL_RESOLUTION)]
 
         predicted_labels, predicted_confidence = self._predict2dspace_(space2d)
 
@@ -720,8 +627,70 @@ class DBMInterface:
 
         return img, img_confidence
 
-    def _generate_interpolated_image_(self, sparse_map, resolution, method='linear'):
-        """A private method that uses interpolation to generate the values for the 2D space image
+    @track_time_wrapper(logger=time_tracker_console)
+    def generate_inverse_projection_errors(self, resolution: int, save_folder: str | None = None):
+        """ 
+        Calculates the inverse projection errors of the given data.
+
+        Args:
+            resolution (int): The resolution of the errors image to generate
+            save_folder (str): The path of the folder in which we want to save the results. Defaults to None
+
+        Returns:
+            errors (np.ndarray): The inverse projection errors matrix of the given data. (resolution x resolution)
+        """
+
+        self.console.log("Calculating the inverse projection errors of the given data")
+        errors = np.zeros((resolution, resolution))
+
+        w, h = 1, 1
+
+        current_row = np.array([(0, j / resolution) for j in range(resolution)])
+        next_row = np.array([( 1 / resolution, j / resolution) for j in range(resolution)])
+        data_2d = np.concatenate((current_row, next_row))
+        data_nd = self.neural_network.decode(data_2d)
+
+        previous_row_nd = None
+        current_row_nd: np.ndarray = data_nd[:resolution]
+        next_row_nd: np.ndarray = data_nd[resolution:]
+
+        for i in tqdm(range(resolution)):
+            for j in range(resolution):
+                dw = w if (j - w < 0) or (j + w >= resolution) else 2 * w
+                dh = h if (i - h < 0) or (i + h >= resolution) else 2 * h
+                xnd = current_row_nd[j]
+                xl = current_row_nd[j-w] if j - w >= 0 else xnd
+                xr = current_row_nd[j+w] if j + w < resolution else xnd
+                yl = previous_row_nd[j] if previous_row_nd is not None else xnd
+                yr = next_row_nd[j] if next_row_nd is not None else xnd
+
+                dx = (xl - xr) / dw
+                dy = (yl - yr) / dh
+                errors[i, j] = get_inv_proj_error(dx, dy)
+
+            previous_row_nd = current_row_nd
+            current_row_nd = next_row_nd
+            if i + 2 < resolution:
+                next_row = np.array([((i + 2) / resolution, j / resolution) for j in range(resolution)])
+                next_row_nd = self.neural_network.decode(next_row)
+            else:
+                next_row_nd = None  # type: ignore
+
+        # normalizing the errors to be in the range [0,1]
+        errors = (errors - np.min(errors)) / (np.max(errors) - np.min(errors))
+
+        if save_folder is not None:
+            self.console.log("Saving the inverse projection errors results")
+            save_path = os.path.join(save_folder, f"{INVERSE_PROJECTION_ERRORS_NAME}.npy")
+            with open(save_path, "wb") as f:
+                np.save(f, errors)
+            self.console.log("Saved inverse projection errors results!")
+
+        return errors
+
+    def _generate_interpolated_image_(self, sparse_map, resolution:int, method:str='linear'):
+        """
+        A private method that uses interpolation to generate the values for the 2D space image
            The sparse map is a list of tuples (x, y, data)
            The sparse map represents a structured but non uniform grid of data values
            Therefore usual rectangular interpolation methods are not suitable
@@ -765,27 +734,31 @@ class DBMInterface:
         rbf = interpolate.Rbf(X, Y, Z, function=function)
         ti = np.linspace(0, 1, resolution)
         xx, yy = np.meshgrid(ti, ti)
-        # using dask to parallelize the computation of the rbf function
-        # the rbf function is applied to each pixel of the image
-        # the image is divided into chunks and each chunk is processed in parallel
-        # the result is then merged together
-        # the number of chunks is equal to the number of cores
+        
+        """
+            using dask to parallelize the computation of the rbf function
+            the rbf function is applied to each pixel of the image
+            the image is divided into chunks and each chunk is processed in parallel
+            the result is then merged together
+            the number of chunks is equal to the number of cores
+        """
         cores = 4
 
         ix = da.from_array(xx, chunks=(1, cores))  # type: ignore
         iy = da.from_array(yy, chunks=(1, cores))  # type: ignore
         iz = da.map_blocks(rbf, ix, iy)            # type: ignore
         zz = iz.compute()
-        self.console.log(
-            "Finished computing the interpolated image using RBF interpolation")
+        self.console.log("Finished computing the interpolated image using RBF interpolation")
         return zz
 
-    def generate_projection_errors(self, Xnd: np.ndarray | None = None,
+    def generate_projection_errors(self, 
+                                   Xnd: np.ndarray | None = None,
                                    X2d: np.ndarray | None = None,
                                    resolution: int | None = None,
                                    use_interpolation: bool = True,
                                    save_folder: str | None = None):
-        """ Calculates the projection errors of the given data.
+        """ 
+        Calculates the projection errors of the given data.
 
         Args:
             Xnd (np.array): The data to be projected. The data must be in the range [0,1].
@@ -815,24 +788,18 @@ class DBMInterface:
 
         if Xnd is None:
             if self.Xnd is None:
-                self.console.error(
-                    "No nD data provided and no data stored in the DBM object.")
-                raise ValueError(
-                    "No nD data provided and no data stored in the DBM object.")
+                self.console.error("No nD data provided and no data stored in the DBM object.")
+                raise ValueError("No nD data provided and no data stored in the DBM object.")
             Xnd = self.Xnd
         if X2d is None:
             if self.X2d is None:
-                self.console.error(
-                    "No 2D data provided and no data stored in the DBM object.")
-                raise ValueError(
-                    "No 2D data provided and no data stored in the DBM object.")
+                self.console.error("No 2D data provided and no data stored in the DBM object.")
+                raise ValueError("No 2D data provided and no data stored in the DBM object.")
             X2d = self.X2d
         if resolution is None:
             if self.resolution is None:
-                self.console.error(
-                    "The resolution of the 2D space is not set, try to call the method 'generate_boundary_map' first.")
-                raise Exception(
-                    "The resolution of the 2D space is not set, try to call the method 'generate_boundary_map' first.")
+                self.console.error("The resolution of the 2D space is not set, try to call the method 'generate_boundary_map' first.")
+                raise Exception("The resolution of the 2D space is not set, try to call the method 'generate_boundary_map' first.")
             resolution = self.resolution
 
         assert len(X2d) == len(Xnd)
@@ -841,20 +808,16 @@ class DBMInterface:
 
         assert X2d.shape[1] == 2
 
-        self.console.log(
-            "Calculating the projection errors of the given data, this might take a couple of minutes. Please wait...")
+        self.console.log("Calculating the projection errors of the given data, this might take a couple of minutes. Please wait...")
         if use_interpolation:
-            errors = self._generate_projection_errors_using_interpolation_(
-                Xnd, X2d, resolution)
+            errors = self._generate_projection_errors_using_interpolation_(Xnd, X2d, resolution)
         else:
-            errors = self._generate_projection_errors_using_inverse_projection_(
-                Xnd, X2d, resolution)
+            errors = self._generate_projection_errors_using_inverse_projection_(Xnd, X2d, resolution)
 
         self.console.log("Finished computing the projection errors!")
         if save_folder is not None:
             self.console.log("Saving the projection errors results")
-            save_path = os.path.join(save_folder, "projection_errors_interpolated.npy") if use_interpolation else os.path.join(
-                save_folder, "projection_errors_inv_proj.npy")
+            save_path = os.path.join(save_folder, f"{PROJECTION_ERRORS_INTERPOLATED_NAME}.npy") if use_interpolation else os.path.join(save_folder, f"{PROJECTION_ERRORS_INVERSE_PROJECTION_NAME}.npy")
             with open(save_path, "wb") as f:
                 np.save(f, errors)
             self.console.log("Saved projection errors results!")
@@ -864,7 +827,7 @@ class DBMInterface:
     @track_time_wrapper(logger=time_tracker_console)
     def _generate_projection_errors_using_interpolation_(self, Xnd, X2d, resolution):
         errors = np.zeros((resolution, resolution))
-        K = 10  # Number of nearest neighbors to consider when computing the errors
+        K = PROJECTION_ERRORS_NEIGHBORS_NUMBER  # Number of nearest neighbors to consider when computing the errors
         metric = "euclidean"
 
         self.console.log("Computing the 2D tree")
@@ -883,11 +846,9 @@ class DBMInterface:
         sparse_map = []
         for k in range(len(X2d)):
             x, y = X2d[k]
-            sparse_map.append((x, y, get_proj_error_parallel(
-                indices_source[k], indices_embedded[k], k=K)))
+            sparse_map.append((x, y, get_proj_error_parallel(indices_source[k], indices_embedded[k], k=K)))
 
-        errors = self._generate_interpolation_rbf_(
-            sparse_map, resolution, function='linear').T
+        errors = self._generate_interpolation_rbf_(sparse_map, resolution, function='linear').T
 
         # resize the errors in range [0,1]
         errors = (errors - errors.min()) / (errors.max() - errors.min())
@@ -900,30 +861,25 @@ class DBMInterface:
                                                               X2d: np.ndarray,
                                                               resolution: int = 256):
 
-        K = 10  # Number of nearest neighbors to consider when computing the errors
-        space2d = np.array([(i / resolution, j / resolution) for i in range(resolution)
-                           for j in range(resolution)])  # generate the 2D flatten space
+        K = PROJECTION_ERRORS_NEIGHBORS_NUMBER  # Number of nearest neighbors to consider when computing the errors
+        space2d = np.array([(i / resolution, j / resolution) for i in range(resolution) for j in range(resolution)])  # generate the 2D flatten space
 
         errors = np.array([])
         # split space2d into chunks
         # split the space into chunks of 10000 points max
-        chunks_number = resolution * resolution // 10000 + 1
+        chunks_number = resolution * resolution // DBM_DEFAULT_CHUNK_SIZE + 1
         self.console.log(f"Splitting the 2D space into {chunks_number} chunks")
         space2d_chunks = np.array_split(space2d, chunks_number)
 
         chunk_index = 0
         for space2d_chunk in space2d_chunks:
             chunk_index += 1
-            self.console.log(
-                f"Computing the projection errors for chunk ({chunk_index}/{chunks_number}) of size: {(len(space2d_chunk))}")
-            spaceNd_chunk = self.neural_network.decode(
-                space2d_chunk)  # decode the 2D space to nD space
-            spaceNd_chunk = spaceNd_chunk.reshape(
-                (spaceNd_chunk.shape[0], -1))  # flatten the space
+            self.console.log(f"Computing the projection errors for chunk ({chunk_index}/{chunks_number}) of size: {(len(space2d_chunk))}")
+            spaceNd_chunk = self.neural_network.decode(space2d_chunk)  # decode the 2D space to nD space
+            spaceNd_chunk = spaceNd_chunk.reshape((spaceNd_chunk.shape[0], -1))  # flatten the space
 
             with ProgressBar(total=len(space2d_chunk)) as progress:
-                errors_chunk = get_projection_errors_using_inverse_projection(
-                    Xnd=Xnd, X2d=X2d, spaceNd=spaceNd_chunk, space2d=space2d_chunk, k=K, progress=progress)
+                errors_chunk = get_projection_errors_using_inverse_projection(Xnd=Xnd, X2d=X2d, spaceNd=spaceNd_chunk, space2d=space2d_chunk, k=K, progress=progress)
 
             errors = np.concatenate((errors, errors_chunk))
 

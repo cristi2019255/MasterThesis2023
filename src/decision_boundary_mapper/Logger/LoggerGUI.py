@@ -49,8 +49,7 @@ class LoggerGUI(LoggerInterface):
             time = datetime.now().strftime("%H:%M:%S:%f")
 
             self.print(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color)
-            self.print(
-                f"[INFO] [{time}] [{self.name}] {self.name} initialized", self.info_color)
+            self.print(f"[INFO] [{time}] [{self.name}] {self.name} initialized", self.info_color)
             self.print(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color)
 
     def print(self, message: str, color: str = 'magenta'):
