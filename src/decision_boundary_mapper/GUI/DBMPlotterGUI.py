@@ -106,8 +106,7 @@ WHITE_COLOR = "#ffffff"
 RIGHTS_MESSAGE_1 = "© 2023 Cristian Grosu. All rights reserved."
 RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"
 INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point click on the data point,\n or select the data point by including them into a circle.\nPress any digit key to indicate the new label.\nPress 'Enter' to confirm the new label. Press 'Esc' to cancel the action.\nTo remove a change just click on the data point.\nPress 'Apply Changes' to update the model."
-DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(
-    __file__), "assets", "dbm_plotter_icon.png")
+DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon.png")
 CLASSIFIER_PERFORMANCE_HISTORY_FILE = "classifier_performance.log"
 CLASSIFIER_REFIT_FOLDER = "refit_classifier"
 CLASSIFIER_STACKED_FOLDER = "stacked_classifier"
@@ -166,8 +165,7 @@ class DBMPlotterGUI:
         # projection technique used to generate the DBM
         self.projection_technique = projection_technique
         if self.projection_technique is not None:
-            self.save_folder = os.path.join(
-                self.save_folder, self.projection_technique)
+            self.save_folder = os.path.join(self.save_folder, self.projection_technique)
 
         self.initialize(dbm_model,
                         img,
@@ -946,8 +944,7 @@ class DBMPlotterGUI:
                 self.Y_test,
                 resolution=len(self.img),
                 fast_decoding_strategy=fast_decoding_strategy,
-                load_folder=self.save_folder,
-                projection=self.projection_technique
+                load_folder=self.save_folder
             )
         else:
             X2d_train, X2d_test = self.load_2d_projection()
