@@ -305,7 +305,7 @@ class GUIController:
             Y_train=self.Y_train,
             X_test=self.X_test,
             Y_test=self.Y_test,
-            main_gui=self,  # reference to the main GUI
+            main_gui=self.gui,  # reference to the main GUI
             save_folder=save_folder,
             projection_technique=projection_technique,
         )

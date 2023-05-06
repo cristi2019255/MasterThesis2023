@@ -37,7 +37,7 @@ DBM_CONFIDENCE_IMAGE_NAME = "boundary_map_confidence"
 INVERSE_PROJECTION_ERRORS_NAME = "inverse_projection_errors"
 
 PROJECTION_ERRORS_INTERPOLATED_NAME = "projection_errors_interpolated"
-PROJECTION_ERRORS_INVERSE_PROJECTION_NAME = "projection_errors_inv_proj"
+PROJECTION_ERRORS_INVERSE_PROJECTION_NAME = "projection_errors_inv_projection"
 PROJECTION_ERRORS_NEIGHBORS_NUMBER = 10
 
 time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
@@ -529,7 +529,7 @@ class AbstractDBM:
         iteration = 0
         while computational_budget > 0 and not priority_queue.empty():
             iteration += 1
-            print(priority_queue.qsize())
+            #print(priority_queue.qsize())
             # take the highest priority task
             priority, item = priority_queue.get()
             # getting all the items with the same priority
