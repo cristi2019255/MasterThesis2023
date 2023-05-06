@@ -284,7 +284,6 @@ class GUI:
             return
         
         self.switch_visibility(list_custom_projection_elements, False)
-        
     
     def handle_changes_in_dbm_plotter(self):
         # ---------------------------------
@@ -336,3 +335,12 @@ class GUI:
             self.logger.warn("Nothing to show")
             return
         self.dbm_plotter_gui.start()
+
+    def set_data_shape(self, data_shape: tuple):
+        """This method sets the data shape of the data to be used for the DBM
+        If the user imports data from a file (e.g. csv file), the data shape is unknown.
+        This method is used to set the data shape after the data is imported, so that the data can be reshaped into the correct shape.
+        Args:
+            data_shape (tuple): The shape of the data
+        """
+        self.controller.data_shape = data_shape

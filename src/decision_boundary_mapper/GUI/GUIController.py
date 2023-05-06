@@ -80,6 +80,9 @@ class GUIController:
 
         # --------------- Classifier --------------
         self.classifier = None
+        
+        # --------------- Others ---------------------
+        self.data_shape = (28, 28) # this is the shape of the data, it is used to reshape the data when importing it
        
     def stop(self):
         self.logger.log("Clearing resources...")
@@ -152,7 +155,7 @@ class GUIController:
     def handle_upload_train_data_event(self, event, values):
         try:
             filename = os.path.join(values["-DATA FOLDER-"], values["-DATA FILE LIST-"][0])
-            self.X_train, self.Y_train = import_dataset(filename, limit=int(0.7*SAMPLES_LIMIT))
+            self.X_train, self.Y_train = import_dataset(filename, limit=int(0.7*SAMPLES_LIMIT), shape=self.data_shape)
            
             self.X_train = self.X_train.astype("float32") / 255
             self.Y_test = self.Y_train.astype("int")
@@ -169,7 +172,7 @@ class GUIController:
     def handle_upload_test_data_event(self, event, values):
         try:
             filename = os.path.join(values["-DATA FOLDER-"], values["-DATA FILE LIST-"][0])
-            self.X_test, self.Y_test = import_dataset(filename, limit=int(0.3*SAMPLES_LIMIT))
+            self.X_test, self.Y_test = import_dataset(filename, limit=int(0.3*SAMPLES_LIMIT), shape=self.data_shape)
             self.X_test = self.X_test.astype("float32") / 255
             self.Y_test = self.Y_test.astype("int")
             
