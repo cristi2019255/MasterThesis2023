@@ -15,8 +15,11 @@
 import numpy as np
 from keras.datasets import fashion_mnist, mnist, cifar10
 import os
+import pandas as pd
 
 from .. import Logger
+
+ALLOWED_DATA_FORMATS = [".csv", ".txt", ".npy"]
 
 
 def import_mnist_dataset() -> tuple:
@@ -60,52 +63,59 @@ def import_cifar10_dataset() -> tuple:
     console.log(f"Test set: {test_X.shape}")
     return (train_X, train_y), (test_X, test_y)
 
+def import_dataset(file_path:str,
+                   labels_index: int | None = 0,
+                   limit: int | None = None,
+                   shape: tuple | None = None,
+                   ) -> tuple:       
+    """Imports a dataset from a file"""
+    if not os.path.exists(file_path):
+        print("File not found")
+        return None, None
+    
+    if not os.path.splitext(file_path)[-1] in ALLOWED_DATA_FORMATS:
+        print("File format not supported, please use one of the following: ", ALLOWED_DATA_FORMATS)
+        return None, None
+     
+    data = None   
+    if os.path.splitext(file_path)[-1] == ".csv" or os.path.splitext(file_path)[-1] == ".txt":
+        data = import_csv_dataset(file_path, limit=limit)
 
+    if os.path.splitext(file_path)[-1] == ".npy":
+        data = import_npy_dataset(file_path, limit=limit)
+    
+    if data is None:
+        return None, None
+    
+    if labels_index is None:
+        return data, None
+ 
+    
+    Y = data[:, labels_index]
+    X = np.delete(data, labels_index, axis=1)
+      
+    if shape is not None:
+        X = X.reshape(X.shape[0], *shape)
+    return X, Y
+  
 def import_csv_dataset(file_path: str,
-                       labels_index: int = 0,
-                       headers: bool = False,
-                       separator: str = ",",
-                       limit: int | None = None,
-                       shape: tuple = (28, 28)) -> tuple:
+                       limit: int | None = None) -> np.ndarray:
     """Imports a dataset from a csv file
 
     Args:
         file_path (str): The file path
-        labels_index (int, optional): The index of the column with the data labels. Defaults to 0.
-        headers (bool, optional): If headers are present in the file set to True. Defaults to False.
-        separator (str, optional): The file data separator. Defaults to ",".
         limit (_type_, optional): The limit of data points to be loaded. Defaults to None.
-        shape (tuple, optional): The data points shape. Defaults to (28, 28).
-
     Returns:
-        X, Y (np.ndarray, np.ndarray): The data points and labels
+        X (np.ndarray): The data points and labels
     """
+    data_frame = pd.read_csv(file_path, nrows=limit, skiprows = 1, header=None)
+    return np.array(data_frame.values)
+   
 
-    if not os.path.exists(file_path):
-        print("File not found")
-        return None, None
-
-    if not (file_path.endswith(".csv") or file_path.endswith(".txt")):
-        print("File format not supported")
-        return None, None
-
-    try:
-        with open(file_path, "r") as f:
-            if headers:
-                f.readline()
-            lines = f.readlines()
-
-            if limit is not None and limit < len(lines):
-                lines = lines[:limit]
-
-            lines = [line.strip().split(separator) for line in lines]
-            X = [line[:labels_index] + line[labels_index+1:] for line in lines]
-            Y = [line[labels_index] for line in lines]
-
-        X, Y = np.array(X).astype("float32"), np.array(Y).astype("int")
-        X = X.reshape(X.shape[0], *shape)
-        X /= 255
-        return X, Y
-    except Exception as e:
-        print(e)
-        return None, None
+def import_npy_dataset(file_path: str,
+                        limit: int | None = None) -> np.ndarray:
+    """Imports a dataset from a npy file"""
+    with open(file_path, 'rb') as f:
+        data = np.load(f)
+    X = data[:limit]
+    return X

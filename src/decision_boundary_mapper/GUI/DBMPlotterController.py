@@ -43,6 +43,7 @@ class DBMPlotterController:
                 img, img_confidence,
                 X_train, Y_train,
                 X_test, Y_test,
+                X_train_2d, X_test_2d,
                 encoded_train, encoded_test,
                 save_folder,
                 projection_technique,
@@ -71,6 +72,8 @@ class DBMPlotterController:
         self.Y_train = Y_train
         self.X_test = X_test
         self.Y_test = Y_test
+        self.X_train_2d = X_train_2d
+        self.X_test_2d = X_test_2d
         self.encoded_train = encoded_train
         self.encoded_test = encoded_test
         self.initialize()
@@ -361,12 +364,13 @@ class DBMPlotterController:
                 load_folder=self.save_folder
             )
         else:
-            X2d_train, X2d_test = self.load_2d_projection()
+            if self.X_train_2d is None or self.X_test_2d is None:
+                self.X_train_2d, self.X_test_2d = self.load_2d_projection()
             dbm_info = self.dbm_model.generate_boundary_map(
                 Xnd_train=self.X_train,
                 Xnd_test=self.X_test,
-                X2d_train=X2d_train,
-                X2d_test=X2d_test,
+                X2d_train=self.X_train_2d,
+                X2d_test=self.X_test_2d,
                 resolution=len(self.img),
                 fast_decoding_strategy=fast_decoding_strategy,
                 load_folder=self.save_folder,

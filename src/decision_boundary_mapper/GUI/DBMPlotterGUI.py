@@ -105,6 +105,7 @@ class DBMPlotterGUI:
                  img, img_confidence,
                  X_train, Y_train,
                  X_test, Y_test,
+                 X_train_2d, X_test_2d,
                  encoded_train, encoded_test,
                  save_folder,
                  projection_technique=None,
@@ -142,6 +143,7 @@ class DBMPlotterGUI:
                                                 img, img_confidence,
                                                 X_train, Y_train,
                                                 X_test, Y_test,
+                                                X_train_2d, X_test_2d,
                                                 encoded_train, encoded_test,
                                                 save_folder,
                                                 projection_technique)

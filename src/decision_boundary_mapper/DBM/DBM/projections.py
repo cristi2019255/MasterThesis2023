@@ -41,5 +41,5 @@ PROJECTION_METHODS = {
     "t-SNE": generate_transformation(TSNE(n_components=2, random_state=0, learning_rate="auto", init="random")),
     "PCA": generate_transformation(PCA(n_components=2, random_state=0)),
     "UMAP": generate_transformation(UMAP(n_components=2, random_state=0)),
-    "custom": None,
+    "CUSTOM": None,
 }

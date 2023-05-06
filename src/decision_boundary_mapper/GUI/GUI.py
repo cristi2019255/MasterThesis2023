@@ -18,25 +18,23 @@ import PySimpleGUI as sg
 import numpy as np
 from PIL import Image, ImageTk
 
-from ..Logger import Logger
-from .GUIController import DBM_TECHNIQUES, PROJECTION_TECHNIQUES, GUIController
+from ..Logger import Logger, LoggerGUI
+from .GUIController import DBM_TECHNIQUES, PROJECTION_TECHNIQUES, DBM_NNINV_TECHNIQUE, CUSTOM_PROJECTION_TECHNIQUE, GUIController
 from ..utils import BLACK_COLOR, WHITE_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2, BUTTON_PRIMARY_COLOR, APP_FONT
 
 sg.theme('DarkBlue1')
 TITLE = "Classifiers visualization tool"
 WINDOW_SIZE = (1150, 700)
 APP_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "main_icon.png")
-
-
 class GUI:
     def __init__(self):
         self.window = self.build_window()
-        self.controller = GUIController(self.window, self)
+        self.gui_logger = LoggerGUI(name="DBM logger", output=self.window["-LOGGER-"], update_callback=self.window.refresh)
         self.logger = Logger(name="GUI")
+        self.controller = GUIController(self.window, self, self.gui_logger)
 
         # --------------- DBM ---------------
         self.dbm_plotter_gui = None
-        
 
     def build_window(self):
         window = sg.Window(TITLE,
@@ -68,10 +66,8 @@ class GUI:
         data_files_list_column = [
             [
                 sg.Text(text="Data Folder", font=APP_FONT),
-                sg.In(enable_events=True, key="-DATA FOLDER-",
-                      background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True),
-                sg.FolderBrowse(button_text="Browse folder", button_color=(
-                    WHITE_COLOR, BUTTON_PRIMARY_COLOR), initial_folder=os.getcwd()),
+                sg.In(enable_events=True, key="-DATA FOLDER-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True),
+                sg.FolderBrowse(button_text="Browse folder", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), initial_folder=os.getcwd()),
             ],
             [
                 sg.Text("Choose the data file from the list: ", font=APP_FONT, expand_x=True),
@@ -164,6 +160,23 @@ class GUI:
                 ),
             ],
             [
+                sg.Text("Select the file with 2D representation of the data", key="-DATA 2D FILE TEXT-", font=APP_FONT, expand_x=True, visible=False),
+            ],
+            [
+                sg.Text(text="2D Data Folder", key="-DATA 2D FOLDER TEXT-", font=APP_FONT, visible=False),
+                sg.In(enable_events=True, key="-DATA 2D FOLDER-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True, visible=False),
+                sg.FolderBrowse(button_text="Browse folder", key="-DATA 2D FOLDER BROWSE BTN-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), initial_folder=os.getcwd(), visible=False),
+            ],
+            [
+                sg.Listbox(
+                    values=[], enable_events=True, key="-DATA 2D FILE LIST-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True, expand_y=True, visible=False
+                )
+            ],
+            [
+                sg.Button("Upload 2D train data", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD 2D TRAIN DATA BTN-", visible=False),
+                sg.Button("Upload 2D test data", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD 2D TEST DATA BTN-", visible=False),
+            ],
+            [
                 sg.Text("Show Decision Boundary Mapper NN history: ", font=APP_FONT, expand_x=True, key="-DBM HISTORY TEXT-", visible=True),
                 sg.Checkbox("", default=False, font=APP_FONT, key="-DBM HISTORY CHECKBOX-", visible=True),
             ],
@@ -206,14 +219,21 @@ class GUI:
 
     def handle_event(self, event, values):
         EVENTS = {
-            "-DATA FOLDER-": self.controller.handle_select_data_folder_event,
-            "-CLASSIFIER FOLDER-": self.controller.handle_select_classifier_folder_event,
+            "-DATA FOLDER-": self.handle_select_data_folder_event,
+            "-DATA 2D FOLDER-": self.handle_select_2d_data_folder_event,
+            "-CLASSIFIER FOLDER-": self.handle_select_classifier_folder_event,
+        
             "-DATA FILE LIST-": self.controller.handle_file_list_event,
+            "-DATA 2D FILE LIST-": self.handle_2d_file_list_event,
             "-CLASSIFIER FILE LIST-": self.controller.handle_classifier_file_list_event,
-            "-DBM TECHNIQUE-": self.controller.handle_dbm_technique_event,
+            
+            "-DBM TECHNIQUE-": self.handle_dbm_technique_event,
             "-DBM BTN-": self.handle_get_decision_boundary_mapping_event,
             "-DBM IMAGE-": self.handle_dbm_image_event,
-            "-PROJECTION TECHNIQUE-": self.controller.handle_projection_technique_event,
+            "-PROJECTION TECHNIQUE-": self.handle_projection_technique_event,
+            
+            "-UPLOAD 2D TRAIN DATA BTN-": self.controller.handle_upload_2d_data_event,
+            "-UPLOAD 2D TEST DATA BTN-": self.controller.handle_upload_2d_data_event,
             "-UPLOAD TRAIN DATA BTN-": self.controller.handle_upload_train_data_event,
             "-UPLOAD TEST DATA BTN-": self.controller.handle_upload_test_data_event,
             "-UPLOAD MNIST DATA BTN-": self.controller.handle_upload_known_data_event,
@@ -224,11 +244,49 @@ class GUI:
 
         EVENTS[event](event, values)
     
+    def handle_2d_file_list_event(self, event, values):
+        filename = os.path.join(values["-DATA 2D FOLDER-"], values["-DATA 2D FILE LIST-"][0])
+        self.gui_logger.log(f"Selected file: {filename}")
+        
+    def handle_select_data_folder_event(self, event, values):
+        folder = values["-DATA FOLDER-"]
+        files = self.controller.handle_select_data_folder(folder)
+        self.window["-DATA FILE LIST-"].update(files)
+        
+    def handle_select_2d_data_folder_event(self, event, values):
+        folder = values["-DATA 2D FOLDER-"]
+        files = self.controller.handle_select_data_folder(folder)
+        self.window["-DATA 2D FILE LIST-"].update(files)
+        
+    def handle_select_classifier_folder_event(self, event, values):
+        folder = values["-CLASSIFIER FOLDER-"]
+        f = self.controller.handle_select_classifier_folder(folder)
+        self.window["-CLASSIFIER FILE LIST-"].update(f)
+    
+    def handle_dbm_technique_event(self, event, values):
+        dbm_technique = values["-DBM TECHNIQUE-"]
+        self.logger.log(f"DBM technique: {dbm_technique}")
+        
+        if dbm_technique == DBM_NNINV_TECHNIQUE:
+            self.switch_visibility(["-PROJECTION TECHNIQUE TEXT-", "-PROJECTION TECHNIQUE-"], True)
+            return
+        
+        list_custom_projection_elements = ["-DATA 2D FOLDER TEXT-", "-DATA 2D FOLDER-", "-DATA 2D FOLDER BROWSE BTN-", "-DATA 2D FILE LIST-", "-UPLOAD 2D TRAIN DATA BTN-", "-UPLOAD 2D TEST DATA BTN-"]
+        self.switch_visibility(list_custom_projection_elements, False)
+        self.switch_visibility(["-PROJECTION TECHNIQUE TEXT-", "-PROJECTION TECHNIQUE-"], False)
+        
+    def handle_projection_technique_event(self, event, values):
+        projection_technique = values["-PROJECTION TECHNIQUE-"]
+        self.logger.log(f"Projection technique: {projection_technique}")
+        list_custom_projection_elements = ["-DATA 2D FOLDER TEXT-", "-DATA 2D FOLDER-", "-DATA 2D FOLDER BROWSE BTN-", "-DATA 2D FILE LIST-", "-UPLOAD 2D TRAIN DATA BTN-", "-UPLOAD 2D TEST DATA BTN-"]
+        if projection_technique == CUSTOM_PROJECTION_TECHNIQUE:
+            self.switch_visibility(list_custom_projection_elements, True)
+            return
+        
+        self.switch_visibility(list_custom_projection_elements, False)
+        
+    
     def handle_changes_in_dbm_plotter(self):
-        # update loading state
-        self.switch_visibility(["-DBM IMAGE-"], False)
-        self.switch_visibility(["-DBM TEXT-", "-DBM IMAGE LOADING-"], True)
-
         # ---------------------------------
         # update the dbm image
         img = Image.fromarray(np.uint8(self.dbm_plotter_gui.color_img*255))
@@ -263,9 +321,14 @@ class GUI:
         plt.show()
 
     def handle_get_decision_boundary_mapping_event(self, event, values):
-        self.dbm_plotter_gui = self.controller.handle_get_decision_boundary_mapping_event(event, values)
-        self.handle_changes_in_dbm_plotter()
-        
+        try:
+            self.dbm_plotter_gui = self.controller.handle_get_decision_boundary_mapping_event(event, values)
+            self.handle_changes_in_dbm_plotter()
+        except Exception as e:
+            self.gui_logger.error(e)
+            # update loading state
+            self.switch_visibility(["-DBM TEXT-", "-DBM IMAGE LOADING-","-DBM IMAGE-"], False)
+
         
     def handle_dbm_image_event(self, event, values):
         self.logger.log("Clicked on the dbm image")

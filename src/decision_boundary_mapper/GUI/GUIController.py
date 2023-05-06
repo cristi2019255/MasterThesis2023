@@ -20,8 +20,8 @@ import numpy as np
 
 from .DBMPlotterGUI import DBMPlotterGUI
 from ..DBM import SDBM, DBM, NNArchitecture
-from ..Logger import LoggerGUI, Logger
-from ..utils import import_csv_dataset, import_mnist_dataset, import_cifar10_dataset, import_fashion_mnist_dataset, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME
+from ..Logger import Logger
+from ..utils import import_dataset, import_mnist_dataset, import_cifar10_dataset, import_fashion_mnist_dataset, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME
 
 DBM_NNINV_TECHNIQUE = "nnInv"
 SDBM_SSNP_TECHNIQUE = "ssnp"
@@ -33,10 +33,12 @@ DBM_TECHNIQUES = {
     DBM_NNINV_TECHNIQUE: DBM,
 }
 
+CUSTOM_PROJECTION_TECHNIQUE = "CUSTOM"
 PROJECTION_TECHNIQUES = [
     "t-SNE",
     "UMAP",
     "PCA",
+    CUSTOM_PROJECTION_TECHNIQUE,
 ]
 
 DATASETS_IMPORTERS = {
@@ -62,18 +64,19 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Disable tensorflow logs
 
 
 class GUIController:
-    def __init__(self, window, gui):
+    def __init__(self, window, gui, gui_logger):
         self.window = window
         self.gui = gui
         self.create_tmp_folder()
         self.logger = Logger(name="GUIController")
-        self.dbm_logger = LoggerGUI(name="DBM logger", output=self.window["-LOGGER-"], update_callback=self.window.refresh)
+        self.gui_logger = gui_logger
 
         
         # --------------- Data set ----------------
         self.dataset_name = "Dataset"
         self.X_train, self.Y_train = None, None
         self.X_test, self.Y_test = None, None
+        self.X_train_2d, self.X_test_2d = None, None
 
         # --------------- Classifier --------------
         self.classifier = None
@@ -96,8 +99,7 @@ class GUIController:
             self.window[x].update(visible=visible)
         self.window.refresh()
 
-    def handle_select_classifier_folder_event(self, event, values):
-        folder = values["-CLASSIFIER FOLDER-"]
+    def handle_select_classifier_folder(self, folder):
         try:
             # Get list of files in folder
             file_list = os.listdir(folder)
@@ -106,34 +108,30 @@ class GUIController:
 
         fnames = [f for f in file_list
                   if (os.path.isfile(os.path.join(folder, f)) and (f.lower().endswith((".h5")))) or os.path.isdir(os.path.join(folder, f))]
+        return fnames
 
-        self.window["-CLASSIFIER FILE LIST-"].update(fnames)
-
-    def handle_select_data_folder_event(self, event, values):
-        folder = values["-DATA FOLDER-"]
+    def handle_select_data_folder(self, folder):
         try:
             # Get list of files in folder
             file_list = os.listdir(folder)
         except:
             file_list = []
 
+        ALLOWED_DATA_EXTENSIONS = [".csv", ".txt", ".npy"]
         fnames = [f for f in file_list
-                  if os.path.isfile(os.path.join(folder, f)) and (f.lower().endswith((".csv")) or f.lower().endswith((".txt")))
-                  ]
-        self.window["-DATA FILE LIST-"].update(fnames)
+                  if os.path.isfile(os.path.join(folder, f)) and (os.path.splitext(f)[-1].lower() in ALLOWED_DATA_EXTENSIONS)]
+        return fnames
 
     def handle_file_list_event(self, event, values):
         try:
-            filename = os.path.join(
-                values["-DATA FOLDER-"], values["-DATA FILE LIST-"][0])
+            filename = os.path.join(values["-DATA FOLDER-"], values["-DATA FILE LIST-"][0])
             self.window["-DATA FILE TOUT-"].update(filename)
         except Exception as e:
             self.logger.error("Error while loading data file" + str(e))
 
     def handle_classifier_file_list_event(self, event, values):
         try:
-            filename = os.path.join(
-                values["-CLASSIFIER FOLDER-"], values["-CLASSIFIER FILE LIST-"][0])
+            filename = os.path.join(values["-CLASSIFIER FOLDER-"], values["-CLASSIFIER FILE LIST-"][0])
             self.window["-CLASSIFIER PATH TOUT-"].update(filename)
         except Exception as e:
             self.logger.error("Error while loading data file" + str(e))
@@ -145,31 +143,20 @@ class GUIController:
             self.classifier = tf.keras.models.load_model(fname)
             self.window["-CLASSIFIER PATH TOUT-"].update(fname)
             self.logger.log("Classifier loaded successfully")
-            self.dbm_logger.log("Classifier loaded successfully")
+            self.gui_logger.log("Classifier loaded successfully")
             if self.X_train is not None and self.Y_train is not None and self.X_test is not None and self.Y_test is not None:
                 self.switch_visibility(["-DBM BTN-"], True)
         except Exception as e:
             self.logger.error("Error while loading classifier" + str(e))
     
-    def handle_dbm_technique_event(self, event, values):
-        dbm_technique = values["-DBM TECHNIQUE-"]
-        self.logger.log(f"DBM technique: {dbm_technique}")
-        
-        if dbm_technique == DBM_NNINV_TECHNIQUE:
-            self.switch_visibility(["-PROJECTION TECHNIQUE TEXT-", "-PROJECTION TECHNIQUE-"], True)
-            return
-        
-        self.switch_visibility(["-PROJECTION TECHNIQUE TEXT-", "-PROJECTION TECHNIQUE-"], False)
-        
-    def handle_projection_technique_event(self, event, values):
-        projection_technique = values["-PROJECTION TECHNIQUE-"]
-        self.logger.log(f"Projection technique: {projection_technique}")
-        
     def handle_upload_train_data_event(self, event, values):
         try:
             filename = os.path.join(values["-DATA FOLDER-"], values["-DATA FILE LIST-"][0])
-            self.X_train, self.Y_train = import_csv_dataset(filename, limit=int(0.7*SAMPLES_LIMIT))
-
+            self.X_train, self.Y_train = import_dataset(filename, limit=int(0.7*SAMPLES_LIMIT))
+           
+            self.X_train = self.X_train.astype("float32") / 255
+            self.Y_test = self.Y_train.astype("int")
+           
             self.num_classes = np.unique(self.Y_train).shape[0]
             if self.classifier is not None and self.X_test is not None and self.Y_test is not None:
                 self.switch_visibility(["-DBM BTN-"], True)
@@ -177,21 +164,35 @@ class GUIController:
             self.window["-TRAIN DATA FILE-"].update("Training data file: " + filename)
             self.window["-TRAIN DATA SHAPE-"].update(f"Training data shape: X {self.X_train.shape} Y {self.Y_train.shape}")
         except Exception as e:
-            self.dbm_logger.error("Error while loading data file" + str(e))
+            self.gui_logger.error("Error while loading data file" + str(e))
 
     def handle_upload_test_data_event(self, event, values):
         try:
             filename = os.path.join(values["-DATA FOLDER-"], values["-DATA FILE LIST-"][0])
-            self.X_test, self.Y_test = import_csv_dataset(filename, limit=int(0.3*SAMPLES_LIMIT))
+            self.X_test, self.Y_test = import_dataset(filename, limit=int(0.3*SAMPLES_LIMIT))
+            self.X_test = self.X_test.astype("float32") / 255
+            self.Y_test = self.Y_test.astype("int")
+            
             if self.classifier is not None and self.X_train is not None and self.Y_train is not None:
                 self.switch_visibility(["-DBM BTN-"], True)
 
             self.window["-TEST DATA FILE-"].update("Testing data file: " + filename)
             self.window["-TEST DATA SHAPE-"].update(f"Testing data shape: X {self.X_test.shape} Y {self.Y_test.shape}")
         except Exception as e:
-            self.dbm_logger.error("Error while loading data file" + str(e))
+            self.gui_logger.error("Error while loading data file" + str(e))
 
-
+    def handle_upload_2d_data_event(self, event, values):
+        try:
+            filename = os.path.join(values["-DATA 2D FOLDER-"], values["-DATA 2D FILE LIST-"][0])
+            if event == "-UPLOAD 2D TRAIN DATA BTN-":
+                self.X_train_2d, _ = import_dataset(filename, labels_index=None)
+                self.gui_logger.log("2D train data loaded successfully")
+            elif event == "-UPLOAD 2D TEST DATA BTN-":
+                self.X_test_2d, _ = import_dataset(filename, labels_index=None)
+                self.gui_logger.log("2D test data loaded successfully")
+                
+        except Exception as e:
+            self.gui_logger.error("Error while loading data file" + str(e))
 
     def handle_upload_known_data_event(self, event, values):
         self.dataset_name = event[len("-UPLOAD "):-len(" DATA BTN-")]
@@ -219,52 +220,60 @@ class GUIController:
         if self.classifier is not None:
             self.switch_visibility(["-DBM BTN-"], True)
 
+    def fetch_2d_data_from_folder(self, folder_path):
+        if not os.path.exists(os.path.join(save_folder, TRAIN_2D_FILE_NAME)):
+            X_train_2d = None
+        else:
+            with open(os.path.join(save_folder, TRAIN_2D_FILE_NAME), "rb") as f:
+                X_train_2d = np.load(f)
+        if not os.path.exists(os.path.join(save_folder, TEST_2D_FILE_NAME)):
+            X_test_2d = None
+        else:
+            with open(os.path.join(save_folder, TEST_2D_FILE_NAME), "rb") as f:
+                X_test_2d = np.load(f)
+        return X_train_2d, X_test_2d
+
     def handle_get_decision_boundary_mapping_event(self, event, values):
         if self.classifier is None:
-            self.dbm_logger.error("No classifier provided, impossible to generate the DBM...")
+            self.gui_logger.error("No classifier provided, impossible to generate the DBM...")
             return
 
         if self.X_train is None or self.Y_train is None or self.X_test is None or self.Y_test is None:
-            self.dbm_logger.error("Data is incomplete impossible to generate the DBM...")
+            self.gui_logger.error("Data is incomplete impossible to generate the DBM...")
             return
 
         # update loading state
         self.switch_visibility(["-DBM IMAGE-"], False)
         self.switch_visibility(["-DBM TEXT-", "-DBM IMAGE LOADING-"], True)
 
-        dbm = DBM_TECHNIQUES[values["-DBM TECHNIQUE-"]](classifier=self.classifier, logger=self.dbm_logger)
+        dbm = DBM_TECHNIQUES[values["-DBM TECHNIQUE-"]](classifier=self.classifier, logger=self.gui_logger)
 
         projection_technique = values["-PROJECTION TECHNIQUE-"]
         resolution = 256  # values["-DBM IMAGE RESOLUTION INPUT-"]
 
-        self.dbm_logger.log(f"DBM resolution: {resolution}")
+        self.gui_logger.log(f"DBM resolution: {resolution}")
 
         tmp_folder = os.path.join("tmp", self.dataset_name)
         save_folder = tmp_folder
         dbm_technique = values["-DBM TECHNIQUE-"]
         
         if dbm_technique == DBM_NNINV_TECHNIQUE:
-            dbm_folder = os.path.join(tmp_folder, DBM_FOLDER_NAME)
-            save_folder = os.path.join(dbm_folder, projection_technique)
-
-            if not os.path.exists(os.path.join(save_folder, TRAIN_2D_FILE_NAME)):
-                X_train_2d = None
+            save_folder = os.path.join(tmp_folder, DBM_FOLDER_NAME)
+            load_folder = os.path.join(save_folder, projection_technique)
+            
+            if projection_technique == CUSTOM_PROJECTION_TECHNIQUE:
+                if self.X_train_2d is None or self.X_test_2d is None:
+                    raise Exception(f"No 2D data provided, impossible to generate the DBM for projection technique {CUSTOM_PROJECTION_TECHNIQUE}...")
             else:
-                with open(os.path.join(save_folder, TRAIN_2D_FILE_NAME), "rb") as f:
-                    X_train_2d = np.load(f)
-            if not os.path.exists(os.path.join(save_folder, TEST_2D_FILE_NAME)):
-                X_test_2d = None
-            else:
-                with open(os.path.join(save_folder, TEST_2D_FILE_NAME), "rb") as f:
-                    X_test_2d = np.load(f)
+                self.X_train_2d, self.X_test_2d = self.fetch_2d_data_from_folder(load_folder)
 
             dbm_info = dbm.generate_boundary_map(
                 Xnd_train=self.X_train,
                 Xnd_test=self.X_test,
-                X2d_train=X_train_2d,
-                X2d_test=X_test_2d,
+                X2d_train=self.X_train_2d,
+                X2d_test=self.X_test_2d,
                 resolution=resolution,
-                load_folder=dbm_folder,
+                load_folder=save_folder,
                 projection=projection_technique
             )
         else:
@@ -303,6 +312,8 @@ class GUIController:
             Y_train=self.Y_train,
             X_test=self.X_test,
             Y_test=self.Y_test,
+            X_train_2d=self.X_train_2d,
+            X_test_2d=self.X_test_2d,
             main_gui=self.gui,  # reference to the main GUI
             save_folder=save_folder,
             projection_technique=projection_technique,
