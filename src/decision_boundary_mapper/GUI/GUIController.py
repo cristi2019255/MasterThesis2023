@@ -21,8 +21,7 @@ import numpy as np
 from .DBMPlotterGUI import DBMPlotterGUI
 from ..DBM import SDBM, DBM, NNArchitecture
 from ..Logger import LoggerGUI, Logger
-from ..utils import import_csv_dataset, import_mnist_dataset, import_cifar10_dataset, import_fashion_mnist_dataset
-
+from ..utils import import_csv_dataset, import_mnist_dataset, import_cifar10_dataset, import_fashion_mnist_dataset, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME
 
 DBM_NNINV_TECHNIQUE = "nnInv"
 SDBM_SSNP_TECHNIQUE = "ssnp"
@@ -45,8 +44,7 @@ DATASETS_IMPORTERS = {
     "FASHION MNIST": import_fashion_mnist_dataset,
     "CIFAR10": import_cifar10_dataset,
 }
-TRAIN_2D_FILE_NAME = "train_2d.npy"
-TEST_2D_FILE_NAME = "test_2d.npy"
+
 DBM_FOLDER_NAME = "DBM"
 SDBM_FOLDER_NAME = "SDBM"
 HISTORY_FILE_NAME = "history.json"

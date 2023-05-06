@@ -26,7 +26,7 @@ from enum import Enum
 
 from .tools import get_confidence_based_split, get_decode_pixel_priority, get_inv_proj_error, get_nd_indices_parallel, euclidean, get_pixel_priority, get_proj_error_parallel, get_projection_errors_using_inverse_projection
 from .AbstractNN import AbstractNN
-from ..utils import track_time_wrapper
+from ..utils import track_time_wrapper, INVERSE_PROJECTION_ERRORS_FILE, PROJECTION_ERRORS_INTERPOLATED_FILE, PROJECTION_ERRORS_INVERSE_PROJECTION_FILE
 from ..Logger import Logger, LoggerInterface
 
 DBM_DEFAULT_CHUNK_SIZE = 10000
@@ -34,10 +34,6 @@ DBM_DEFAULT_RESOLUTION = 256
 DBM_IMAGE_NAME = "boundary_map"
 DBM_CONFIDENCE_IMAGE_NAME = "boundary_map_confidence"
 
-INVERSE_PROJECTION_ERRORS_NAME = "inverse_projection_errors"
-
-PROJECTION_ERRORS_INTERPOLATED_NAME = "projection_errors_interpolated"
-PROJECTION_ERRORS_INVERSE_PROJECTION_NAME = "projection_errors_inv_projection"
 PROJECTION_ERRORS_NEIGHBORS_NUMBER = 10
 
 time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
@@ -681,7 +677,7 @@ class AbstractDBM:
 
         if save_folder is not None:
             self.console.log("Saving the inverse projection errors results")
-            save_path = os.path.join(save_folder, f"{INVERSE_PROJECTION_ERRORS_NAME}.npy")
+            save_path = os.path.join(save_folder, INVERSE_PROJECTION_ERRORS_FILE)
             with open(save_path, "wb") as f:
                 np.save(f, errors)
             self.console.log("Saved inverse projection errors results!")
@@ -817,7 +813,7 @@ class AbstractDBM:
         self.console.log("Finished computing the projection errors!")
         if save_folder is not None:
             self.console.log("Saving the projection errors results")
-            save_path = os.path.join(save_folder, f"{PROJECTION_ERRORS_INTERPOLATED_NAME}.npy") if use_interpolation else os.path.join(save_folder, f"{PROJECTION_ERRORS_INVERSE_PROJECTION_NAME}.npy")
+            save_path = os.path.join(save_folder, PROJECTION_ERRORS_INTERPOLATED_FILE) if use_interpolation else os.path.join(save_folder, PROJECTION_ERRORS_INVERSE_PROJECTION_FILE)
             with open(save_path, "wb") as f:
                 np.save(f, errors)
             self.console.log("Saved projection errors results!")

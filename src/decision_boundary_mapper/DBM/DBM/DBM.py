@@ -22,13 +22,11 @@ from .projections import PROJECTION_METHODS
 
 from ..AbstractDBM import AbstractDBM, DBM_DEFAULT_RESOLUTION, FAST_DBM_STRATEGIES
 
-from ...utils import track_time_wrapper
+from ...utils import track_time_wrapper, TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME
 from ...Logger import LoggerInterface, Logger
 time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
 
 CUSTOM_PROJECTION_NAME = "Custom"
-TRAIN_DATA_2D_EMBEDDING_FILE_NAME = "train_2d.npy"
-TEST_DATA_2D_EMBEDDING_FILE_NAME = "test_2d.npy"
 
 class DBM(AbstractDBM):
     """
@@ -178,10 +176,10 @@ class DBM(AbstractDBM):
             encoded_2d_test[k] = [i, j, img[i, j]]
 
         for [i, j] in X2d_test:
-            img[i, j] = -2
+            img[i, j] = TEST_DATA_POINT_MARKER
             img_confidence[i, j] = 1
         for [i, j] in X2d_train:
-            img[i, j] = -1
+            img[i, j] = TRAIN_DATA_POINT_MARKER
             img_confidence[i, j] = 1
 
         return (img, img_confidence, encoded_2d_train, encoded_2d_test)
@@ -231,12 +229,12 @@ class DBM(AbstractDBM):
         if not os.path.exists(os.path.join(folder)):
             os.makedirs(os.path.join(folder))
 
-        file_path = os.path.join(folder, TRAIN_DATA_2D_EMBEDDING_FILE_NAME)
+        file_path = os.path.join(folder, TRAIN_2D_FILE_NAME)
         self.console.log("Saving the 2D data to the disk: " + file_path)
         with open(file_path, 'wb') as f:
             np.save(f, X2d_train)
 
-        file_path = os.path.join(folder, TEST_DATA_2D_EMBEDDING_FILE_NAME)
+        file_path = os.path.join(folder, TEST_2D_FILE_NAME)
         self.console.log("Saving the 2D data to the disk: " + file_path)
         with open(file_path, 'wb') as f:
             np.save(f, X2d_test)

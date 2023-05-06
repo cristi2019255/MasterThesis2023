@@ -22,6 +22,7 @@ from matplotlib.patches import Patch, Circle
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
 
 from .. import Logger
+from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME, INVERSE_PROJECTION_ERRORS_FILE, PROJECTION_ERRORS_INTERPOLATED_FILE, PROJECTION_ERRORS_INVERSE_PROJECTION_FILE
 
 CLASSIFIER_PERFORMANCE_HISTORY_FILE = "classifier_performance.log"
 CLASSIFIER_REFIT_FOLDER = "refit_classifier"
@@ -33,17 +34,7 @@ CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE = "classifier_old_boundary_map_confidence
 
 LABELS_CHANGES_FILE = "label_changes.json"
 
-TRAIN_2D_FILE_NAME = "train_2d.npy"
-TEST_2D_FILE_NAME = "test_2d.npy"
-
-INVERSE_PROJECTION_ERRORS_FILE = "inverse_projection_errors.npy"
-PROJECTION_ERRORS_INTERPOLATED_FILE = "projection_errors_interpolated.npy"
-PROJECTION_ERRORS_INV_PROJECTION_FILE = "projection_errors_inv_projection.npy"
-
 EPOCHS_FOR_REFIT = 2
-
-TRAIN_DATA_POINT_MARKER = -1
-TEST_DATA_POINT_MARKER = -2
 
 class DBMPlotterController:
     def __init__(self,
@@ -144,9 +135,9 @@ class DBMPlotterController:
         patches = []
         for value in values:
             color = colors_mapper[value]
-            if value == -1:
+            if value == TRAIN_DATA_POINT_MARKER:
                 label = "Original train data"
-            elif value == -2:
+            elif value == TEST_DATA_POINT_MARKER:
                 label = "Original test data"
             else:
                 label = f"Value region: {class_name_mapper(value)}"
@@ -266,7 +257,7 @@ class DBMPlotterController:
             json.dump(label_changes, f, indent=2)
 
     def compute_inverse_projection_errors(self):
-        possible_path = os.path.join(self.save_folder, "inverse_projection_errors.npy")
+        possible_path = os.path.join(self.save_folder, INVERSE_PROJECTION_ERRORS_FILE)
         # try to get projection errors from cache first
         if os.path.exists(possible_path):
             self.inverse_projection_errors = np.load(possible_path)
@@ -279,7 +270,7 @@ class DBMPlotterController:
             file = PROJECTION_ERRORS_INTERPOLATED_FILE
         elif type == "non_interpolated":
             use_interpolation = False
-            file = PROJECTION_ERRORS_INV_PROJECTION_FILE
+            file = PROJECTION_ERRORS_INVERSE_PROJECTION_FILE
             
         possible_path = os.path.join(self.save_folder, file)
 

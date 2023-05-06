@@ -28,7 +28,6 @@
 
 import os
 import numpy as np
-from matplotlib.patches import Patch, Circle
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 import matplotlib.figure as figure
@@ -39,11 +38,10 @@ import matplotlib
 
 from .. import Logger, LoggerGUI, FAST_DBM_STRATEGIES
 from .DBMPlotterController import DBMPlotterController
+from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, BLACK_COLOR, WHITE_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2, BUTTON_PRIMARY_COLOR, APP_FONT
 
 matplotlib.use("TkAgg")
 
-TRAIN_DATA_POINT_MARKER = -1
-TEST_DATA_POINT_MARKER = -2
 
 def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
     if canvas.children:
@@ -93,14 +91,9 @@ def generate_color_mapper():
 
 # Generating initial settings
 COLORS_MAPPER = generate_color_mapper()
-APP_FONT = 'Helvetica 12'
+
 TITLE = "Decision Boundary Map & Errors"
 WINDOW_SIZE = (1650, 1000)
-BLACK_COLOR = "#252526"
-BUTTON_PRIMARY_COLOR = "#007acc"
-WHITE_COLOR = "#ffffff"
-RIGHTS_MESSAGE_1 = "© 2023 Cristian Grosu. All rights reserved."
-RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"
 INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point click on the data point,\n or select the data point by including them into a circle.\nPress any digit key to indicate the new label.\nPress 'Enter' to confirm the new label. Press 'Esc' to cancel the action.\nTo remove a change just click on the data point.\nPress 'Apply Changes' to update the model."
 DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon.png")
 
@@ -185,60 +178,46 @@ class DBMPlotterGUI:
         computed_inverse_projection_errors = self.controller.inverse_projection_errors is not None
         if not computed_projection_errors:
             buttons_proj_errs = [
-                [sg.Button('Compute Projection Errors (interpolation)', font=APP_FONT, expand_x=True,
-                           key="-COMPUTE PROJECTION ERRORS INTERPOLATION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))],
-                [sg.Button('Compute Projection Errors (inverse projection)', font=APP_FONT, expand_x=True,
-                           key="-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))]
+                [sg.Button('Compute Projection Errors (interpolation)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INTERPOLATION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))],
+                [sg.Button('Compute Projection Errors (inverse projection)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))]
             ]
         if not computed_inverse_projection_errors:
             buttons_inv_proj_errs = [
-                sg.Button('Compute Inverse Projection Errors', font=APP_FONT, expand_x=True,
-                          key="-COMPUTE INVERSE PROJECTION ERRORS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))
+                sg.Button('Compute Inverse Projection Errors', font=APP_FONT, expand_x=True, key="-COMPUTE INVERSE PROJECTION ERRORS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))
             ]
 
         layout = [
             [
                 sg.Column([
-                    [sg.Canvas(key='-DBM CANVAS-', size=(200, 200),
-                               expand_x=True, expand_y=True, pad=(0, 0))],
-                    [sg.Canvas(key='-CONTROLS CANVAS-',
-                               expand_x=True, pad=(0, 0))],
+                    [sg.Canvas(key='-DBM CANVAS-', size=(200, 200), expand_x=True, expand_y=True, pad=(0, 0))],
+                    [sg.Canvas(key='-CONTROLS CANVAS-', expand_x=True, pad=(0, 0))],
                 ], pad=(0, 0), expand_x=True, expand_y=True),
                 sg.VSeparator(),
                 sg.Column([
-                    [sg.Canvas(key="-CLASSIFIER PERFORMANCE CANVAS-",
-                               size=(200, 200), expand_y=True, expand_x=True)],
+                    [sg.Canvas(key="-CLASSIFIER PERFORMANCE CANVAS-", size=(200, 200), expand_y=True, expand_x=True)],
                     [
-                        sg.Text("Classifier accuracy: ", font=APP_FONT,
-                                expand_x=True, key="-CLASSIFIER ACCURACY-"),
+                        sg.Text("Classifier accuracy: ", font=APP_FONT, expand_x=True, key="-CLASSIFIER ACCURACY-"),
                     ],
                     [
-                        sg.Checkbox("Change labels by selecting with circle", default=True,
-                                    key="-CIRCLE SELECTING LABELS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
+                        sg.Checkbox("Change labels by selecting with circle", default=True, key="-CIRCLE SELECTING LABELS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
                     ],
                     [
-                        sg.Checkbox("Show labels changes", default=False, key="-SHOW LABELS CHANGES-",
-                                    enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
+                        sg.Checkbox("Show labels changes", default=False, key="-SHOW LABELS CHANGES-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
                     ],
                     [
-                        sg.Checkbox("Show dbm color map", default=True, key="-SHOW DBM COLOR MAP-",
-                                    enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
+                        sg.Checkbox("Show dbm color map", default=True, key="-SHOW DBM COLOR MAP-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
                     ],
                     [
-                        sg.Checkbox("Show dbm confidence", default=True, key="-SHOW DBM CONFIDENCE-",
-                                    enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
+                        sg.Checkbox("Show dbm confidence", default=True, key="-SHOW DBM CONFIDENCE-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
                     ],
                     [
-                        sg.Checkbox("Show classifier predictions", default=False, key="-SHOW CLASSIFIER PREDICTIONS-",
-                                    enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
+                        sg.Checkbox("Show classifier predictions", default=False, key="-SHOW CLASSIFIER PREDICTIONS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
                     ],
                     [
-                        sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-",
-                                    enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0), visible=computed_inverse_projection_errors),
+                        sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0), visible=computed_inverse_projection_errors),
                     ],
                     [
-                        sg.Checkbox("Show projection errors", default=False, key="-SHOW PROJECTION ERRORS-",
-                                    enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0), visible=computed_projection_errors),
+                        sg.Checkbox("Show projection errors", default=False, key="-SHOW PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0), visible=computed_projection_errors),
                     ],
                     [
                         sg.Combo(
@@ -249,16 +228,14 @@ class DBMPlotterGUI:
                             key="-DBM FAST DECODING STRATEGY-",
                             background_color=WHITE_COLOR,
                             text_color=BLACK_COLOR,
-                            readonly=True
+                            readonly=True,
                         ),
                     ],
                     [
-                        sg.Button("Apply Changes", font=APP_FONT, expand_x=True,
-                                  key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                        sg.Button("Apply Changes", font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
                     ],
                     [
-                        sg.Button("Undo Changes", font=APP_FONT, expand_x=True,
-                                  key="-UNDO CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                        sg.Button("Undo Changes", font=APP_FONT, expand_x=True, key="-UNDO CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
                     ],
                     [
                         sg.HSeparator()
@@ -267,15 +244,17 @@ class DBMPlotterGUI:
                     buttons_proj_errs[1],
                     buttons_inv_proj_errs,
                     [sg.Multiline("", key="-LOGGER-", size=(40, 20),
+                                          font=APP_FONT,
                                           background_color=WHITE_COLOR,
                                           text_color=BLACK_COLOR,
                                           auto_size_text=True,
                                           expand_y=True, expand_x=True,
                                           enable_events=False,
                                           disabled=True)],
-                    [sg.Text(INFORMATION_CONTROLS_MESSAGE, expand_x=True)],
-                    [sg.Text(RIGHTS_MESSAGE_1, expand_x=True)],
-                    [sg.Text(RIGHTS_MESSAGE_2, expand_x=True)],
+                    
+                    [sg.Text(INFORMATION_CONTROLS_MESSAGE, font=APP_FONT, expand_x=True)],
+                    [sg.Text(RIGHTS_MESSAGE_1, font=APP_FONT, expand_x=True)],
+                    [sg.Text(RIGHTS_MESSAGE_2, font=APP_FONT, expand_x=True)],
                 ]),
             ]
         ]

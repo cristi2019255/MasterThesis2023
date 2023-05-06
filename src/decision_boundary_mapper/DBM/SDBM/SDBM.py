@@ -21,7 +21,7 @@ from .Autoencoder import Autoencoder
 from .SSNP import SSNP
 from ..AbstractDBM import AbstractDBM, DBM_DEFAULT_RESOLUTION, FAST_DBM_STRATEGIES
 
-from ...utils import track_time_wrapper
+from ...utils import track_time_wrapper, TEST_DATA_POINT_MARKER, TRAIN_DATA_POINT_MARKER
 from ...Logger import LoggerInterface, Logger
 
 time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
@@ -177,10 +177,10 @@ class SDBM(AbstractDBM):
             encoded_2d_test[k] = [i, j, img[i, j]]
 
         for [i, j] in encoded_testing_data:
-            img[i, j] = -2
+            img[i, j] = TEST_DATA_POINT_MARKER
             img_confidence[i, j] = 1
         for [i, j] in encoded_training_data:
-            img[i, j] = -1
+            img[i, j] = TRAIN_DATA_POINT_MARKER
             img_confidence[i, j] = 1
 
         return (img, img_confidence, encoded_2d_train, encoded_2d_test)
