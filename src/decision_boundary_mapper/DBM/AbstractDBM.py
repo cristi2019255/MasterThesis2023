@@ -134,9 +134,10 @@ class AbstractDBM:
 
         Returns:
             predicted_labels (np.array): The predicted labels for the given 2D data set
-            predicted_confidences (np.array): The predicted probabilities for the given 2D data set
+            predicted_confidences (np.array): The predicted probabilities for the given 2D data set, for each data point the confidence is returned (i.e. the maximum probability)
+            predictions (np.array): The predicted probabilities for the given 2D data set, for each data point a list of probabilities is returned
         """
-        return None, None
+        return None, None, None
 
     def get_dbm(self, fast_decoding_strategy: FAST_DBM_STRATEGIES, resolution: int, load_folder: str) -> tuple:
         """
@@ -201,7 +202,7 @@ class AbstractDBM:
         for space2d_chunk in space2d_chunks:
             chunk_index += 1
             self.console.log(f"Predicting labels for the 2D boundary mapping using the nD data and the trained classifier... (chunk {chunk_index}/{len(space2d_chunks)})")
-            predicted_labels, predicted_confidence = self._predict2dspace_(space2d_chunk)
+            predicted_labels, predicted_confidence, _ = self._predict2dspace_(space2d_chunk)
             img = np.concatenate((img, predicted_labels))
             img_confidence = np.concatenate((img_confidence, predicted_confidence))
 
@@ -264,7 +265,7 @@ class AbstractDBM:
 
         space2d = [((i * window_size + window_size / 2 - 0.5) / resolution, (j * window_size + window_size / 2 - 0.5) / resolution) for i in range(INITIAL_RESOLUTION) for j in range(INITIAL_RESOLUTION)]
 
-        predicted_labels, predicted_confidence = self._predict2dspace_(space2d)
+        predicted_labels, predicted_confidence, _ = self._predict2dspace_(space2d)
 
         predictions = predicted_labels.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION))
         confidences = predicted_confidence.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION))
@@ -291,7 +292,7 @@ class AbstractDBM:
                 [(resolution - 1, i * window_size + window_size / 2 - 0.5) for i in range(-1, INITIAL_RESOLUTION + 1)]
 
             space2d_border = [(i / resolution, j / resolution) for (i, j) in border_indices]
-            _, confidences_border = self._predict2dspace_(space2d_border)
+            _, confidences_border, _ = self._predict2dspace_(space2d_border)
             computational_budget -= len(space2d_border)
             confidence_map = [(i, j, conf) for (i, j), conf in zip(
                 border_indices, confidences_border)]
@@ -338,7 +339,7 @@ class AbstractDBM:
             computational_budget -= len(space)
 
             # decode the space
-            predicted_labels, predicted_confidence = self._predict2dspace_(space)
+            predicted_labels, predicted_confidence, _ = self._predict2dspace_(space)
             # copy the image to a new one, the new image will be updated with the new labels, the old one will be used to calculate the priorities
             new_img = np.copy(img)
 
@@ -421,25 +422,25 @@ class AbstractDBM:
         window_size_h = resolution // INITIAL_RESOLUTION
 
         # ------------------------------------------------------------
-        img = np.zeros((resolution, resolution))
-        pseudo_conf_img = np.zeros((resolution, resolution))
+        img = np.zeros((resolution, resolution), dtype=np.uint8)
         priority_queue = PriorityQueue()
         # ------------------------------------------------------------
 
         # ------------------------------------------------------------
         # generate the initial points
-        self.console.log(
-            f"Generating the initial central points within each window... total number of windows ({(INITIAL_RESOLUTION * INITIAL_RESOLUTION)})")
+        self.console.log(f"Generating the initial central points within each window... total number of windows ({(INITIAL_RESOLUTION * INITIAL_RESOLUTION)})")
 
         space2d = [((i * window_size_w + window_size_w / 2 - 0.5) / resolution, (j * window_size_h + window_size_h / 2 - 0.5) / resolution) for i in range(INITIAL_RESOLUTION) for j in range(INITIAL_RESOLUTION)]
 
-        predicted_labels, predicted_confidence = self._predict2dspace_(space2d)
+        predicted_labels, predicted_confidence, predicted_confidences = self._predict2dspace_(space2d)
+        
+        num_classes = len(predicted_confidences[0])
+        pseudo_conf_img = np.zeros((resolution, resolution, num_classes))
+      
 
-        predictions = predicted_labels.reshape(
-            (INITIAL_RESOLUTION, INITIAL_RESOLUTION))
-        confidences = predicted_confidence.reshape(
-            (INITIAL_RESOLUTION, INITIAL_RESOLUTION))
-
+        predictions = predicted_labels.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION))
+        confidences = predicted_confidence.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION))
+        nd_confidences = predicted_confidences.reshape((INITIAL_RESOLUTION, INITIAL_RESOLUTION, num_classes))
         # initialize the nD space
 
         computational_budget -= INITIAL_RESOLUTION * INITIAL_RESOLUTION
@@ -449,7 +450,7 @@ class AbstractDBM:
             for j in range(INITIAL_RESOLUTION):
                 x0, x1, y0, y1 = i * window_size_w, (i+1) * window_size_w, j * window_size_h, (j+1) * window_size_h
                 img[x0:x1, y0:y1] = predictions[i, j]
-                pseudo_conf_img[x0:x1, y0:y1] = confidences[i, j]
+                pseudo_conf_img[x0:x1, y0:y1, :] = nd_confidences[i, j]
         # -------------------------------------
 
         # collecting the indexes of the actual computed pixels in the 2D image and the confidence of each pixel
@@ -463,7 +464,7 @@ class AbstractDBM:
                 [(resolution - 1, i * window_size_h + window_size_h / 2 - 0.5) for i in range(-1, INITIAL_RESOLUTION + 1)]
 
             space2d_border = [(i / resolution, j / resolution) for (i, j) in border_indices]
-            _, confidences_border = self._predict2dspace_(space2d_border)
+            _, confidences_border, _ = self._predict2dspace_(space2d_border)
             computational_budget -= len(space2d_border)
             confidence_map = [(i, j, conf) for (i, j), conf in zip(border_indices, confidences_border)]
 
@@ -483,7 +484,6 @@ class AbstractDBM:
         iteration = 0
         while computational_budget > 0 and not priority_queue.empty():
             iteration += 1
-            print("Priority queue size: ", priority_queue.qsize())
             # take the highest priority tasks
             items = get_tasks_with_same_priority(priority_queue)
 
@@ -512,25 +512,27 @@ class AbstractDBM:
             computational_budget -= len(space)
 
             # decode the space
-            predicted_labels, predicted_confidence = self._predict2dspace_(space)
+            predicted_labels, predicted_confidence, predicted_confidences = self._predict2dspace_(space)
             # copy the image to a new one, the new image will be updated with the new labels, the old one will be used to calculate the priorities
             new_img = np.copy(img)
-            new_pseudo_conf_image = np.copy(pseudo_conf_img)
+            new_pseudo_conf_image = pseudo_conf_img
 
             # fill the new image with the single points
             single_points_labels = predicted_labels[len(space2d):]
             single_points_confidences = predicted_confidence[len(space2d):]
+            single_points_confidences_nd = predicted_confidences[len(space2d):]
 
             for i in range(len(single_points_indices)):
                 new_img[single_points_indices[i]] = single_points_labels[i]
-                new_pseudo_conf_image[single_points_indices[i]] = single_points_confidences[i]
+                new_pseudo_conf_image[single_points_indices[i]] = single_points_confidences_nd[i]
                 confidence_map.append((single_points_indices[i][0], single_points_indices[i][1], single_points_confidences[i]))
 
             predicted_labels = predicted_labels[:len(space2d)]
             predicted_confidence = predicted_confidence[:len(space2d)]
+            predicted_confidences = predicted_confidences[:len(space2d)]
 
             # fill the new image with the new labels and update the priority queue
-            for (w, h), (x, y), label, conf in zip(window_sizes, indices, predicted_labels, predicted_confidence):
+            for (w, h), (x, y), label, conf, confs in zip(window_sizes, indices, predicted_labels, predicted_confidence, predicted_confidences):
                 # all the pixels in the window are set to the same label
                 # starting from the top left corner of the window
                 # ending at the bottom right corner of the window
@@ -538,7 +540,7 @@ class AbstractDBM:
                 confidence_map.append((y, x, conf))
                 x0, x1, y0, y1 = ceil(x - w / 2), floor(x + w / 2), ceil(y - h / 2), floor(y + h / 2)
                 new_img[y0:y1 + 1, x0:x1 + 1] = label
-                new_pseudo_conf_image[y0:y1 + 1, x0:x1 + 1] = conf
+                new_pseudo_conf_image[y0:y1 + 1, x0:x1 + 1, :] = confs
 
             # update the priority queue after the window has been filled
             for (w, h), (x, y), label in zip(window_sizes, indices, predicted_labels):

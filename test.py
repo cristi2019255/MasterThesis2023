@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset
 
 
-FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.BINARY
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_BASED
 
 def import_data():
     # import the dataset

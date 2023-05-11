@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from math import floor
 import numpy as np
 from numba import jit, njit, prange
 
@@ -203,53 +204,64 @@ def get_pixel_priority(img, i, j, window_width, window_height, label):
         if neighbor != label:
             cost += 1
 
-    if cost == 0:
-        return -1
 
     cost /= len(neighbors)
     cost *= window_width * window_height
+    
+    if cost == 0:
+        return -1
 
     return 1/cost
+
 
 def get_confidence_based_split(img, conf_img, i, j, w, h):
     resolution = img.shape[0]
     initial_i, initial_j = i, j
     i, j = int(i), int(j)
-    dw = int(w / 2)
-    dh = int(h / 2)
+    if w < 1 or h < 1:
+        return [], []
+    dw = w / 2
+    dh = h / 2
     label = img[i, j]
-    conf = conf_img[i, j]
+    c11 = conf_img[i, j][label]
 
     neighbors = []
 
-    if i - dh > 0:
-        new_i = i - dh
+    if i - dh >= 0:
+        new_i = int(i - dh)
+        new_label = img[new_i, j]
         if img[new_i, j] != label:
-            neighbors.append((new_i, -1, conf_img[new_i, j]))
+            neighbors.append((new_i, -1, conf_img[new_i, j][label], conf_img[i, j][new_label], conf_img[new_i, j][new_label]))
+  
     if i + dh + 1 < resolution:
-        new_i = i + dh + 1
+        new_i = int(i + dh + 1)
+        new_label = img[new_i, j]
         if img[new_i, j] != label:
-            neighbors.append((new_i, -1, conf_img[new_i, j]))
-
-    if j - dw > 0:
-        new_j = j - dw
+            neighbors.append((new_i, -1, conf_img[new_i, j][label], conf_img[i, j][new_label], conf_img[new_i, j][new_label]))
+  
+    if j - dw >= 0:
+        new_j = int(j - dw)
+        new_label = img[j, new_j]
         if img[i, new_j] != label:
-            neighbors.append((-1, new_j, conf_img[i, new_j]))
+             neighbors.append((-1, new_j, conf_img[i, new_j][label], conf_img[i, j][new_label], conf_img[i, new_j][new_label]))
     if j + dw + 1 < resolution:
-        new_j = j + dw + 1
+        new_j = int(j + dw + 1)
+        new_label = img[j, new_j]
         if img[i, new_j] != label:
-            neighbors.append((-1, new_j, conf_img[i, new_j]))
+            neighbors.append((-1, new_j, conf_img[i, new_j][label], conf_img[i, j][new_label], conf_img[i, new_j][new_label]))
 
     splits_x = []
     splits_y = []
 
-    for (y, x, c) in neighbors:
+    for (y, x, c12, c21, c22) in neighbors:
         if x == -1:
-            split = get_split_position(initial_i, conf, y, -c)
+            split = get_split_position(initial_i, y, c11, -c12)
+            #split = get_split_position_v1(initial_i, y, c11, c12, c21, c22)
             if split is not None:
                 splits_y.append(split)
         if y == -1:
-            split = get_split_position(initial_j, conf, x, -c)
+            split = get_split_position(initial_j, x, c11, -c12)
+            #split = get_split_position_v1(initial_j, x, c11, c12, c21, c22)
             if split is not None:
                 splits_x.append(split)
 
@@ -265,35 +277,60 @@ def get_confidence_based_split(img, conf_img, i, j, w, h):
     markers_x = []
 
     for index in range(len(splits_x) - 1):
-        w = splits_x[index + 1] - splits_x[index]
+        w = int(splits_x[index + 1] - splits_x[index])
         x = (splits_x[index + 1] + splits_x[index] - 1) / 2
         if w == 0:
             w = 1
             x = splits_x[index]
+        if x >= resolution:
+            x = resolution - 1
         markers_x.append((x, w))
 
     for index in range(len(splits_y) - 1):
-        h = splits_y[index + 1] - splits_y[index]
+        h = int(splits_y[index + 1] - splits_y[index])
         y = (splits_y[index + 1] + splits_y[index] - 1) / 2
         if h == 0:
             h = 1
             y = splits_y[index]
+        if y >= resolution:
+            y = resolution - 1
         for (x, w) in markers_x:
             representatives.append((x, y))
             sizes.append((w, h))
-
+            
+    #print(representatives, sizes)
     return representatives, sizes
+  
+def get_split_position_v1(x1: float, x2: float, c11: float, c12: float, c21: float, c22: float) -> int | None:
+    
+    a, b = (c11 - c12) / (x1 - x2), c11 - x1 * ((c11 - c12) / (x1 - x2)) 
+    c, d = (c21 - c22) / (x1 - x2), c21 - x1 * ((c21 - c22) / (x1 - x2))
 
-def get_split_position(x1: float, c1: float, x2: float, c2: float) -> int | None:
-    A = np.array([[x1, 1.0], [x2, 1.0]])
-    B = np.array([c1, c2])
-    coefficients = np.linalg.solve(A, B)
-    boundary = round(- coefficients[1] / coefficients[0])
+    if a == c:
+        return None
+    
+    boundary = round((d - b) / (a - c))
+    if boundary <= x2 + 1 and x2 < x1:
+        return None
+    if boundary >= x2 - 1 and x2 > x1:
+        return None
+    
+    if (x2 < x1) and (x2 < boundary < x1):
+        return boundary
+    if (x2 > x1) and (x1 < boundary < x2):
+        return boundary
+    
+    return None
+
+def get_split_position(x1: float, x2: float, c1: float, c2: float) -> int | None:
+    a, b = (c1 - c2) / (x1 - x2), c1 - x1 * ((c1 - c2) / (x1 - x2)) 
+    boundary = round(- b / a)
     if boundary <= x2 + 1 and x2 < x1:
         return None
     if boundary >= x2 - 1 and x2 > x1:
         return None
     return boundary
+
 
 @njit(parallel=True)
 def get_projection_errors_using_inverse_projection(Xnd: np.ndarray, X2d: np.ndarray, spaceNd: np.ndarray, space2d: np.ndarray, progress, k: int = 10):
@@ -332,3 +369,4 @@ def get_tasks_with_same_priority(priority_queue):
             priority_queue.put((next_priority, next_item))
             
         return items
+    

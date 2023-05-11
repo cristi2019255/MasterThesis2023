@@ -1,0 +1,11 @@
+with binary split: 
+Time: 4.66 sec
+Errors: 169 (0.257%)
+
+with confidence split:
+Time: 9.39 sec
+Errors: 720 (1.09%)
+
+with updated confidence split:
+Time: 8.93 sec
+Errors: 392 (0.598 %)
