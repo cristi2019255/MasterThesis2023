@@ -310,3 +310,25 @@ def get_projection_errors_using_inverse_projection(Xnd: np.ndarray, X2d: np.ndar
         progress.update(1)
 
     return errors
+
+
+def get_tasks_with_same_priority(priority_queue):
+        # take the highest priority task
+        priority, item = priority_queue.get()
+        # getting all the items with the same priority
+        items = [item]
+        if priority_queue.empty():
+            return items
+        
+        next_priority, next_item = priority_queue.get()
+        while priority == next_priority:
+            items.append(next_item)
+            if priority_queue.empty():
+                break
+            next_priority, next_item = priority_queue.get()
+        
+        # putting back the last item in the queue
+        if priority != next_priority:
+            priority_queue.put((next_priority, next_item))
+            
+        return items
