@@ -53,6 +53,7 @@ HISTORY_FILE_NAME = "history.json"
 
 TMP_FOLDER = os.path.join(os.getcwd(), "tmp")
 SAMPLES_LIMIT = 5000  # Limit the number of samples to be loaded from the dataset
+DEFAULT_DBM_RESOLUTION = 256
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Disable tensorflow logs
 """
@@ -224,15 +225,15 @@ class GUIController:
             self.switch_visibility(["-DBM BTN-"], True)
 
     def fetch_2d_data_from_folder(self, folder_path):
-        if not os.path.exists(os.path.join(save_folder, TRAIN_2D_FILE_NAME)):
+        if not os.path.exists(os.path.join(folder_path, TRAIN_2D_FILE_NAME)):
             X_train_2d = None
         else:
-            with open(os.path.join(save_folder, TRAIN_2D_FILE_NAME), "rb") as f:
+            with open(os.path.join(folder_path, TRAIN_2D_FILE_NAME), "rb") as f:
                 X_train_2d = np.load(f)
-        if not os.path.exists(os.path.join(save_folder, TEST_2D_FILE_NAME)):
+        if not os.path.exists(os.path.join(folder_path, TEST_2D_FILE_NAME)):
             X_test_2d = None
         else:
-            with open(os.path.join(save_folder, TEST_2D_FILE_NAME), "rb") as f:
+            with open(os.path.join(folder_path, TEST_2D_FILE_NAME), "rb") as f:
                 X_test_2d = np.load(f)
         return X_train_2d, X_test_2d
 
@@ -252,16 +253,15 @@ class GUIController:
         dbm = DBM_TECHNIQUES[values["-DBM TECHNIQUE-"]](classifier=self.classifier, logger=self.gui_logger)
 
         projection_technique = values["-PROJECTION TECHNIQUE-"]
-        resolution = 256  # values["-DBM IMAGE RESOLUTION INPUT-"]
+        resolution = DEFAULT_DBM_RESOLUTION  # values["-DBM IMAGE RESOLUTION INPUT-"]
 
         self.gui_logger.log(f"DBM resolution: {resolution}")
 
-        tmp_folder = os.path.join("tmp", self.dataset_name)
-        save_folder = tmp_folder
+        save_folder = os.path.join("tmp", self.dataset_name)
         dbm_technique = values["-DBM TECHNIQUE-"]
         
         if dbm_technique == DBM_NNINV_TECHNIQUE:
-            save_folder = os.path.join(tmp_folder, DBM_FOLDER_NAME)
+            save_folder = os.path.join(save_folder, DBM_FOLDER_NAME)
             load_folder = os.path.join(save_folder, projection_technique)
             
             if projection_technique == CUSTOM_PROJECTION_TECHNIQUE:

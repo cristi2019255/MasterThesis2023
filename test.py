@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset
 
 
-FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_BASED
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.BINARY
 
 def import_data():
     # import the dataset
@@ -77,14 +77,14 @@ def test():
     classifier = import_classifier()
     X2d_train, X2d_test = import_2d_data()
     dbm = DBM(classifier)
-   
+    resolution = 512
 
     dbm.generate_boundary_map(X_train,
                               X_test,
                               X2d_train,
                               X2d_test,
-                              resolution=10,
-                              fast_decoding_strategy=FAST_DBM_STRATEGIES.BINARY,
+                              resolution=resolution,
+                              fast_decoding_strategy=FAST_DBM_STRATEGIES.NONE,
                               load_folder=os.path.join("tmp", "MNIST", "DBM"),
                               projection='t-SNE')
 
@@ -92,15 +92,25 @@ def test():
         img_path = "img_B.npy"
         img_confidence_path = "img_confidence_B.npy"
         start = time.time()
-        img1, img_confidence1 = dbm._get_img_dbm_fast_(256)
+        img1, img_confidence1 = dbm._get_img_dbm_fast_(resolution)
         end = time.time()
         print("Fast decoding time: ", end - start)
-    else:
+    elif FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.CONFIDENCE_BASED:
         img_path = "img_C.npy"
         img_confidence_path = "img_confidence_C.npy"
 
         start = time.time()
-        img1, img_confidence1 = dbm._get_img_dbm_fast_confidences_strategy(256)
+        img1, img_confidence1 = dbm._get_img_dbm_fast_confidences_strategy(resolution)
+        end = time.time()
+        print("Fast decoding time: ", end - start)
+    else:
+        # FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.BINARY_HYBRID:
+        
+        img_path = "img_F.npy"
+        img_confidence_path = "img_confidence_F.npy"
+
+        start = time.time()
+        img1, img_confidence1 = dbm._get_img_dbm_fast_binary_hybrid_strategy(resolution)
         end = time.time()
         print("Fast decoding time: ", end - start)
 
@@ -152,8 +162,11 @@ def test3():
 def show_errors():
     if FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.BINARY:
         img_path = "img_B.npy"
-    else:
+    elif FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.CONFIDENCE_BASED:
         img_path = "img_C.npy"
+    else:
+        # FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.BINARY_HYBRID:
+        img_path = "img_F.npy"
         
     TEST_FILE_PATH = f"/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/{img_path}"
     GROUND_TRUTH_FILE_PATH = "/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/tmp/MNIST/DBM/t-SNE/boundary_map.npy"
@@ -164,21 +177,21 @@ def show_errors():
     with open(GROUND_TRUTH_FILE_PATH, "rb") as f:
         errors2 = np.load(f)
 
-    #fig, (ax1, ax2) = plt.subplots(1, 2)
-    #ax1.imshow(errors)
-    #ax2.imshow(errors2)
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    ax1.imshow(errors)
+    ax2.imshow(errors2)
 
     errors_count = 0
     for i in range(errors.shape[0]):
         for j in range(errors.shape[1]):
             if errors[i, j] != errors2[i, j]:
-                #ax1.plot(j, i, 'ro')
+                ax1.plot(j, i, 'ro')
                 errors_count += 1
 
     print("Errors count: ", errors_count)
     print("Errors percentage:", errors_count / (errors.shape[0] * errors.shape[1]) * 100, "%")
 
-    #plt.show()
+    plt.show()
 
 
 def test_interpolation():
