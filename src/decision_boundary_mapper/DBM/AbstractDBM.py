@@ -100,8 +100,7 @@ class AbstractDBM:
             batch_size (int): Number of training samples to be taken in a single batch. Defaults to 32.
         """
         self.console.log(f"Refiting classifier for {epochs} epochs and batch size {batch_size}, please wait...")
-        self.classifier.fit(Xnd, Y, epochs=epochs,             # type: ignore
-                            batch_size=batch_size, verbose=0)  # type: ignore
+        self.classifier.fit(Xnd, Y, epochs=epochs, batch_size=batch_size, verbose=0)  # type: ignore
         self.console.log("Finished refitting classifier")
         self.save_classifier(save_folder=save_folder)
 
@@ -296,8 +295,7 @@ class AbstractDBM:
                 [(resolution - 1, i * window_size + window_size / 2 - 0.5)
                  for i in range(-1, INITIAL_RESOLUTION + 1)]
 
-            space2d_border = [(i / resolution, j / resolution)
-                              for (i, j) in border_indices]
+            space2d_border = [(i / resolution, j / resolution) for (i, j) in border_indices]
             _, confidences_border = self._predict2dspace_(space2d_border)
             computational_budget -= len(space2d_border)
             confidence_map = [(i, j, conf) for (i, j), conf in zip(
@@ -401,10 +399,8 @@ class AbstractDBM:
             img = new_img
 
         # summary
-        self.console.log(
-            f"Finished decoding the image, initial computational budget: {INITIAL_COMPUTATIONAL_BUDGET} computational budget left: {computational_budget}")
-        self.console.log(
-            f"Items left in the priority queue: {priority_queue.qsize()}")
+        self.console.log(f"Finished decoding the image, initial computational budget: {INITIAL_COMPUTATIONAL_BUDGET} computational budget left: {computational_budget}")
+        self.console.log(f"Items left in the priority queue: {priority_queue.qsize()}")
 
         # generating the confidence image using interpolation based on the confidence map
         img_confidence = self._generate_interpolated_image_(sparse_map=confidence_map,
@@ -595,8 +591,7 @@ class AbstractDBM:
                 # ending at the bottom right corner of the window
                 # the +1 is because the range function is not inclusive
                 confidence_map.append((y, x, conf))
-                x0, x1, y0, y1 = ceil(
-                    x - w / 2), floor(x + w / 2), ceil(y - h / 2), floor(y + h / 2)
+                x0, x1, y0, y1 = ceil(x - w / 2), floor(x + w / 2), ceil(y - h / 2), floor(y + h / 2)
                 new_img[y0:y1 + 1, x0:x1 + 1] = label
                 new_pseudo_conf_image[y0:y1 + 1, x0:x1 + 1] = conf
 
@@ -611,10 +606,8 @@ class AbstractDBM:
             pseudo_conf_img = new_pseudo_conf_image
 
         # summary
-        self.console.log(
-            f"Finished decoding the image, initial computational budget: {INITIAL_COMPUTATIONAL_BUDGET} computational budget left: {computational_budget}")
-        self.console.log(
-            f"Items left in the priority queue: {priority_queue.qsize()}")
+        self.console.log(f"Finished decoding the image, initial computational budget: {INITIAL_COMPUTATIONAL_BUDGET} computational budget left: {computational_budget}")
+        self.console.log(f"Items left in the priority queue: {priority_queue.qsize()}")
 
         # generating the confidence image using interpolation based on the confidence map
         img_confidence = self._generate_interpolated_image_(sparse_map=confidence_map,
