@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset
 
 
-FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.BINARY
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_BASED
 
 def import_data():
     # import the dataset
@@ -77,14 +77,14 @@ def test():
     classifier = import_classifier()
     X2d_train, X2d_test = import_2d_data()
     dbm = DBM(classifier)
-    resolution = 512
+    resolution = 300
 
     dbm.generate_boundary_map(X_train,
                               X_test,
                               X2d_train,
                               X2d_test,
-                              resolution=resolution,
-                              fast_decoding_strategy=FAST_DBM_STRATEGIES.NONE,
+                              resolution=10,
+                              fast_decoding_strategy=FAST_DBM_STRATEGIES.BINARY_HYBRID,
                               load_folder=os.path.join("tmp", "MNIST", "DBM"),
                               projection='t-SNE')
 
