@@ -438,7 +438,6 @@ class AbstractDBM:
                 pseudo_conf_img[single_points_indices[i]] = single_points_confidences[i]
                 confidence_map.append((single_points_indices[i][0], single_points_indices[i][1], single_points_confidence[i]))
 
-            
             # update the priority queue
             priority_queue = self._update_priority_queue_(priority_queue, img, indices, window_sizes, predicted_labels)
 

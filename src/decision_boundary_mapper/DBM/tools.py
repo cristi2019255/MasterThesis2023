@@ -243,25 +243,25 @@ def get_window_borders(x, y, w, h):
     return int(x - (w - 1) / 2), int(x + (w - 1) / 2), int(y - (h - 1) / 2), int(y + (h - 1) / 2)
 
 def get_tasks_with_same_priority(priority_queue):
-        # take the highest priority task
-        priority, item = priority_queue.get()
-        # getting all the items with the same priority
-        items = [item]
-        if priority_queue.empty():
-            return items
-        
-        next_priority, next_item = priority_queue.get()
-        while priority == next_priority:
-            items.append(next_item)
-            if priority_queue.empty():
-                break
-            next_priority, next_item = priority_queue.get()
-        
-        # putting back the last item in the queue
-        if priority != next_priority:
-            priority_queue.put((next_priority, next_item))
-            
+    # take the highest priority task
+    priority, item = priority_queue.get()
+    # getting all the items with the same priority
+    items = [item]
+    if priority_queue.empty():
         return items
+        
+    next_priority, next_item = priority_queue.get()
+    while priority == next_priority:
+        items.append(next_item)
+        if priority_queue.empty():
+            break
+        next_priority, next_item = priority_queue.get()
+        
+    # putting back the last item in the queue
+    if priority != next_priority:
+        priority_queue.put((next_priority, next_item))
+            
+    return items
 
 @njit 
 def get_split_position(x1: float, x2:float, bound: float, c11: float, c12: float, c21: float, c22: float) -> int | None:
@@ -275,40 +275,48 @@ def get_split_position(x1: float, x2:float, bound: float, c11: float, c12: float
     
     boundary = round((d - b) / (a - c))
 
-    if (bound < x1) and (bound < boundary < x1):
+    if (bound < x1) and (bound + 1 < boundary < x1):
         return boundary
-    if (bound > x1) and (x1 < boundary < bound):
+    if (bound > x1) and (x1 < boundary < bound - 1):
         return boundary
     
     return None
 
+@njit
+def get_split_position_v1(x1: float, x2: float, bound: float, c1, c2):
+    assert(x1 != x2)
+    c2 = -c2
 
-def get_confidence_based_split(img, conf_img, img_indexes, i, j, W, H):
+    a, b = (c1 - c2) / (x1 - x2), c1 - x1 * ((c1 - c2) / (x1 - x2)) 
+    
+    boundary = round( - b / a)
+
+    if (bound < x1) and (bound < boundary < x1):
+        return boundary
+    if (bound > x1) and (x1 < boundary < bound - 1):
+        return boundary
+    
+    return None
+
+def get_confidence_splits(img, conf_img, img_indexes, c_y, c_x, top, bottom, left, right):
     resolution = img.shape[0]
-    initial_i, initial_j = i, j
-    i, j = int(i), int(j)
-    dw, dh = (W - 1) / 2, (H - 1) / 2
+    i, j = int(c_y), int(c_x)
     label = img[i, j]
     c11 = conf_img[i, j][label]
 
-    top = int(initial_i - dh - 1)
-    bottom = int(initial_i + dh + 1)
-    left = int(initial_j - dw - 1)
-    right = int(initial_j + dw + 1)
-    
     splits_x, splits_y = [], []    
     
     vertical = [top] if top >= 0 else []
     vertical += [bottom] if bottom < resolution else []
     horizontal = [left] if left >= 0 else []
     horizontal += [right] if right < resolution else []
-   
+    
     for k in vertical:
         new_label = img[k, j]
         (x, y) = img_indexes[k, j]
         if new_label != label:
-            split = None
-            split = get_split_position(initial_j, y, k, c11, conf_img[y, j][new_label], conf_img[i, j][label], conf_img[y, j][new_label])
+            #split = get_split_position(c_y, y, k, c11, conf_img[y, j][label], conf_img[i, j][new_label], conf_img[y, j][new_label])
+            split = get_split_position_v1(c_y, y, k, c11, conf_img[y, j][label])
             if split is not None:
                 splits_y.append(split)
 
@@ -316,62 +324,61 @@ def get_confidence_based_split(img, conf_img, img_indexes, i, j, W, H):
         new_label = img[i, k]
         (x, y) = img_indexes[i, k]
         if new_label != label:
-            split = None
-            split = get_split_position(initial_j, x, k, c11, conf_img[i, x][label], conf_img[i, j][new_label], conf_img[i, x][new_label])
+            #split = get_split_position(c_x, x, k, c11, conf_img[i, x][label], conf_img[i, j][new_label], conf_img[i, x][new_label])
+            split = get_split_position_v1(c_x, x, k, c11, conf_img[i, x][label])
             if split is not None:
                 splits_x.append(split)
+                
+    return splits_x, splits_y
+
+def get_confidence_based_split(img, conf_img, img_indexes, i, j, W, H):
+    c_y, c_x = i, j
+    left, right, top, bottom = get_window_borders(c_x, c_y, W, H)
+    # going to the nearest border outside of the window
+    left -= 1
+    right += 1
+    top -= 1
+    bottom += 1
+    splits_x, splits_y = get_confidence_splits(img, conf_img, img_indexes, c_y, c_x, top, bottom, left, right)
     
     if len(splits_x) == 0 and len(splits_y) == 0:
-        return binary_split(i, j, W, H)
-
-    splits_x = [left] + splits_x + [right]
-    splits_y = [top] + splits_y + [bottom]
-
-
-    representatives, sizes = [], []
-    markers_x, markers_y = [], []
-
-    for index in range(len(splits_x) - 1):
-        x = (splits_x[index] + splits_x[index + 1]) / 2
-        w = abs(splits_x[index] - splits_x[index + 1]) - 1
-        w = 1 if w < 1 else w
-        markers_x.append((x, w))
-  
-    for index in range(len(splits_y) - 1):
-        y = (splits_y[index] + splits_y[index + 1]) / 2
-        h = abs(splits_y[index] - splits_y[index + 1]) - 1
-        h = 1 if h < 1 else h
-        markers_y.append((y, h))
+        return binary_split(c_y, c_x, W, H)
     
+    return confidence_based_split(splits_x, splits_y, c_y, c_x, W, H, top, bottom, left, right)
+
+def confidence_based_split(splits_x, splits_y, c_y, c_x, W, H, top, bottom, left, right):
+    markers_x, markers_y = [], []
+    
+    if len(splits_x) == 0:
+        Wc, Wf = ceil(W/2), floor(W/2)
+        slack_w = 0 if Wc == Wf else 0.5
+        c_j = c_x + slack_w
+        markers_x = [(c_j - Wc / 2, Wc), (c_j + Wf / 2, Wf)]    
+        
+    if len(splits_y) == 0:
+        Hc, Hf = ceil(H/2), floor(H/2)
+        slack_h = 0 if Hc == Hf else 0.5
+        c_i = c_y + slack_h
+        markers_y = [(c_i - Hc / 2, Hc), (c_i + Hf / 2, Hf)]
+    
+    if len(splits_x) == 1:
+        x = splits_x[0]
+        markers_x = [((x + left + 1) / 2, abs(x - left)), ((x + right) / 2, abs(x - right) - 1)]
+    if len(splits_y) == 1:
+        y = splits_y[0]
+        markers_y = [((y + top + 1) / 2, abs(y - top)), ((y + bottom) / 2, abs(y - bottom) - 1)]
+        
+    if len(splits_x) == 2:
+        x1, x2 = splits_x
+        markers_x = [((x1 + left + 1) / 2, abs(x1 - left)), ((x1 + x2) / 2, abs(x1 - x2) - 1), ((x2 + right - 1) / 2, abs(x2 - right))]
+    if len(splits_y) == 2:
+        y1, y2 = splits_y
+        markers_y = [((y1 + top + 1) / 2, abs(y1 - top)), ((y1 + y2) / 2, abs(y1 - y2) - 1), ((y2 + bottom - 1) / 2, abs(y2 - bottom))]
+        
+    representatives, sizes = [], []
     for (y, h) in markers_y:
         for (x, w) in markers_x:
             representatives.append((x, y))
             sizes.append((w, h))
-           
-            if w - 0.5 == int(w) or h - 0.5 == int(h):
-                print("ERROR")
-                
-                print("Window size: ", W, H)
-                print("Window center: ", initial_i, initial_j)
-                
-                print("Splits x: ", splits_x)
-                print("Splits y: ", splits_y)
-                print("Markers x: ", markers_x)
-                print("Representatives: ", representatives)
-                print(sizes)
-                print(w, h)
-                print("ERROR")
-                exit()                        
-               
-
-    print("Window size: ", W, H)
-    print("Window center: ", initial_i, initial_j)          
-    print("Splits x: ", splits_x)
-    print("Splits y: ", splits_y)
-    print("Representatives: ", representatives)
-    print("Sizes: ", sizes)
-    exit(0) 
-            
-    print("Representatives: ", representatives, sizes)
+    
     return representatives, sizes
- 
