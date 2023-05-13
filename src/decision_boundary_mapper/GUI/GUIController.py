@@ -55,7 +55,7 @@ TMP_FOLDER = os.path.join(os.getcwd(), "tmp")
 SAMPLES_LIMIT = 5000  # Limit the number of samples to be loaded from the dataset
 DEFAULT_DBM_RESOLUTION = 256
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Disable tensorflow logs
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # Disable tensorflow logs
 """
 0 = all messages are logged (default behavior)
 1 = INFO messages are not printed

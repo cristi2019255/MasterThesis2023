@@ -21,6 +21,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset
 
+print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
 FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.BINARY
 
