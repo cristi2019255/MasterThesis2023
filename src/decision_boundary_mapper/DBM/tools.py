@@ -137,7 +137,6 @@ def get_proj_error(indices_source: np.ndarray, indices_embedding: np.ndarray, k:
 
     return (continuity + trustworthiness) / 2
 
-
 @jit
 def get_pixel_priority(img, i, j, window_width, window_height, label):
     """
@@ -184,7 +183,7 @@ def get_pixel_priority(img, i, j, window_width, window_height, label):
 
     return 1/cost
 
-@jit
+@njit
 def binary_split(i, j, W, H):
     Wc, Wf = ceil(W/2), floor(W/2)
     Hc, Hf = ceil(H/2), floor(H/2)
@@ -198,142 +197,6 @@ def binary_split(i, j, W, H):
                        (c_j + Wf / 2, c_i + Hf / 2)]
     sizes = [(Wc, Hc), (Wc, Hf), (Wf, Hc), (Wf, Hf)]
     return representatives, sizes
-
-def get_confidence_based_split(img, conf_img, img_indexes, i, j, W, H):
-    resolution = img.shape[0]
-    initial_i, initial_j = i, j
-    i, j = int(i), int(j)
-    dw = (W - 1) / 2
-    dh = (H - 1) / 2
-    label = img[i, j]
-    c11 = conf_img[i, j][label]
-
-    neighbors = []
-    top = initial_i - dh - 1
-    bottom = initial_i + dh + 1
-    left = initial_j - dw - 1
-    right = initial_j + dw + 1
-    
-    
-    if top >= 0:
-        new_label = img[int(top), j]
-        (x, y) = img_indexes[int(top), j]
-        if new_label != label:
-            neighbors.append((top, -1, top, conf_img[int(top), j][label], conf_img[i, j][new_label], conf_img[int(top), j][new_label]))
-    
-    if bottom < resolution:
-        new_label = img[int(bottom), j]
-        (x, y) = img_indexes[int(bottom), j]
-        if new_label != label:
-            neighbors.append((bottom, -1, bottom, conf_img[int(bottom), j][label], conf_img[i, j][new_label], conf_img[int(bottom), j][new_label]))
-  
-    if left >= 0:
-        new_label = img[i, int(left)]
-        (x, y) = img_indexes[i, int(left)]
-        if new_label != label:
-            neighbors.append((-1, left, left, conf_img[i, int(left)][label], conf_img[i, j][new_label], conf_img[i, int(left)][new_label]))
-    if right < resolution:
-        new_label = img[i, int(right)]
-        (x, y) = img_indexes[i, int(right)]
-        if new_label != label:
-            neighbors.append((-1, right, right, conf_img[i, int(right)][label], conf_img[i, j][new_label], conf_img[i, int(right)][new_label]))
-
-    splits_x = []
-    splits_y = []
-    representatives = []
-    sizes = []
-        
-    for (y, x, b, c12, c21, c22) in neighbors:
-        if x == -1:
-            split = None
-            #split = get_split_position(initial_i, y, b, c11, c12, c21, c22)
-            if split is not None:
-                splits_y.append(split)
-        if y == -1:
-            split = None
-            #split = get_split_position(initial_j, x, b, c11, c12, c21, c22)
-            if split is not None:
-                splits_x.append(split)
-    
-    if len(splits_x) == 0 and len(splits_y) == 0:
-        return binary_split(initial_i, initial_j, W, H)
-    
-    
-    
-    """
-    center_x = initial_j #int((splits_x[0] + splits_x[1]) / 2) if len(splits_x) > 1 else initial_j
-    center_y = initial_j #int((splits_y[0] + splits_y[1]) / 2) if len(splits_y) > 1 else initial_i
-    w1 = center_x - left
-    h1 = center_y - top 
-    w2 = right - center_x 
-    h2 = bottom - center_y 
-    sizes = [(w1, h1), (w1, h2), (w2, h1), (w2, h2)]
-    representatives = [(center_x - w1 / 2, center_y - h1 / 2),
-                       (center_x - w1 / 2, center_y + h2 / 2),
-                       (center_x + w2 / 2, center_y - h1 / 2),
-                       (center_x + w2 / 2, center_y + h2 / 2)]
-    return representatives, sizes
-    """
-    splits_x = [left] + splits_x + [right]
-    splits_y = [top] + splits_y + [bottom]
-
-    markers_x = []
-
-    for index in range(len(splits_x) - 1):
-        w = abs(splits_x[index] - splits_x[index + 1]) - 1
-        x = (splits_x[index] + splits_x[index + 1]) / 2
-        if (w < 1):
-            w = 1
-        markers_x.append((x, w))
-  
-    for index in range(len(splits_y) - 1):
-        h = abs(splits_y[index] - splits_y[index + 1]) - 1
-        y = (splits_y[index + 1] + splits_y[index]) / 2
-        if (h < 1):
-            h = 1
-        for (x, w) in markers_x:
-            representatives.append((x, y))
-            sizes.append((w, h))
-           
-            if w - 0.5 == int(w) or h - 0.5 == int(h):
-                print("ERROR")
-                
-                print("Window size: ", W, H)
-                print("Window center: ", initial_i, initial_j)
-                
-                print("Splits x: ", splits_x)
-                print("Splits y: ", splits_y)
-                print("Markers x: ", markers_x)
-                print("Neighbors: ", neighbors)
-                print("Representatives: ", representatives)
-                print(sizes)
-                print(w, h)
-                print("ERROR")
-                exit()                        
-                
-            
-    #print("Representatives: ", representatives, sizes)
-    return representatives, sizes
-  
-def get_split_position(x1: float, x2:float, bound: float, c11: float, c12: float, c21: float, c22: float) -> int | None:
-    if (x1 == x2):
-        print("ERROR")
-        return None
-    
-    a, b = (c11 - c12) / (x1 - x2), c11 - x1 * ((c11 - c12) / (x1 - x2)) 
-    c, d = (c21 - c22) / (x1 - x2), c21 - x1 * ((c21 - c22) / (x1 - x2))
-
-    if a == c:
-        return None
-    
-    boundary = round((d - b) / (a - c))
-
-    if (bound < x1) and (bound < boundary < x1):
-        return boundary
-    if (bound > x1) and (x1 < boundary < bound):
-        return boundary
-    
-    return None
 
 @njit(parallel=True)
 def get_projection_errors_using_inverse_projection(Xnd: np.ndarray, X2d: np.ndarray, spaceNd: np.ndarray, space2d: np.ndarray, progress, k: int = 10):
@@ -351,7 +214,7 @@ def get_projection_errors_using_inverse_projection(Xnd: np.ndarray, X2d: np.ndar
 
     return errors
 
-@jit
+@njit
 def generate_windows(window_size: int, initial_resolution: int, resolution: int = 1024):
 
     indexes = [((i * window_size + window_size / 2 - 0.5), (j * window_size + window_size / 2 - 0.5)) for i in range(initial_resolution) for j in range(initial_resolution)]
@@ -371,7 +234,7 @@ def generate_windows(window_size: int, initial_resolution: int, resolution: int 
         
     return indexes, sizes, initial_resolution
 
-@jit
+@njit
 def get_window_borders(x, y, w, h):
     # returns the borders of the window by its center and size
     # x, y - center of the window
@@ -399,4 +262,116 @@ def get_tasks_with_same_priority(priority_queue):
             priority_queue.put((next_priority, next_item))
             
         return items
+
+@njit 
+def get_split_position(x1: float, x2:float, bound: float, c11: float, c12: float, c21: float, c22: float) -> int | None:
+    assert(x1 != x2)
+
+    a, b = (c11 - c12) / (x1 - x2), c11 - x1 * ((c11 - c12) / (x1 - x2)) 
+    c, d = (c21 - c22) / (x1 - x2), c21 - x1 * ((c21 - c22) / (x1 - x2))
+
+    if a == c:
+        return None
     
+    boundary = round((d - b) / (a - c))
+
+    if (bound < x1) and (bound < boundary < x1):
+        return boundary
+    if (bound > x1) and (x1 < boundary < bound):
+        return boundary
+    
+    return None
+
+
+def get_confidence_based_split(img, conf_img, img_indexes, i, j, W, H):
+    resolution = img.shape[0]
+    initial_i, initial_j = i, j
+    i, j = int(i), int(j)
+    dw, dh = (W - 1) / 2, (H - 1) / 2
+    label = img[i, j]
+    c11 = conf_img[i, j][label]
+
+    top = int(initial_i - dh - 1)
+    bottom = int(initial_i + dh + 1)
+    left = int(initial_j - dw - 1)
+    right = int(initial_j + dw + 1)
+    
+    splits_x, splits_y = [], []    
+    
+    vertical = [top] if top >= 0 else []
+    vertical += [bottom] if bottom < resolution else []
+    horizontal = [left] if left >= 0 else []
+    horizontal += [right] if right < resolution else []
+   
+    for k in vertical:
+        new_label = img[k, j]
+        (x, y) = img_indexes[k, j]
+        if new_label != label:
+            split = None
+            split = get_split_position(initial_j, y, k, c11, conf_img[y, j][new_label], conf_img[i, j][label], conf_img[y, j][new_label])
+            if split is not None:
+                splits_y.append(split)
+
+    for k in horizontal:
+        new_label = img[i, k]
+        (x, y) = img_indexes[i, k]
+        if new_label != label:
+            split = None
+            split = get_split_position(initial_j, x, k, c11, conf_img[i, x][label], conf_img[i, j][new_label], conf_img[i, x][new_label])
+            if split is not None:
+                splits_x.append(split)
+    
+    if len(splits_x) == 0 and len(splits_y) == 0:
+        return binary_split(i, j, W, H)
+
+    splits_x = [left] + splits_x + [right]
+    splits_y = [top] + splits_y + [bottom]
+
+
+    representatives, sizes = [], []
+    markers_x, markers_y = [], []
+
+    for index in range(len(splits_x) - 1):
+        x = (splits_x[index] + splits_x[index + 1]) / 2
+        w = abs(splits_x[index] - splits_x[index + 1]) - 1
+        w = 1 if w < 1 else w
+        markers_x.append((x, w))
+  
+    for index in range(len(splits_y) - 1):
+        y = (splits_y[index] + splits_y[index + 1]) / 2
+        h = abs(splits_y[index] - splits_y[index + 1]) - 1
+        h = 1 if h < 1 else h
+        markers_y.append((y, h))
+    
+    for (y, h) in markers_y:
+        for (x, w) in markers_x:
+            representatives.append((x, y))
+            sizes.append((w, h))
+           
+            if w - 0.5 == int(w) or h - 0.5 == int(h):
+                print("ERROR")
+                
+                print("Window size: ", W, H)
+                print("Window center: ", initial_i, initial_j)
+                
+                print("Splits x: ", splits_x)
+                print("Splits y: ", splits_y)
+                print("Markers x: ", markers_x)
+                print("Representatives: ", representatives)
+                print(sizes)
+                print(w, h)
+                print("ERROR")
+                exit()                        
+               
+
+    print("Window size: ", W, H)
+    print("Window center: ", initial_i, initial_j)          
+    print("Splits x: ", splits_x)
+    print("Splits y: ", splits_y)
+    print("Representatives: ", representatives)
+    print("Sizes: ", sizes)
+    exit(0) 
+            
+    print("Representatives: ", representatives, sizes)
+    return representatives, sizes
+ 
