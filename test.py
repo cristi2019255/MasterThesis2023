@@ -104,7 +104,7 @@ def test():
         end = time.time()
         print("Fast decoding time: ", end - start)
     else:
-        # FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.BINARY_HYBRID:
+        # FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.HYBRID:
         
         img_path = "img_F.npy"
         img_confidence_path = "img_confidence_F.npy"
@@ -165,7 +165,7 @@ def show_errors():
     elif FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.CONFIDENCE_BASED:
         img_path = "img_C.npy"
     else:
-        # FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.BINARY_HYBRID:
+        # FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.HYBRID:
         img_path = "img_F.npy"
         
     TEST_FILE_PATH = f"/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/{img_path}"
@@ -208,8 +208,7 @@ def test_interpolation():
     X, Y, Z = np.array(X), np.array(Y), np.array(Z)
     xi = np.linspace(0, resolution-1, resolution)
     yi = np.linspace(0, resolution-1, resolution)
-    grid = interpolate.griddata(
-        (X, Y), Z, (xi[None, :], yi[:, None]), method="cubic")
+    grid = interpolate.griddata((X, Y), Z, (xi[None, :], yi[:, None]), method="cubic")
 
     print(grid)
 
