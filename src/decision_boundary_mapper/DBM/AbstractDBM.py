@@ -170,7 +170,7 @@ class AbstractDBM:
             case FAST_DBM_STRATEGIES.HYBRID:
                 save_img_path += f"_fast_{FAST_DBM_STRATEGIES.HYBRID.value}"
                 save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.HYBRID.value}"
-                img, img_confidence = self._get_img_dbm_fast_binary_hybrid_strategy(resolution)
+                img, img_confidence = self._get_img_dbm_fast_hybrid_strategy(resolution)
 
         with open(f"{save_img_path}.npy", 'wb') as f:
             np.save(f, img)  # type: ignore
@@ -455,7 +455,7 @@ class AbstractDBM:
         return img, img_confidence
 
     @track_time_wrapper(logger=time_tracker_console)
-    def _get_img_dbm_fast_binary_hybrid_strategy(self, resolution: int, computational_budget=None, interpolation_method: str = "linear", window_size: int = DEFAULT_WINDOW_SIZE):
+    def _get_img_dbm_fast_hybrid_strategy(self, resolution: int, computational_budget=None, interpolation_method: str = "linear", window_size: int = DEFAULT_WINDOW_SIZE):
         """
         This function generates the 2D image of the boundary map. It uses a fast algorithm that uses a binary split based strategy to generate the image.
 
@@ -469,7 +469,7 @@ class AbstractDBM:
             img, img_confidence: The 2D image of the boundary map and a image with the confidence for each pixel
             spaceNd: The nD space points
         Example:
-            >>> img, img_confidence = self._get_img_dbm_fast_binary_hybrid_strategy(resolution=32, computational_budget=1000)
+            >>> img, img_confidence = self._get_img_dbm_fast_hybrid_strategy(resolution=32, computational_budget=1000)
         """
         assert(window_size < resolution)
         assert(window_size > 0)

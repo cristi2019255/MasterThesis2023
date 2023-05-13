@@ -110,7 +110,7 @@ def test():
         img_confidence_path = "img_confidence_F.npy"
 
         start = time.time()
-        img1, img_confidence1 = dbm._get_img_dbm_fast_binary_hybrid_strategy(resolution)
+        img1, img_confidence1 = dbm._get_img_dbm_fast_hybrid_strategy(resolution)
         end = time.time()
         print("Fast decoding time: ", end - start)
 
