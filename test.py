@@ -84,7 +84,7 @@ def test():
                               X2d_train,
                               X2d_test,
                               resolution=10,
-                              fast_decoding_strategy=FAST_DBM_STRATEGIES.BINARY_HYBRID,
+                              fast_decoding_strategy=FAST_DBM_STRATEGIES.HYBRID,
                               load_folder=os.path.join("tmp", "MNIST", "DBM"),
                               projection='t-SNE')
 

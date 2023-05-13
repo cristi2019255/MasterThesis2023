@@ -14,7 +14,6 @@
 
 import os
 import numpy as np
-from math import ceil, floor
 from queue import PriorityQueue
 from scipy import interpolate
 import dask.array as da
@@ -29,7 +28,7 @@ from .AbstractNN import AbstractNN
 from ..utils import track_time_wrapper, INVERSE_PROJECTION_ERRORS_FILE, PROJECTION_ERRORS_INTERPOLATED_FILE, PROJECTION_ERRORS_INVERSE_PROJECTION_FILE
 from ..Logger import Logger, LoggerInterface
 
-DBM_DEFAULT_CHUNK_SIZE = 10000
+DBM_DEFAULT_CHUNK_SIZE = 30000
 DBM_DEFAULT_RESOLUTION = 256
 DEFAULT_WINDOW_SIZE = 8
 DBM_IMAGE_NAME = "boundary_map"
@@ -43,7 +42,7 @@ class FAST_DBM_STRATEGIES(Enum):
     NONE = "none"
     BINARY = "binary_split"
     CONFIDENCE_BASED = "confidence_split"
-    BINARY_HYBRID = "binary_hybrid_split"
+    HYBRID = "hybrid_split"
 
     @classmethod
     def list(cls):
@@ -168,9 +167,9 @@ class AbstractDBM:
                 save_img_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
                 save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
                 img, img_confidence = self._get_img_dbm_fast_confidences_strategy(resolution)
-            case FAST_DBM_STRATEGIES.BINARY_HYBRID:
-                save_img_path += f"_fast_{FAST_DBM_STRATEGIES.BINARY_HYBRID.value}"
-                save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.BINARY_HYBRID.value}"
+            case FAST_DBM_STRATEGIES.HYBRID:
+                save_img_path += f"_fast_{FAST_DBM_STRATEGIES.HYBRID.value}"
+                save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.HYBRID.value}"
                 img, img_confidence = self._get_img_dbm_fast_binary_hybrid_strategy(resolution)
 
         with open(f"{save_img_path}.npy", 'wb') as f:
@@ -235,6 +234,9 @@ class AbstractDBM:
         Example:
             >>> img, img_confidence = self._get_img_dbm_fast_(resolution=32, computational_budget=1000)
         """
+        assert(window_size < resolution)
+        assert(window_size > 0)
+        assert(int(window_size) == window_size)
         # ------------------------------------------------------------
         INITIAL_COMPUTATIONAL_BUDGET = computational_budget = resolution * resolution if computational_budget is None else computational_budget
 
@@ -334,6 +336,9 @@ class AbstractDBM:
         Example:
             >>> img, img_confidence = self._get_img_dbm_fast_confidences_strategy(resolution=32, computational_budget=1000)
         """
+        assert(window_size < resolution)
+        assert(window_size > 0)
+        assert(int(window_size) == window_size)
         # ------------------------------------------------------------
         # Setting the initial parameters
         INITIAL_COMPUTATIONAL_BUDGET = computational_budget = resolution * resolution if computational_budget is None else computational_budget
@@ -466,6 +471,9 @@ class AbstractDBM:
         Example:
             >>> img, img_confidence = self._get_img_dbm_fast_binary_hybrid_strategy(resolution=32, computational_budget=1000)
         """
+        assert(window_size < resolution)
+        assert(window_size > 0)
+        assert(int(window_size) == window_size)
         # ------------------------------------------------------------
         # Setting the initial parameters
         INITIAL_COMPUTATIONAL_BUDGET = computational_budget = resolution * resolution if computational_budget is None else computational_budget
