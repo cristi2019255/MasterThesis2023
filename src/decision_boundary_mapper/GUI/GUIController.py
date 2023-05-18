@@ -129,6 +129,7 @@ class GUIController:
     def handle_file_list_event(self, event, values):
         try:
             filename = os.path.join(values["-DATA FOLDER-"], values["-DATA FILE LIST-"][0])
+            self.switch_visibility(["-DATA FILE TOUT PIN-"], True)
             self.window["-DATA FILE TOUT-"].update(filename)
         except Exception as e:
             self.logger.error("Error while loading data file" + str(e))
@@ -137,15 +138,16 @@ class GUIController:
         try:
             filename = os.path.join(values["-CLASSIFIER FOLDER-"], values["-CLASSIFIER FILE LIST-"][0])
             self.window["-CLASSIFIER PATH TOUT-"].update(filename)
+            self.switch_visibility(["-CLASSIFIER PATH TOUT PIN-"], True)
         except Exception as e:
             self.logger.error("Error while loading data file" + str(e))
         
     def handle_upload_classifier_event(self, event, values):
         try:
-            fname = os.path.join(
-                values["-CLASSIFIER FOLDER-"], values["-CLASSIFIER FILE LIST-"][0])
+            fname = os.path.join(values["-CLASSIFIER FOLDER-"], values["-CLASSIFIER FILE LIST-"][0])
             self.classifier = tf.keras.models.load_model(fname)
             self.window["-CLASSIFIER PATH TOUT-"].update(fname)
+            self.switch_visibility(["-CLASSIFIER PATH TOUT PIN-"], True)
             self.logger.log("Classifier loaded successfully")
             self.gui_logger.log("Classifier loaded successfully")
             if self.X_train is not None and self.Y_train is not None and self.X_test is not None and self.Y_test is not None:
@@ -280,7 +282,7 @@ class GUIController:
                 projection=projection_technique
             )
         else:
-            save_folder = os.path.join(tmp_folder, SDBM_FOLDER_NAME)
+            save_folder = os.path.join(save_folder, SDBM_FOLDER_NAME)
             projection_technique = None
             dbm_info = dbm.generate_boundary_map(
                 X_train=self.X_train,

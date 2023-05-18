@@ -26,6 +26,7 @@ PROJECTION_ERRORS_INVERSE_PROJECTION_FILE = "projection_errors_inv_projection.np
 
 #GUI CONSTANTS
 APP_FONT = "Helvetica 12"
+APP_FONT_BOLD = "Helvetica 12 bold"
 BLACK_COLOR = "#252526"
 BUTTON_PRIMARY_COLOR = "#007acc"
 WHITE_COLOR = "#ffffff"
