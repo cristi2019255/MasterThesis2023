@@ -21,6 +21,9 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset
 
+print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.BINARY
 
 def import_data():
     # import the dataset
@@ -30,10 +33,8 @@ def import_data():
     SAMPLES_LIMIT = 5000
     X_train = X_train.astype('float32') / 255
     X_test = X_test.astype('float32') / 255
-    X_train, Y_train = X_train[:int(
-        0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
-    X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)
-                            ], Y_test[:int(0.3*SAMPLES_LIMIT)]
+    X_train, Y_train = X_train[:int(0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
+    X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
     return X_train, X_test, Y_train, Y_test
 
 
@@ -72,41 +73,52 @@ def compare_images(img1, img2, comparing_confidence=False):
 
 
 def test():
-    X_train, X_test, Y_train, Y_test = import_data()
+    
+    X_train, X_test, _, _ = import_data()
     classifier = import_classifier()
     X2d_train, X2d_test = import_2d_data()
     dbm = DBM(classifier)
-    resolution = 600
+    resolution = 256
 
     dbm.generate_boundary_map(X_train,
                               X_test,
                               X2d_train,
                               X2d_test,
                               resolution=10,
-                              fast_decoding_strategy=FAST_DBM_STRATEGIES.BINARY,
+                              fast_decoding_strategy=FAST_DBM_STRATEGIES.HYBRID,
                               load_folder=os.path.join("tmp", "MNIST", "DBM"),
                               projection='t-SNE')
 
-    start = time.time()
-    img1, img_confidence1 = dbm._get_img_dbm_fast_(resolution)
-    end = time.time()
-    print("Fast decoding time: ", end - start)
+    if FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.BINARY:
+        img_path = "img_B.npy"
+        img_confidence_path = "img_confidence_B.npy"
+        start = time.time()
+        img1, img_confidence1 = dbm._get_img_dbm_fast_(resolution)
+        end = time.time()
+        print("Fast decoding time: ", end - start)
+    elif FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.CONFIDENCE_BASED:
+        img_path = "img_C.npy"
+        img_confidence_path = "img_confidence_C.npy"
 
-    with open("img1.npy", "wb") as f:
+        start = time.time()
+        img1, img_confidence1 = dbm._get_img_dbm_fast_confidences_strategy(resolution)
+        end = time.time()
+        print("Fast decoding time: ", end - start)
+    else:
+        # FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.HYBRID:
+        
+        img_path = "img_F.npy"
+        img_confidence_path = "img_confidence_F.npy"
+
+        start = time.time()
+        img1, img_confidence1 = dbm._get_img_dbm_fast_hybrid_strategy(resolution)
+        end = time.time()
+        print("Fast decoding time: ", end - start)
+
+    with open(img_path, "wb") as f:
         np.save(f, img1)
-    with open("img_confidence1.npy", "wb") as f:
+    with open(img_confidence_path, "wb") as f:
         np.save(f, img_confidence1)
-
-    start = time.time()
-    img2, img_confidence2 = dbm._get_img_dbm_(resolution)
-    end = time.time()
-    print("Slow decoding time: ", end - start)
-
-    with open("img2.npy", "wb") as f:
-        np.save(f, img2)
-    with open("img_confidence2.npy", "wb") as f:
-        np.save(f, img_confidence2)
-
 
 def test2():
     with open("img1.npy", "rb") as f:
@@ -149,10 +161,21 @@ def test3():
 
 
 def show_errors():
-    with open("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/tmp/MNIST/DBM/t-SNE/boundary_map_fast_confidence_split.npy", "rb") as f:
+    if FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.BINARY:
+        img_path = "img_B.npy"
+    elif FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.CONFIDENCE_BASED:
+        img_path = "img_C.npy"
+    else:
+        # FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.HYBRID:
+        img_path = "img_F.npy"
+        
+    TEST_FILE_PATH = f"/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/{img_path}"
+    GROUND_TRUTH_FILE_PATH = "/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/tmp/MNIST/DBM/t-SNE/boundary_map.npy"
+    
+    with open(TEST_FILE_PATH, "rb") as f:
         errors = np.load(f)
 
-    with open("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/tmp/MNIST/DBM/t-SNE/boundary_map.npy", "rb") as f:
+    with open(GROUND_TRUTH_FILE_PATH, "rb") as f:
         errors2 = np.load(f)
 
     fig, (ax1, ax2) = plt.subplots(1, 2)
@@ -167,8 +190,7 @@ def show_errors():
                 errors_count += 1
 
     print("Errors count: ", errors_count)
-    print("Errors percentage:", errors_count /
-          (errors.shape[0] * errors.shape[1]) * 100, "%")
+    print("Errors percentage:", errors_count / (errors.shape[0] * errors.shape[1]) * 100, "%")
 
     plt.show()
 
@@ -187,8 +209,7 @@ def test_interpolation():
     X, Y, Z = np.array(X), np.array(Y), np.array(Z)
     xi = np.linspace(0, resolution-1, resolution)
     yi = np.linspace(0, resolution-1, resolution)
-    grid = interpolate.griddata(
-        (X, Y), Z, (xi[None, :], yi[:, None]), method="cubic")
+    grid = interpolate.griddata((X, Y), Z, (xi[None, :], yi[:, None]), method="cubic")
 
     print(grid)
 
@@ -208,8 +229,10 @@ def test_interpolation():
     plt.show()
 
 
-# test()
+test()
+show_errors()
+
+
 # test2()
 # test3()
 # test_interpolation()
-show_errors()

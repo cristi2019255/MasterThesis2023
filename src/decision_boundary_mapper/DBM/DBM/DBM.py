@@ -199,7 +199,7 @@ class DBM(AbstractDBM):
         predictions = self.classifier.predict(spaceNd, verbose=0)                     # type: ignore
         predicted_labels = np.array([np.argmax(p) for p in predictions])
         predicted_confidence = np.array([np.max(p) for p in predictions])
-        return predicted_labels, predicted_confidence
+        return predicted_labels, predicted_confidence, predictions
 
     def __transform_2d__(self, X_train: np.ndarray, X_test: np.ndarray, folder: str = DEFAULT_MODEL_PATH, projection: str = 't-SNE'):
         """ 

@@ -200,4 +200,4 @@ class SDBM(AbstractDBM):
         predictions = self.classifier.predict(spaceNd, verbose=0)                 # type: ignore
         predicted_labels = np.array([np.argmax(p) for p in predictions])
         predicted_confidence = np.array([np.max(p) for p in predictions])
-        return predicted_labels, predicted_confidence
+        return predicted_labels, predicted_confidence, predictions
