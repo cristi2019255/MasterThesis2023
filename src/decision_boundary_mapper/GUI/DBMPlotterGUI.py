@@ -41,7 +41,7 @@ from .DBMPlotterController import DBMPlotterController
 from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, BLACK_COLOR, WHITE_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2, BUTTON_PRIMARY_COLOR, APP_FONT
 
 matplotlib.use("TkAgg")
-
+sg.set_options(dpi_awareness=True)
 
 def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
     if canvas.children:
@@ -51,8 +51,6 @@ def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
         for child in canvas_toolbar.winfo_children():
             child.destroy()
 
-    figure.set_dpi(100)
-    figure.set_size_inches(1, 1)
     figure_canvas_agg = FigureCanvasTkAgg(figure, master=canvas)
     figure_canvas_agg.draw()
 
@@ -105,9 +103,9 @@ class DBMPlotterGUI:
                  img, img_confidence,
                  X_train, Y_train,
                  X_test, Y_test,
-                 X_train_2d, X_test_2d,
                  encoded_train, encoded_test,
                  save_folder,
+                 X_train_2d = None, X_test_2d = None,
                  projection_technique=None,
                  logger=None,
                  main_gui=None,
@@ -321,7 +319,7 @@ class DBMPlotterGUI:
         self.window.refresh()
 
     def _build_plot_(self):
-        fig = figure.Figure(figsize=(1, 1), dpi=100)
+        fig = figure.Figure(figsize=(1, 1))
         ax = fig.add_subplot(111)
         ax.set_axis_off()
         return fig, ax
