@@ -344,8 +344,8 @@ class AbstractDBM:
         INITIAL_COMPUTATIONAL_BUDGET = computational_budget = resolution * resolution if computational_budget is None else computational_budget
 
         initial_resolution = resolution // window_size
-        img = np.zeros((resolution, resolution), dtype=np.uint8)
-        img_indexes = np.zeros((resolution, resolution, 2), dtype=np.uint8)
+        img = np.zeros((resolution, resolution), dtype=np.int16)
+        img_indexes = np.zeros((resolution, resolution, 2), dtype=np.int16)
         # ------------------------------------------------------------
 
         # ------------------------------------------------------------
@@ -532,7 +532,7 @@ class AbstractDBM:
     def _fill_initial_windows_(self, window_size: int, resolution: int, computational_budget: int, confidence_interpolation_method: str = "linear"):
         
         initial_resolution = resolution // window_size
-        img = np.zeros((resolution, resolution), dtype=np.uint8)
+        img = np.zeros((resolution, resolution), dtype=np.int16)
         # ------------------------------------------------------------
 
         # ------------------------------------------------------------
