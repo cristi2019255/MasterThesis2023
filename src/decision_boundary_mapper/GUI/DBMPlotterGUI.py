@@ -41,7 +41,6 @@ from .DBMPlotterController import DBMPlotterController
 from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, BLACK_COLOR, WHITE_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2, BUTTON_PRIMARY_COLOR, APP_FONT
 
 matplotlib.use("TkAgg")
-sg.set_options(dpi_awareness=True)
 
 def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
     if canvas.children:
@@ -59,8 +58,10 @@ def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
         toolbar.update()
 
     canvas_widget = figure_canvas_agg.get_tk_widget()
+    
     canvas_widget.pack(side='top', fill='both', expand=True)
-
+    canvas_widget.place(relx=0.5, rely=0.5, anchor='center', relheight=1, relwidth=1)
+     
     return figure_canvas_agg
 
 
@@ -346,6 +347,7 @@ class DBMPlotterGUI:
 
     def draw_dbm_img(self):
         # update the figure
+       
         self.ax.set_title("Decision Boundary Mapper")
         img_confidence, color_img = self.controller.img_confidence, self.controller.color_img
         assert(len(img_confidence.shape) == 2)
@@ -446,12 +448,7 @@ class DBMPlotterGUI:
         except Exception as e:
             self.updates_logger.error("Failed to undo changes: " + str(e))
             
-        self.color_img, legend = self.controller.build_2D_image(colors_mapper=COLORS_MAPPER)
-        self.fig, self.ax = self._build_plot_()
-        self.controller.build_annotation_mapper(self.fig, self.ax)
-
-        self.fig.legend(handles=legend, borderaxespad=0.)
-
+        self.initialize()
         self.draw_dbm_img()
         self.handle_checkbox_change_event(event, values)
 
