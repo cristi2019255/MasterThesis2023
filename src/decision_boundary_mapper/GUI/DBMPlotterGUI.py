@@ -38,7 +38,7 @@ import matplotlib
 
 from .. import Logger, LoggerGUI, FAST_DBM_STRATEGIES
 from .DBMPlotterController import DBMPlotterController
-from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, BLACK_COLOR, WHITE_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2, BUTTON_PRIMARY_COLOR, APP_FONT
+from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, BLACK_COLOR, WHITE_COLOR, RED_COLOR, GREEN_COLOR, YELLOW_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2, APP_PRIMARY_COLOR, APP_FONT
 
 matplotlib.use("TkAgg")
 
@@ -182,12 +182,12 @@ class DBMPlotterGUI:
         computed_inverse_projection_errors = self.controller.inverse_projection_errors is not None
         if not computed_projection_errors:
             buttons_proj_errs = [
-                [sg.Button('Compute Projection Errors (interpolation)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INTERPOLATION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))],
-                [sg.Button('Compute Projection Errors (inverse projection)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))]
+                [sg.Button('Compute Projection Errors (interpolation)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INTERPOLATION-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR))],
+                [sg.Button('Compute Projection Errors (inverse projection)', font=APP_FONT, expand_x=True, key="-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR))]
             ]
         if not computed_inverse_projection_errors:
             buttons_inv_proj_errs = [
-                sg.Button('Compute Inverse Projection Errors', font=APP_FONT, expand_x=True, key="-COMPUTE INVERSE PROJECTION ERRORS-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR))
+                sg.Button('Compute Inverse Projection Errors', font=APP_FONT, expand_x=True, key="-COMPUTE INVERSE PROJECTION ERRORS-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR))
             ]
 
         layout = [
@@ -202,6 +202,7 @@ class DBMPlotterGUI:
                     [
                         sg.Text("Classifier accuracy: ", font=APP_FONT, expand_x=True, key="-CLASSIFIER ACCURACY-"),
                     ],
+                    [ sg.HSeparator() ],
                     [
                         sg.Checkbox("Change labels by selecting with circle", default=True, key="-CIRCLE SELECTING LABELS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
                     ],
@@ -223,7 +224,9 @@ class DBMPlotterGUI:
                     [
                         sg.Checkbox("Show projection errors", default=False, key="-SHOW PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0), visible=computed_projection_errors),
                     ],
+                    [sg.HSeparator()],
                     [
+                        sg.Text("DBM Decoding Strategy: ", font=APP_FONT),
                         sg.Combo(
                             values=list(FAST_DBM_STRATEGIES.list()),
                             default_value=FAST_DBM_STRATEGIES.NONE.value,
@@ -232,14 +235,13 @@ class DBMPlotterGUI:
                             key="-DBM FAST DECODING STRATEGY-",
                             background_color=WHITE_COLOR,
                             text_color=BLACK_COLOR,
+                            button_background_color=APP_PRIMARY_COLOR,
                             readonly=True,
                         ),
                     ],
                     [
-                        sg.Button("Apply Changes", font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
-                    ],
-                    [
-                        sg.Button("Undo Changes", font=APP_FONT, expand_x=True, key="-UNDO CHANGES-", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR)),
+                        sg.Button("Apply Changes", font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),
+                        sg.Button("Undo Changes", font=APP_FONT, expand_x=True, key="-UNDO CHANGES-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),
                     ],
                     [
                         sg.HSeparator()
@@ -251,6 +253,7 @@ class DBMPlotterGUI:
                                           font=APP_FONT,
                                           background_color=WHITE_COLOR,
                                           text_color=BLACK_COLOR,
+                                          sbar_background_color=APP_PRIMARY_COLOR,
                                           auto_size_text=True,
                                           expand_y=True, expand_x=True,
                                           enable_events=False,
@@ -378,7 +381,7 @@ class DBMPlotterGUI:
         self.update_classifier_performance_canvas()
 
     def handle_compute_inverse_projection_errors_event(self, event, values):
-        self.window['-COMPUTE INVERSE PROJECTION ERRORS-'].update(visible=False, disabled=True)
+        self.window['-COMPUTE INVERSE PROJECTION ERRORS-'].hide_row()
         self.updates_logger.log("Computing inverse projection errors, please wait...")
         self.controller.compute_inverse_projection_errors()
         self.updates_logger.log("Inverse projection errors computed!")
@@ -388,8 +391,8 @@ class DBMPlotterGUI:
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
 
     def _set_loading_proj_errs_state_(self):
-        self.window['-COMPUTE PROJECTION ERRORS INTERPOLATION-'].update(visible=False, disabled=True)
-        self.window['-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-'].update(visible=False, disabled=True)
+        self.window['-COMPUTE PROJECTION ERRORS INTERPOLATION-'].hide_row()
+        self.window['-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-'].hide_row()
         self.updates_logger.log("Computing projection errors, please wait...")
 
     def handle_compute_projection_errors_event(self, event, values):
@@ -491,7 +494,7 @@ class DBMPlotterGUI:
         self.classifier_performance_fig, self.classifier_performance_ax = self._build_plot_()
         self.classifier_performance_ax.set_axis_on()
         self.classifier_performance_ax.set_title("Classifier performance history")
-        self.classifier_performance_ax.set_xlabel("Time")
+        #self.classifier_performance_ax.set_xlabel("Time")
         self.classifier_performance_ax.set_ylabel("Accuracy (%)")
         self.classifier_performance_fig.canvas.mpl_connect('button_press_event', self.handle_show_classifier_performance_history_event)
 

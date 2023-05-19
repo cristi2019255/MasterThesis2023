@@ -20,7 +20,7 @@ from PIL import Image, ImageTk
 
 from ..Logger import Logger, LoggerGUI
 from .GUIController import DBM_TECHNIQUES, PROJECTION_TECHNIQUES, DBM_NNINV_TECHNIQUE, CUSTOM_PROJECTION_TECHNIQUE, GUIController
-from ..utils import BLACK_COLOR, WHITE_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2, BUTTON_PRIMARY_COLOR, APP_FONT, APP_FONT_BOLD
+from ..utils import BLACK_COLOR, WHITE_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2, APP_PRIMARY_COLOR, APP_FONT, APP_FONT_BOLD
 from .utils import Collapsible
 
 sg.theme('DarkBlue1')
@@ -66,13 +66,13 @@ class GUI:
     def _get_layout(self):
         data_files_list_column = [
             [
-                sg.Button("Upload MNIST Data set", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD MNIST DATA BTN-"),
+                sg.Button("Upload MNIST Data set", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD MNIST DATA BTN-"),
             ],
             [
-                sg.Button("Upload FASHION MNIST Data set", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD FASHION MNIST DATA BTN-"),
+                sg.Button("Upload FASHION MNIST Data set", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD FASHION MNIST DATA BTN-"),
             ],
             [
-                sg.Button("Upload CIFAR10 Data set", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD CIFAR10 DATA BTN-"),
+                sg.Button("Upload CIFAR10 Data set", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD CIFAR10 DATA BTN-"),
             ],
             [ sg.HSeparator()],
             [
@@ -83,7 +83,7 @@ class GUI:
                         sg.Button("Browse folder", 
                           button_type=sg.BUTTON_TYPE_BROWSE_FOLDER, 
                           target=(sg.ThisRow, -1), 
-                          button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR),
+                          button_color=(WHITE_COLOR, APP_PRIMARY_COLOR),
                           font=APP_FONT,
                           initial_folder=os.getcwd(),
                           expand_x=True,
@@ -100,12 +100,14 @@ class GUI:
                     ],
                     [
                         sg.Listbox(
-                            values=[], enable_events=True, key="-DATA FILE LIST-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True, size=(10, 10), font=APP_FONT_BOLD,
+                            values=[], enable_events=True, key="-DATA FILE LIST-", 
+                            background_color=WHITE_COLOR, text_color=BLACK_COLOR, sbar_background_color=APP_PRIMARY_COLOR,
+                            expand_x=True, size=(10, 10), font=APP_FONT_BOLD,
                         )
                     ],
                     [
-                        sg.Button("Upload train data for DBM", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD TRAIN DATA BTN-"),
-                        sg.Button("Upload test data for DBM", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD TEST DATA BTN-"),
+                        sg.Button("Upload train data for DBM", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD TRAIN DATA BTN-"),
+                        sg.Button("Upload test data for DBM", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD TEST DATA BTN-"),
                     ],
                 ], "-UPLOAD DATA COLLAPSABLE-", "Upload the dataset from a folder", collapsed=True, visible=True), 
             ],
@@ -129,7 +131,7 @@ class GUI:
                 sg.Button("Browse folder", 
                           button_type=sg.BUTTON_TYPE_BROWSE_FOLDER, 
                           target=(sg.ThisRow, -1), 
-                          button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR),
+                          button_color=(WHITE_COLOR, APP_PRIMARY_COLOR),
                           font=APP_FONT,
                           initial_folder=os.getcwd(),
                           expand_x=True,
@@ -146,11 +148,13 @@ class GUI:
             ],
             [
                 sg.Listbox(
-                    values=[], enable_events=True, key="-CLASSIFIER FILE LIST-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True, expand_y=True, font=APP_FONT_BOLD,
+                    values=[], enable_events=True, key="-CLASSIFIER FILE LIST-", 
+                    background_color=WHITE_COLOR, text_color=BLACK_COLOR, sbar_background_color=APP_PRIMARY_COLOR,
+                    expand_x=True, expand_y=True, font=APP_FONT_BOLD,
                 )
             ],
             [
-                sg.Button("Upload classifier", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), font=APP_FONT, expand_x=True, visible=True, key="-UPLOAD CLASSIFIER-"),
+                sg.Button("Upload classifier", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, visible=True, key="-UPLOAD CLASSIFIER-"),
             ],
             [ sg.HSeparator()],
             [
@@ -172,6 +176,7 @@ class GUI:
                     default_value=list(DBM_TECHNIQUES.keys())[0],
                     expand_x=True,
                     font=APP_FONT,
+                    button_background_color=APP_PRIMARY_COLOR,
                     key="-DBM TECHNIQUE-",
                     enable_events=True,
                     background_color=WHITE_COLOR, text_color=BLACK_COLOR,
@@ -186,6 +191,7 @@ class GUI:
                         default_value=PROJECTION_TECHNIQUES[0],
                         expand_x=True,
                         font=APP_FONT,
+                        button_background_color=APP_PRIMARY_COLOR,
                         key="-PROJECTION TECHNIQUE-",
                         enable_events=True,
                         background_color=WHITE_COLOR, text_color=BLACK_COLOR,
@@ -203,7 +209,7 @@ class GUI:
                                 sg.Button("Browse folder", 
                                     button_type=sg.BUTTON_TYPE_BROWSE_FOLDER, 
                                     target=(sg.ThisRow, -1), 
-                                    button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR),
+                                    button_color=(WHITE_COLOR, APP_PRIMARY_COLOR),
                                     font=APP_FONT,
                                     initial_folder=os.getcwd(),
                                     expand_x=True,
@@ -211,12 +217,14 @@ class GUI:
                             ],
                             [
                                 sg.Listbox(
-                                    values=[], enable_events=True, key="-DATA 2D FILE LIST-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, expand_x=True, size=(10, 10), font=APP_FONT_BOLD,
+                                    values=[], enable_events=True, key="-DATA 2D FILE LIST-", 
+                                    background_color=WHITE_COLOR, text_color=BLACK_COLOR, sbar_background_color=APP_PRIMARY_COLOR,
+                                    expand_x=True, size=(10, 10), font=APP_FONT_BOLD,
                                 )
                             ],   
                             [
-                                sg.Button("Upload 2D train data", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), font=APP_FONT, expand_x=True, expand_y=False, key="-UPLOAD 2D TRAIN DATA BTN-"),
-                                sg.Button("Upload 2D test data", button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), font=APP_FONT, expand_x=True, expand_y=False, key="-UPLOAD 2D TEST DATA BTN-"),
+                                sg.Button("Upload 2D train data", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, expand_y=False, key="-UPLOAD 2D TRAIN DATA BTN-"),
+                                sg.Button("Upload 2D test data", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, expand_y=False, key="-UPLOAD 2D TEST DATA BTN-"),
                             ],
                         ], "-DATA 2D COLLAPSABLE-", "Select the files with 2D representation of the data", collapsed=True, visible=True),
                     ]
@@ -232,7 +240,7 @@ class GUI:
             #    sg.InputText("256", key="-DBM IMAGE RESOLUTION INPUT-", visible=True, background_color=WHITE_COLOR, text_color=BLACK_COLOR),
             # ],
             [
-                sg.Button("Show the Decision Boundary Mapping", font=APP_FONT, button_color=(WHITE_COLOR, BUTTON_PRIMARY_COLOR), expand_x=True, visible=False, key="-DBM BTN-"),
+                sg.Button("Show the Decision Boundary Mapping", font=APP_FONT, button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), expand_x=True, visible=False, key="-DBM BTN-"),
             ],
             # ---------------------------------------------------------------------------------------------------
             [ sg.pin(sg.Column([
@@ -253,7 +261,12 @@ class GUI:
             [
                 sg.Column([
                     [sg.Text("Logger: ", font=APP_FONT,)],
-                    [sg.Multiline("", font=APP_FONT, expand_x=True, expand_y=True, key="-LOGGER-", background_color=WHITE_COLOR, text_color=BLACK_COLOR, auto_size_text=True)],
+                    [sg.Multiline("", font=APP_FONT, 
+                                  expand_x=True, expand_y=True, key="-LOGGER-", 
+                                  background_color=WHITE_COLOR, 
+                                  text_color=BLACK_COLOR,
+                                  sbar_background_color=APP_PRIMARY_COLOR,   
+                                  auto_size_text=True)],
                 ], expand_x=True, expand_y=True, key="-LOGGER COLUMN-"),
             ]
         ]
