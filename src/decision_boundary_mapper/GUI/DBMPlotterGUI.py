@@ -50,6 +50,9 @@ def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
         for child in canvas_toolbar.winfo_children():
             child.destroy()
 
+    figure.set_dpi(100)
+    figure.set_size_inches(1, 1)
+
     figure_canvas_agg = FigureCanvasTkAgg(figure, master=canvas)
     figure_canvas_agg.draw()
 
@@ -360,8 +363,7 @@ class DBMPlotterGUI:
 
         # draw the figure to the canvas
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
-        self.window.refresh()
-
+       
     def compute_classifier_metrics(self):
         accuracy, loss = self.controller.compute_classifier_metrics()
         self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(100 * accuracy):.2f} %  Loss: {loss:.2f}")
@@ -381,6 +383,9 @@ class DBMPlotterGUI:
         self.controller.compute_inverse_projection_errors()
         self.updates_logger.log("Inverse projection errors computed!")
         self.window['-SHOW INVERSE PROJECTION ERRORS-'].update(visible=True)
+        
+        # redraw the figure to the canvas because the layout has changed, otherwise the axes of the figure will not work properly
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
 
     def _set_loading_proj_errs_state_(self):
         self.window['-COMPUTE PROJECTION ERRORS INTERPOLATION-'].update(visible=False, disabled=True)
@@ -396,6 +401,9 @@ class DBMPlotterGUI:
     
         self.updates_logger.log("Finished computing projection errors.")
         self.window['-SHOW PROJECTION ERRORS-'].update(visible=True)
+        
+        # redraw the figure to the canvas because the layout has changed, otherwise the axes of the figure will not work properly
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
 
     def handle_checkbox_change_event(self, event, values):
         img = self.controller.mix_image(values["-SHOW DBM COLOR MAP-"], values["-SHOW DBM CONFIDENCE-"], values["-SHOW INVERSE PROJECTION ERRORS-"], values["-SHOW PROJECTION ERRORS-"])
@@ -423,6 +431,7 @@ class DBMPlotterGUI:
             self.ax_labels_changes = self.ax.scatter(positions_x, positions_y, s=10, c='green', marker='^', alpha=alphas)
 
         self.fig.canvas.draw_idle()
+        
 
     def handle_circle_selecting_labels_change_event(self, event, values):
         self.update_labels_by_circle_select = values["-CIRCLE SELECTING LABELS-"]
@@ -431,8 +440,9 @@ class DBMPlotterGUI:
         self.controller.apply_labels_changes(decoding_strategy=FAST_DBM_STRATEGIES(values["-DBM FAST DECODING STRATEGY-"]))
         self.initialize()
         self.compute_classifier_metrics()
-        self.draw_dbm_img()
         self.handle_checkbox_change_event(event, values)
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
+       
 
         self.updates_logger.log("Changes applied successfully!")
 
@@ -449,9 +459,9 @@ class DBMPlotterGUI:
             self.updates_logger.error("Failed to undo changes: " + str(e))
             
         self.initialize()
-        self.draw_dbm_img()
         self.handle_checkbox_change_event(event, values)
-
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
+       
 
     def handle_show_classifier_performance_history_event(self, event=None, values=None):
         try:
