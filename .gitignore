@@ -141,3 +141,6 @@ models/SDBM
 
 # tmp folder
 #tmp/
+
+# experiments results folder
+experiments/results/

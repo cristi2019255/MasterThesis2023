@@ -78,7 +78,7 @@ def import_dbm(dbm_technique=DBM_TECHNIQUE, classifier_path=CLASSIFIER_PATH):
     dbm = DBM_TECHNIQUES[dbm_technique](classifier)
     return dbm
 
-def compute_errors(img1, img2, comparing_confidence=False):
+def compute_error(img1, img2, comparing_confidence=False):
     errors = 0
     for i in range(img1.shape[0]):
         for j in range(img1.shape[1]):
@@ -89,29 +89,31 @@ def compute_errors(img1, img2, comparing_confidence=False):
                 else:
                     errors += 1
 
-    errors_rate = errors / (img1.shape[0] * img1.shape[1]) * 100
-    print("Errors: ", errors)
-    print("Error rate: ", errors_rate, "%")
-    return errors, errors_rate
+    errors_rate: float = errors / (img1.shape[0] * img1.shape[1]) * 100
+    #print("Error: ", errors)
+    #print("Error rate: ", errors_rate, "%")
+    return errors, round(errors_rate, 3)
 
 
 def save_result(path, result):
     with open(path, "wb") as f:
         np.save(f, result)
 
-def is_experiment(func):
-    print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
-    print("Num CPUs Available: ", len(tf.config.list_physical_devices('CPU')))
-    print("Num TPUs Available: ", len(tf.config.list_physical_devices('TPU')))
-    print("Using GPU: ", tf.test.is_gpu_available())
-    print("Using TPU: ", tf.test.is_built_with_cuda())
-    print("Performing experiment: ", func.__name__)
-    
-    def wrapper(*args, **kwargs):
-        start = time.time()
-        result = func(*args, **kwargs)
-        end = time.time()
-        print(f"{func.__name__} took {end-start} seconds")
-        return result
-    
-    return wrapper
+def is_experiment(experiment_metadata_path):
+    with open(experiment_metadata_path, "a") as f:
+        f.write(f"Num GPUs Available: {len(tf.config.list_physical_devices('GPU'))}\n")
+        f.write(f"Num CPUs Available: {len(tf.config.list_physical_devices('CPU'))}\n")
+        f.write(f"Num TPUs Available: {len(tf.config.list_physical_devices('TPU'))}\n")
+        f.write("\n\n\n")
+         
+    def function_wrapper(func):
+        print("Performing experiment: ", func.__name__)
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            result = func(*args, **kwargs)
+            end = time.time()
+            print(f"{func.__name__} took {end-start} seconds")
+            return result
+        
+        return wrapper
+    return function_wrapper

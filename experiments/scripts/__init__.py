@@ -14,3 +14,5 @@
 
 from .utils import *
 from .experiment_resolutions import *
+from .plotter import *
+from .compute_errors import *

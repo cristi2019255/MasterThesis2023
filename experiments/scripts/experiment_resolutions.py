@@ -31,13 +31,20 @@ LOAD_FOLDER = os.path.join("tmp", DATASET_NAME, DBM_TECHNIQUE)
 FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.NONE
 RESOLUTION_RANGE = (50, 2000, 50)
 
-RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, str(FAST_DECODING_STRATEGY))
+RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, FAST_DECODING_STRATEGY.value)
 CONFIDENCE_SUBFOLDER = os.path.join(RESULTS_FOLDER, "confidence")
 IMG_SUBFOLDER = os.path.join(RESULTS_FOLDER, "img")
 EXPERIMENT_METADATA_PATH = os.path.join(RESULTS_FOLDER, "experiment_metadata.txt")
+EXPERIMENT_RESULTS_PATH = os.path.join(RESULTS_FOLDER, "experiment_results.txt")
+
+# create the results folder
+if not os.path.exists(IMG_SUBFOLDER):
+    os.makedirs(IMG_SUBFOLDER)
+if not os.path.exists(CONFIDENCE_SUBFOLDER):
+    os.makedirs(CONFIDENCE_SUBFOLDER)
 
 # ---------------------------------------------------
-@is_experiment
+@is_experiment(EXPERIMENT_METADATA_PATH)
 def resolutions_run_times():
    
     # ---------------------------------------------------
@@ -69,17 +76,13 @@ def resolutions_run_times():
     }
     
     
-    # create the results folder
-    if not os.path.exists(IMG_SUBFOLDER):
-        os.makedirs(IMG_SUBFOLDER)
-    if not os.path.exists(CONFIDENCE_SUBFOLDER):
-        os.makedirs(CONFIDENCE_SUBFOLDER)
     # create the experiment metadata file
-    with open(EXPERIMENT_METADATA_PATH, "w") as f:
+    with open(EXPERIMENT_METADATA_PATH, "a") as f:
         f.write("RESOLUTION_RANGE: " + str(RESOLUTION_RANGE) + "\n")
-        f.write("FAST_DECODING_STRATEGY: " + str(FAST_DECODING_STRATEGY) + "\n")
+        f.write("FAST_DECODING_STRATEGY: " + FAST_DECODING_STRATEGY.value + "\n")
         f.write("\n\n\n")
-        f.write("RESOLUTION \t & \t TIME \n")
+    with open(EXPERIMENT_RESULTS_PATH, "w") as f:
+        f.write("RESOLUTION,TIME\n")
     
     # ---------------------------------------------------
     # ---------------------------------------------------
@@ -92,8 +95,8 @@ def resolutions_run_times():
         print("Resolution: ", resolution, "Decoding time: ", decoding_time)
         # ---------------------------------------------------
         # Save the results
-        with open(EXPERIMENT_METADATA_PATH, "a") as f:
-            f.write(str(resolution) + "\t & \t" + str(decoding_time) + "\n")
+        with open(EXPERIMENT_RESULTS_PATH, "a") as f:
+            f.write(str(resolution) + "," + str(decoding_time) + "\n")
             
         img_path = os.path.join(IMG_SUBFOLDER, str(resolution) + ".npy")
         img_confidence_path = os.path.join(CONFIDENCE_SUBFOLDER, str(resolution) + "_confidence.npy")
