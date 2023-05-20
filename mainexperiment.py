@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from experiments import resolutions_run_times, compute_errors, resolutions_experiment_plot, errors_plot
+import os
+from experiments import resolutions_run_times, compute_errors, resolutions_experiment_plot, errors_plot, compute_confidence_errors, compute_confidence_images, confidence_errors_plot
 
 # ---------------------------------------------------
 # INSTRUCTIONS:
@@ -32,16 +33,19 @@ from experiments import resolutions_run_times, compute_errors, resolutions_exper
 # IMPORTANT: Repeat EXPERIMENT 1 for all the fast decoding strategies
 #
 # EXPERIMENT 2: (Compute a plot to compare the fast decoding strategies run times)
-#     1. Run resolutions_experiment_plot() from this file
+#     1. Set the FOLDER to the corresponding folder for your dataset, dbm strategy and projection
+#     2. Run resolutions_experiment_plot(folder=FOLDER) from this file
 # OUTPUT: The plot will be saved in the folder experiments/results/{dataset_name}/{dbm_strategy}/({projection})/resolutions_experiment.png
 
 # EXPERIMENT 3: (Compute the errors for the different resolutions)
-#     1. Run compute_errors() from this file
+#     1. Set the FOLDER to the corresponding folder for your dataset, dbm strategy and projection
+#     2. Run compute_errors(folder=FOLDER) from this file
 # OUTPUT: The errors results will be saved for each fast decoding strategy in the folder: 
 #         experiments/results/{dataset_name}/{dbm_strategy}/({projection})/{FAST_DECODING_STRATEGY}/errors_results.txt
 #
 # EXPERIMENT 4: (Compute a plot to compare the errors for the different resolutions)
-#     1. Run errors_plot() from this file
+#     1. Set the FOLDER to the corresponding folder for your dataset, dbm strategy and projection
+#     2. Run errors_plot(folder=FOLDER) from this file
 # OUTPUT: The plot will be saved in the folder experiments/results/{dataset_name}/{dbm_strategy}/({projection})/errors_experiment.png
 #
 # DEFINITION: EXPERIMENT 1-4 is called a EXPERIMENT PROJECTION
@@ -54,21 +58,55 @@ from experiments import resolutions_run_times, compute_errors, resolutions_exper
 # DEFINITION: EXPERIMENT 6 is called a EXPERIMENT DATASET
 # EXPERIMENT 7: Run EXPERIMENT DATASET for all the datasets (MNIST, Fashion-MNIST, CIFAR-10, [placeholder for parasites dataset])
 #
-# ETA (resolutions run times): 1h (strategy) * 4 (strategies) * (3 + 1) (3 projections + SDBM) * 4 (datasets) = 64h = 2.6 days
+# EXPERIMENT 8: (Compute the confidence images for the different interpolation methods)
+# TODO: implement this experiment scripts
+#        1. Set the FOLDER to the corresponding folder for your dataset, dbm strategy, projection, fast decoding strategy
+#        2. Choose an interpolation method from the following list: 'linear', 'nearest', 'cubic'
+#        3. Run compute_confidence_images(folder=FOLDER, interpolation_method={interpolation_method}, resolutions=[250, 500, 1000]) from this file
+#        4. Repeat steps 2 and 3 for all the interpolation methods
+# OUTPUT: The confidence images will be saved in the folder: experiments/results/{dataset_name}/{dbm_strategy}/({projection})/{FAST_DECODING_STRATEGY}/confidence_images/{interpolation_method}/
+#
+# EXPERIMENT 9: (Compute errors for the different interpolation methods)
+# TODO: implement this experiment scripts
+#        1. Set the FOLDER to the corresponding folder for your dataset, dbm strategy, projection, fast decoding strategy and interpolation method
+#        2. Run compute_confidence_errors(folder=FOLDER, interpolation_method={interpolation_method}) from this file
+# OUTPUT: The confidence errors will be saved in the folder: experiments/results/{dataset_name}/{dbm_strategy}/({projection})/{FAST_DECODING_STRATEGY}/confidence_errors.txt
+#
+# EXPERIMENT 10: (Compute a plot to compare the errors for the different interpolation methods)
+# TODO: implement this experiment scripts
+#        1. Set the FOLDER to the corresponding folder for your dataset, dbm strategy, projection, fast decoding strategy
+#        2. Run confidence_errors_plot(folder=FOLDER) from this file
+# OUTPUT: The plot will be saved in the folder experiments/results/{dataset_name}/{dbm_strategy}/({projection})/{FAST_DECODING_STRATEGY}/confidence_errors.png
+#
+# EXPERIMENT 11: Repeat EXPERIMENT 8-10 for all the fast decoding strategies, for all the projections, for all the dbm strategies, for all the datasets
+#
+# ETA (resolutions run times i.e. EXPERIMENT 7): 1h (strategy) * 4 (strategies) * (3 + 1) (3 projections + SDBM) * 4 (datasets) = 64h = 2.6 days
 # ETA (errors): 1h
 # ETA (plots): 1h
-# ETA (confidence maps, different interpolation methods): 1h (strategy) * 3 (interpolation methods) * 3 (strategies) * (3 + 1) (3 projections + SDBM) * 4 (datasets) = 108h = 4.5 days
+# ETA (confidence maps, different interpolation methods i.e. EXPERIMENT 11): 1h (strategy) * 3 (interpolation methods) * 3 (strategies) * (3 + 1) (3 projections + SDBM) * 4 (datasets) = 108h = 4.5 days
 #
-# TOTAL ETA: 8.1 days (with 3 days of buffer) = 11.1 days = 2 weeks of continuous work
+# TOTAL ETA: 8.1 days (with 3 days of buffer) = 11.1 days = 2 weeks of continuous work = 1 month of part time work (according to the schedule)
 # ---------------------------------------------------
 
+
+FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "t-SNE")
 
 # ---------------------------------------------------
 #                 RUN THE EXPERIMENT(S)
 # ---------------------------------------------------
 if __name__ == "__main__":
-   resolutions_run_times()
-   #resolutions_experiment_plot()
-   #compute_errors()
-   #errors_plot()
+   # ---------------------------------------------------
+   #                 EXPERIMENT 1-4-5-6-7
+   # ---------------------------------------------------
+   #resolutions_run_times()
+   #resolutions_experiment_plot(folder=FOLDER)
+   #compute_errors(folder=FOLDER)
+   #errors_plot(folder=FOLDER)
    
+   # ---------------------------------------------------
+   #                 EXPERIMENT 8-10
+   # ---------------------------------------------------
+   folder = os.path.join(FOLDER, "confidence_split")
+   #compute_confidence_images(folder=folder, interpolation_method='linear', resolutions=[250, 500, 1000])
+   #compute_confidence_errors(folder=FOLDER, interpolation_method='linear')
+   #confidence_errors_plot(folder=folder)

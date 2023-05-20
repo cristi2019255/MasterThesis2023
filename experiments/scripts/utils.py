@@ -90,8 +90,8 @@ def compute_error(img1, img2, comparing_confidence=False):
                     errors += 1
 
     errors_rate: float = errors / (img1.shape[0] * img1.shape[1]) * 100
-    print("Error: ", errors)
-    print("Error rate: ", errors_rate, "%")
+    #print("Error: ", errors)
+    #print("Error rate: ", errors_rate, "%")
     return errors, round(errors_rate, 3)
 
 

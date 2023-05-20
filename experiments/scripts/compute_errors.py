@@ -14,30 +14,33 @@
 
 import os
 import numpy as np
+
+from .config import CONFIDENCE_FOLDER_NAME, IMG_FOLDER_NAME, INTERPOLATION_FOLDER_NAME, IMG_ERRORS_RESULTS_FILE_NAME, CONFIDENCE_ERRORS_RESULTS_FILE_NAME
 from .utils import compute_error
 
 RESULTS_FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "t-SNE")
-ERRORS_FILE_NAME = "errors_results.txt"
 
 def compute_errors(folder=RESULTS_FOLDER):
     strategies_folders = os.listdir(folder)
-    ground_truth_img_folder = os.path.join(folder, "none", "img")
+    ground_truth_img_folder = os.path.join(folder, "none", IMG_FOLDER_NAME)
     for dir in strategies_folders:
         if dir == "none" or os.path.isfile(os.path.join(folder, dir)):
             continue
         
-        errors_file_path = os.path.join(folder, dir, ERRORS_FILE_NAME)
+        errors_file_path = os.path.join(folder, dir, IMG_ERRORS_RESULTS_FILE_NAME)
         if os.path.isfile(errors_file_path):
             print("WARNING: The experiment was already run. If you want to run it again, please delete the file: ", errors_file_path)
             continue
+        
+        print("Computing errors for: ", dir)
         
         with open(errors_file_path, "w") as f:
             f.write("RESOLUTION,ERROR,ERROR RATE\n")
         
         # get all the images in the folder/img
-        images_names = os.listdir(os.path.join(folder, dir, "img"))
+        images_names = os.listdir(os.path.join(folder, dir, IMG_FOLDER_NAME))
         for image_name in images_names:
-            img_path = os.path.join(folder, dir, "img", image_name)
+            img_path = os.path.join(folder, dir, IMG_FOLDER_NAME, image_name)
             ground_truth_img_path = os.path.join(ground_truth_img_folder, image_name)
             resolution = image_name.split(".")[0]
             # getting the images
@@ -53,3 +56,36 @@ def compute_errors(folder=RESULTS_FOLDER):
     
     print("Errors computed successfully")
     
+def compute_confidence_errors(folder=RESULTS_FOLDER, interpolation_method='linear'):
+    strategies_folders = os.listdir(folder)
+    ground_truth_img_folder = os.path.join(folder, "none", CONFIDENCE_FOLDER_NAME)
+    for dir in strategies_folders:
+        if dir == "none" or os.path.isfile(os.path.join(folder, dir)):
+            continue
+        
+        errors_file_path = os.path.join(folder, dir, interpolation_method + "_" + CONFIDENCE_ERRORS_RESULTS_FILE_NAME)
+        if os.path.isfile(errors_file_path):
+            print("WARNING: The experiment was already run. If you want to run it again, please delete the file: ", errors_file_path)
+            continue
+        
+        with open(errors_file_path, "w") as f:
+            f.write("RESOLUTION,ERROR,ERROR RATE\n")
+        
+        # get all the images in the folder/img
+        confidence_names = os.listdir(os.path.join(folder, dir, INTERPOLATION_FOLDER_NAME, interpolation_method))
+        for conf_img_name in confidence_names:
+            conf_img_path = os.path.join(folder, dir, INTERPOLATION_FOLDER_NAME, interpolation_method, conf_img_name)
+            ground_truth_conf_img_path = os.path.join(ground_truth_img_folder, conf_img_name)
+            resolution = conf_img_name.split(".")[0]
+            # getting the images
+            with open(conf_img_path, "rb") as f:
+                conf_img = np.load(f)
+            with open(ground_truth_conf_img_path, "rb") as f:
+                ground_truth_conf_img = np.load(f)
+            # computing the error
+            error, error_rate = compute_error(conf_img, ground_truth_conf_img, comparing_confidence=True)  
+            line = f"{resolution},{str(error)},{str(error_rate)}\n"
+            with open(errors_file_path, "a") as file:
+                file.write(line)
+    
+    print("Confidence errors computed successfully")

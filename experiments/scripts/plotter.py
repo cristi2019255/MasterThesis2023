@@ -15,6 +15,8 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from experiments.scripts.config import IMG_ERRORS_RESULTS_FILE_NAME
+
 RESULTS_FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "t-SNE")
 
 def resolutions_experiment_plot(folder=RESULTS_FOLDER):
@@ -43,7 +45,7 @@ def errors_plot(folder=RESULTS_FOLDER):
     for dir in strategies_folders:
         if dir == "none" or os.path.isfile(os.path.join(folder, dir)):
             continue
-        path = os.path.join(folder, dir, "errors_results.txt")
+        path = os.path.join(folder, dir, IMG_ERRORS_RESULTS_FILE_NAME)
         df = pd.read_csv(path)
         df["RESOLUTION"] = df["RESOLUTION"].astype('int')
         df = df.sort_values(by=["RESOLUTION"])
@@ -59,3 +61,7 @@ def errors_plot(folder=RESULTS_FOLDER):
     plt.savefig(os.path.join(RESULTS_FOLDER, "errors_experiment.png"))
     
     plt.show()
+    
+def confidence_errors_plot(folder=RESULTS_FOLDER):
+    #TODO: Implement this function
+    pass

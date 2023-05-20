@@ -382,7 +382,7 @@ class AbstractDBM:
         iteration = 0
         while computational_budget > 0 and not priority_queue.empty():
             iteration += 1
-            print("Priority queue size: ", priority_queue.qsize())
+            # print("Priority queue size: ", priority_queue.qsize())
             # take the highest priority tasks
             items = get_tasks_with_same_priority(priority_queue)
 

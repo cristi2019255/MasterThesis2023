@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .utils import *
-from .experiment_resolutions import *
-from .plotter import *
-from .compute_errors import *
-from .compute_confidence_images import *
-from .config import *
+INTERPOLATION_FOLDER_NAME = "interpolation_confidence"
+IMG_FOLDER_NAME = "img"
+CONFIDENCE_FOLDER_NAME = "confidence"
+CONFIDENCE_MAP_FOLDER_NAME = "confidence_map"
+
+IMG_ERRORS_RESULTS_FILE_NAME = "errors_results.txt"
+CONFIDENCE_ERRORS_RESULTS_FILE_NAME = "confidence_errors_results.txt"
