@@ -229,9 +229,16 @@ def test_interpolation():
     plt.show()
 
 
-test()
-show_errors()
+def show_img(path):
+    with open(path, "rb") as f:
+        img = np.load(f)
+    plt.imshow(img)
+    plt.show()
 
+show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/DBM/t-SNE/FAST_DBM_STRATEGIES.NONE/img/50.npy")
+
+#test()
+#show_errors()
 
 # test2()
 # test3()
