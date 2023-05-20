@@ -158,19 +158,19 @@ class AbstractDBM:
 
         match fast_decoding_strategy:
             case FAST_DBM_STRATEGIES.NONE:
-                img, img_confidence = self._get_img_dbm_(resolution)
+                img, img_confidence, _ = self._get_img_dbm_(resolution)
             case FAST_DBM_STRATEGIES.BINARY:
                 save_img_path += f"_fast_{FAST_DBM_STRATEGIES.BINARY.value}"
                 save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.BINARY.value}"
-                img, img_confidence = self._get_img_dbm_fast_(resolution)
+                img, img_confidence, _ = self._get_img_dbm_fast_(resolution)
             case FAST_DBM_STRATEGIES.CONFIDENCE_BASED:
                 save_img_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
                 save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
-                img, img_confidence = self._get_img_dbm_fast_confidences_strategy(resolution)
+                img, img_confidence, _ = self._get_img_dbm_fast_confidences_strategy(resolution)
             case FAST_DBM_STRATEGIES.HYBRID:
                 save_img_path += f"_fast_{FAST_DBM_STRATEGIES.HYBRID.value}"
                 save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.HYBRID.value}"
-                img, img_confidence = self._get_img_dbm_fast_hybrid_strategy(resolution)
+                img, img_confidence, _ = self._get_img_dbm_fast_hybrid_strategy(resolution)
 
         with open(f"{save_img_path}.npy", 'wb') as f:
             np.save(f, img)  # type: ignore
@@ -214,7 +214,7 @@ class AbstractDBM:
         img = img.reshape((resolution, resolution))
         img_confidence = img_confidence.reshape((resolution, resolution))
 
-        return (img, img_confidence)
+        return img, img_confidence, None
 
     @track_time_wrapper(logger=time_tracker_console)
     def _get_img_dbm_fast_(self, resolution: int, computational_budget=None, interpolation_method: str = "linear", window_size: int = DEFAULT_WINDOW_SIZE):
@@ -316,7 +316,7 @@ class AbstractDBM:
                                                             resolution=resolution,
                                                             method=interpolation_method).T
 
-        return img, img_confidence
+        return img, img_confidence, confidence_map
 
     @track_time_wrapper(logger=time_tracker_console)
     def _get_img_dbm_fast_confidences_strategy(self, resolution: int, computational_budget=None, interpolation_method: str = "linear", window_size: int = DEFAULT_WINDOW_SIZE):
@@ -451,7 +451,7 @@ class AbstractDBM:
                                                             resolution=resolution,
                                                             method=interpolation_method).T
 
-        return img, img_confidence
+        return img, img_confidence, confidence_map
 
     @track_time_wrapper(logger=time_tracker_console)
     def _get_img_dbm_fast_hybrid_strategy(self, resolution: int, computational_budget=None, interpolation_method: str = "linear", window_size: int = DEFAULT_WINDOW_SIZE):
@@ -527,7 +527,7 @@ class AbstractDBM:
                                                             resolution=resolution,
                                                             method=interpolation_method).T
 
-        return img, img_confidence
+        return img, img_confidence, confidence_map
 
     def _fill_initial_windows_(self, window_size: int, resolution: int, computational_budget: int, confidence_interpolation_method: str = "linear"):
         

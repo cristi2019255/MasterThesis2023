@@ -15,10 +15,10 @@
 from experiments import resolutions_run_times, compute_errors, resolutions_experiment_plot
 
 # ---------------------------------------------------
-#                 RUN THE EXPERIMENT
+#                 RUN THE EXPERIMENT(S)
 # ---------------------------------------------------
 if __name__ == "__main__":
-   #resolutions_run_times()
-   resolutions_experiment_plot()
+   resolutions_run_times()
+   #resolutions_experiment_plot()
    #compute_errors()
    

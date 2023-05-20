@@ -93,7 +93,7 @@ def test():
         img_path = "img_B.npy"
         img_confidence_path = "img_confidence_B.npy"
         start = time.time()
-        img1, img_confidence1 = dbm._get_img_dbm_fast_(resolution)
+        img1, img_confidence1, _ = dbm._get_img_dbm_fast_(resolution)
         end = time.time()
         print("Fast decoding time: ", end - start)
     elif FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.CONFIDENCE_BASED:
@@ -101,7 +101,7 @@ def test():
         img_confidence_path = "img_confidence_C.npy"
 
         start = time.time()
-        img1, img_confidence1 = dbm._get_img_dbm_fast_confidences_strategy(resolution)
+        img1, img_confidence1, _ = dbm._get_img_dbm_fast_confidences_strategy(resolution)
         end = time.time()
         print("Fast decoding time: ", end - start)
     else:
@@ -111,7 +111,7 @@ def test():
         img_confidence_path = "img_confidence_F.npy"
 
         start = time.time()
-        img1, img_confidence1 = dbm._get_img_dbm_fast_hybrid_strategy(resolution)
+        img1, img_confidence1, _ = dbm._get_img_dbm_fast_hybrid_strategy(resolution)
         end = time.time()
         print("Fast decoding time: ", end - start)
 

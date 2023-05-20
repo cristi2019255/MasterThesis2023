@@ -28,11 +28,12 @@ TRAIN_2D_PATH = os.path.join("tmp", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, "tr
 TEST_2D_PATH = os.path.join("tmp", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, "test_2d.npy")
 CLASSIFIER_PATH = os.path.join("tmp", DATASET_NAME, "classifier")
 LOAD_FOLDER = os.path.join("tmp", DATASET_NAME, DBM_TECHNIQUE)
-FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.NONE
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.BINARY
 RESOLUTION_RANGE = (50, 2000, 50)
 
 RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, FAST_DECODING_STRATEGY.value)
 CONFIDENCE_SUBFOLDER = os.path.join(RESULTS_FOLDER, "confidence")
+CONFIDENCE_MAP_SUBFOLDER = os.path.join(RESULTS_FOLDER, "confidence_map")
 IMG_SUBFOLDER = os.path.join(RESULTS_FOLDER, "img")
 EXPERIMENT_METADATA_PATH = os.path.join(RESULTS_FOLDER, "experiment_metadata.txt")
 EXPERIMENT_RESULTS_PATH = os.path.join(RESULTS_FOLDER, "experiment_results.txt")
@@ -42,11 +43,16 @@ if not os.path.exists(IMG_SUBFOLDER):
     os.makedirs(IMG_SUBFOLDER)
 if not os.path.exists(CONFIDENCE_SUBFOLDER):
     os.makedirs(CONFIDENCE_SUBFOLDER)
+if FAST_DECODING_STRATEGY != FAST_DBM_STRATEGIES.NONE and not os.path.exists(CONFIDENCE_MAP_SUBFOLDER):
+    os.makedirs(CONFIDENCE_MAP_SUBFOLDER)
 
 # ---------------------------------------------------
 @is_experiment(EXPERIMENT_METADATA_PATH)
 def resolutions_run_times():
-   
+    if len(os.listdir(IMG_SUBFOLDER)) != 0 or len(os.listdir(CONFIDENCE_SUBFOLDER)) != 0:
+        print("WARNING: The experiment was already run. If you want to run it again, please delete the folder: ", RESULTS_FOLDER)
+        print("WARNING: Skipping the experiment...")
+        return
     # ---------------------------------------------------
     
     # Prepare the data    
@@ -89,7 +95,7 @@ def resolutions_run_times():
     # Run the generation of the boundary map for different resolutions
     for resolution in range(*RESOLUTION_RANGE):
         start = time.time()
-        img, img_confidence = DECODER[FAST_DECODING_STRATEGY](resolution)
+        img, img_confidence, confidence_map = DECODER[FAST_DECODING_STRATEGY](resolution)
         end = time.time()
         decoding_time = round(end - start, 3)
         print("Resolution: ", resolution, "Decoding time: ", decoding_time)
@@ -99,6 +105,11 @@ def resolutions_run_times():
             f.write(str(resolution) + "," + str(decoding_time) + "\n")
             
         img_path = os.path.join(IMG_SUBFOLDER, str(resolution) + ".npy")
-        img_confidence_path = os.path.join(CONFIDENCE_SUBFOLDER, str(resolution) + "_confidence.npy")
+        img_confidence_path = os.path.join(CONFIDENCE_SUBFOLDER, str(resolution) + ".npy")
+        
         save_result(img_path, img)
         save_result(img_confidence_path, img_confidence)
+        
+        if confidence_map is not None:
+            confidence_map_path = os.path.join(CONFIDENCE_MAP_SUBFOLDER, str(resolution) + ".npy")
+            save_result(confidence_map_path, confidence_map)
