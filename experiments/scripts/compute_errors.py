@@ -23,7 +23,7 @@ def compute_errors(folder=RESULTS_FOLDER):
     strategies_folders = os.listdir(folder)
     ground_truth_img_folder = os.path.join(folder, "none", "img")
     for dir in strategies_folders:
-        if dir == "none":
+        if dir == "none" or os.path.isfile(os.path.join(folder, dir)):
             continue
         
         errors_file_path = os.path.join(folder, dir, ERRORS_FILE_NAME)
@@ -32,21 +32,20 @@ def compute_errors(folder=RESULTS_FOLDER):
         
         # get all the images in the folder/img
         images_names = os.listdir(os.path.join(folder, dir, "img"))
-        
-        with open(errors_file_path, "a") as f:
-            for image_name in images_names:
-                img_path = os.path.join(folder, dir, "img", image_name)
-                ground_truth_img_path = os.path.join(ground_truth_img_folder, image_name)
-                resolution = image_name.split(".")[0]
-                # getting the images
-                with open(img_path, "rb") as f:
-                    img = np.load(f)
-                with open(ground_truth_img_path, "rb") as f:
-                    ground_truth_img = np.load(f)
-                # computing the error
-                error, error_rate = compute_error(img, ground_truth_img)  
-                line = f"{resolution},{str(error)},{str(error_rate)}\n"
-                f.write(line) # type: ignore
+        for image_name in images_names:
+            img_path = os.path.join(folder, dir, "img", image_name)
+            ground_truth_img_path = os.path.join(ground_truth_img_folder, image_name)
+            resolution = image_name.split(".")[0]
+            # getting the images
+            with open(img_path, "rb") as f:
+                img = np.load(f)
+            with open(ground_truth_img_path, "rb") as f:
+                ground_truth_img = np.load(f)
+            # computing the error
+            error, error_rate = compute_error(img, ground_truth_img)  
+            line = f"{resolution},{str(error)},{str(error_rate)}\n"
+            with open(errors_file_path, "a") as file:
+                file.write(line)
     
     print("Errors computed successfully")
     

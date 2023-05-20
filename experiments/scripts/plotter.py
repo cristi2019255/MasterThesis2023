@@ -21,6 +21,8 @@ def resolutions_experiment_plot(folder=RESULTS_FOLDER):
     strategies_folders = os.listdir(folder)
     
     for dir in strategies_folders:
+        if os.path.isfile(os.path.join(folder, dir)):
+            continue
         path = os.path.join(folder, dir, "experiment_results.txt")
         df = pd.read_csv(path)
         plt.plot(df["RESOLUTION"], df["TIME"], label=dir)
@@ -39,10 +41,12 @@ def errors_plot(folder=RESULTS_FOLDER):
     plt.title("Errors vs Resolution")
     
     for dir in strategies_folders:
-        if dir == "none":
+        if dir == "none" or os.path.isfile(os.path.join(folder, dir)):
             continue
         path = os.path.join(folder, dir, "errors_results.txt")
         df = pd.read_csv(path)
+        df["RESOLUTION"] = df["RESOLUTION"].astype('int')
+        df = df.sort_values(by=["RESOLUTION"])
         ax1.plot(df["RESOLUTION"], df["ERROR"], label=dir)
         ax2.plot(df["RESOLUTION"], df["ERROR RATE"], label=dir)
     

@@ -23,11 +23,15 @@ import time
 DATASET_NAME = 'MNIST'
 DBM_TECHNIQUE = 'DBM'
 PROJECTION = 't-SNE'
-    
-TRAIN_2D_PATH = os.path.join("tmp", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, "train_2d.npy")
-TEST_2D_PATH = os.path.join("tmp", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, "test_2d.npy")
-CLASSIFIER_PATH = os.path.join("tmp", DATASET_NAME, "classifier")
-LOAD_FOLDER = os.path.join("tmp", DATASET_NAME, DBM_TECHNIQUE)
+
+
+TMP_FOLDER = "tmp"
+TRAIN_2D_PATH = os.path.join(TMP_FOLDER, DATASET_NAME, DBM_TECHNIQUE, PROJECTION, "train_2d.npy")
+TEST_2D_PATH = os.path.join(TMP_FOLDER, DATASET_NAME, DBM_TECHNIQUE, PROJECTION, "test_2d.npy")
+CLASSIFIER_PATH = os.path.join(TMP_FOLDER, DATASET_NAME, "classifier")
+LOAD_FOLDER = os.path.join(TMP_FOLDER, DATASET_NAME, DBM_TECHNIQUE)
+
+
 FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.BINARY
 RESOLUTION_RANGE = (50, 2000, 50)
 
@@ -38,13 +42,18 @@ IMG_SUBFOLDER = os.path.join(RESULTS_FOLDER, "img")
 EXPERIMENT_METADATA_PATH = os.path.join(RESULTS_FOLDER, "experiment_metadata.txt")
 EXPERIMENT_RESULTS_PATH = os.path.join(RESULTS_FOLDER, "experiment_results.txt")
 
-# create the results folder
-if not os.path.exists(IMG_SUBFOLDER):
-    os.makedirs(IMG_SUBFOLDER)
-if not os.path.exists(CONFIDENCE_SUBFOLDER):
-    os.makedirs(CONFIDENCE_SUBFOLDER)
-if FAST_DECODING_STRATEGY != FAST_DBM_STRATEGIES.NONE and not os.path.exists(CONFIDENCE_MAP_SUBFOLDER):
-    os.makedirs(CONFIDENCE_MAP_SUBFOLDER)
+if not os.path.exists(RESULTS_FOLDER):
+    os.makedirs(RESULTS_FOLDER)
+
+# ---------------------------------------------------
+def create_results_folder():
+    # create the results folder
+    if not os.path.exists(IMG_SUBFOLDER):
+        os.makedirs(IMG_SUBFOLDER)
+    if not os.path.exists(CONFIDENCE_SUBFOLDER):
+        os.makedirs(CONFIDENCE_SUBFOLDER)
+    if FAST_DECODING_STRATEGY != FAST_DBM_STRATEGIES.NONE and not os.path.exists(CONFIDENCE_MAP_SUBFOLDER):
+        os.makedirs(CONFIDENCE_MAP_SUBFOLDER)
 
 # ---------------------------------------------------
 @is_experiment(EXPERIMENT_METADATA_PATH)
@@ -54,7 +63,7 @@ def resolutions_run_times():
         print("WARNING: Skipping the experiment...")
         return
     # ---------------------------------------------------
-    
+    create_results_folder()
     # Prepare the data    
     X_train, X_test, _, _ = import_data(dataset_name=DATASET_NAME)
     X2d_train, X2d_test = import_2d_data(train_2d_path=TRAIN_2D_PATH, test_2d_path=TEST_2D_PATH)

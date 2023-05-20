@@ -90,8 +90,8 @@ def compute_error(img1, img2, comparing_confidence=False):
                     errors += 1
 
     errors_rate: float = errors / (img1.shape[0] * img1.shape[1]) * 100
-    #print("Error: ", errors)
-    #print("Error rate: ", errors_rate, "%")
+    print("Error: ", errors)
+    print("Error rate: ", errors_rate, "%")
     return errors, round(errors_rate, 3)
 
 
@@ -99,20 +99,22 @@ def save_result(path, result):
     with open(path, "wb") as f:
         np.save(f, result)
 
-def is_experiment(experiment_metadata_path):
-    with open(experiment_metadata_path, "a") as f:
-        f.write(f"Num GPUs Available: {len(tf.config.list_physical_devices('GPU'))}\n")
-        f.write(f"Num CPUs Available: {len(tf.config.list_physical_devices('CPU'))}\n")
-        f.write(f"Num TPUs Available: {len(tf.config.list_physical_devices('TPU'))}\n")
-        f.write("\n\n\n")
-         
+def is_experiment(experiment_metadata_path):     
     def function_wrapper(func):
+        with open(experiment_metadata_path, "a") as f:
+            f.write(f"Num GPUs Available: {len(tf.config.list_physical_devices('GPU'))}\n")
+            f.write(f"Num CPUs Available: {len(tf.config.list_physical_devices('CPU'))}\n")
+            f.write(f"Num TPUs Available: {len(tf.config.list_physical_devices('TPU'))}\n")
+            f.write("\n\n\n")
+        
         print("Performing experiment: ", func.__name__)
         def wrapper(*args, **kwargs):
             start = time.time()
             result = func(*args, **kwargs)
             end = time.time()
             print(f"{func.__name__} took {end-start} seconds")
+            with open(experiment_metadata_path, "a") as f:
+                f.write(f"Experiment {func.__name__} took {end-start} seconds\n")
             return result
         
         return wrapper

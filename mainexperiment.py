@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from experiments import resolutions_run_times, compute_errors, resolutions_experiment_plot
+from experiments import resolutions_run_times, compute_errors, resolutions_experiment_plot, errors_plot
 
 # ---------------------------------------------------
 #                 RUN THE EXPERIMENT(S)
 # ---------------------------------------------------
 if __name__ == "__main__":
-   resolutions_run_times()
+   #resolutions_run_times()
    #resolutions_experiment_plot()
    #compute_errors()
+   errors_plot()
    
