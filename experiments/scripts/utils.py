@@ -99,7 +99,7 @@ def save_result(path, result):
     with open(path, "wb") as f:
         np.save(f, result)
 
-def is_experiment(experiment_metadata_path):     
+def experiment(experiment_metadata_path):     
     def function_wrapper(func):
         with open(experiment_metadata_path, "a") as f:
             f.write(f"Num GPUs Available: {len(tf.config.list_physical_devices('GPU'))}\n")

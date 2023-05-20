@@ -27,6 +27,10 @@ def compute_errors(folder=RESULTS_FOLDER):
             continue
         
         errors_file_path = os.path.join(folder, dir, ERRORS_FILE_NAME)
+        if os.path.isfile(errors_file_path):
+            print("WARNING: The experiment was already run. If you want to run it again, please delete the file: ", errors_file_path)
+            continue
+        
         with open(errors_file_path, "w") as f:
             f.write("RESOLUTION,ERROR,ERROR RATE\n")
         

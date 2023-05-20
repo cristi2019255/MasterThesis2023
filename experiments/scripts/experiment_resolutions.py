@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import os
-from .utils import import_2d_data, import_data, import_dbm, is_experiment, save_result
+from .utils import import_2d_data, import_data, import_dbm, experiment, save_result
 from src import FAST_DBM_STRATEGIES
 import time
 
@@ -32,7 +32,7 @@ CLASSIFIER_PATH = os.path.join(TMP_FOLDER, DATASET_NAME, "classifier")
 LOAD_FOLDER = os.path.join(TMP_FOLDER, DATASET_NAME, DBM_TECHNIQUE)
 
 
-FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.BINARY
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.HYBRID
 RESOLUTION_RANGE = (50, 2000, 50)
 
 RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, FAST_DECODING_STRATEGY.value)
@@ -56,14 +56,16 @@ def create_results_folder():
         os.makedirs(CONFIDENCE_MAP_SUBFOLDER)
 
 # ---------------------------------------------------
-@is_experiment(EXPERIMENT_METADATA_PATH)
+@experiment(EXPERIMENT_METADATA_PATH)
 def resolutions_run_times():
+    create_results_folder()
+    
     if len(os.listdir(IMG_SUBFOLDER)) != 0 or len(os.listdir(CONFIDENCE_SUBFOLDER)) != 0:
         print("WARNING: The experiment was already run. If you want to run it again, please delete the folder: ", RESULTS_FOLDER)
         print("WARNING: Skipping the experiment...")
         return
     # ---------------------------------------------------
-    create_results_folder()
+    
     # Prepare the data    
     X_train, X_test, _, _ = import_data(dataset_name=DATASET_NAME)
     X2d_train, X2d_test = import_2d_data(train_2d_path=TRAIN_2D_PATH, test_2d_path=TEST_2D_PATH)
