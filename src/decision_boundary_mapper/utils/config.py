@@ -26,8 +26,12 @@ PROJECTION_ERRORS_INVERSE_PROJECTION_FILE = "projection_errors_inv_projection.np
 
 #GUI CONSTANTS
 APP_FONT = "Helvetica 12"
+APP_FONT_BOLD = "Helvetica 12 bold"
 BLACK_COLOR = "#252526"
-BUTTON_PRIMARY_COLOR = "#007acc"
+APP_PRIMARY_COLOR = "#007acc"
 WHITE_COLOR = "#ffffff"
+RED_COLOR = "#ff0000"
+GREEN_COLOR = "#00ff00"
+YELLOW_COLOR = "#ffff00"
 RIGHTS_MESSAGE_1 = "© 2023 Cristian Grosu. All rights reserved."
 RIGHTS_MESSAGE_2 = "Made by Cristian Grosu for Utrecht University Master Thesis in 2023"

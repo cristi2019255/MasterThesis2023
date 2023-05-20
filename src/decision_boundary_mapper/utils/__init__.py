@@ -14,5 +14,4 @@
 
 from .dataReader import import_dataset, import_mnist_dataset, import_cifar10_dataset, import_fashion_mnist_dataset
 from .tools import track_time_wrapper
-from .config import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME, INVERSE_PROJECTION_ERRORS_FILE, PROJECTION_ERRORS_INTERPOLATED_FILE, PROJECTION_ERRORS_INVERSE_PROJECTION_FILE
-from .config import APP_FONT, BLACK_COLOR, BUTTON_PRIMARY_COLOR, WHITE_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2
+from .config import *
