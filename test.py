@@ -23,7 +23,7 @@ from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset
 
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
-FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.HYBRID
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION
 
 def import_data():
     # import the dataset
@@ -78,14 +78,14 @@ def test():
     classifier = import_classifier()
     X2d_train, X2d_test = import_2d_data()
     dbm = DBM(classifier)
-    resolution = 2000
+    resolution = 256
 
     dbm.generate_boundary_map(X_train,
                               X_test,
                               X2d_train,
                               X2d_test,
                               resolution=10,
-                              fast_decoding_strategy=FAST_DBM_STRATEGIES.HYBRID,
+                              fast_decoding_strategy=FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION,
                               load_folder=os.path.join("tmp", "MNIST", "DBM"),
                               projection='t-SNE')
 
@@ -105,13 +105,16 @@ def test():
         end = time.time()
         print("Fast decoding time: ", end - start)
     else:
-        # FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.HYBRID:
         
         img_path = "img_F.npy"
         img_confidence_path = "img_confidence_F.npy"
 
         start = time.time()
-        #img1, img_confidence1, _ = dbm._get_img_dbm_fast_hybrid_strategy(resolution)
+        img1, img_confidence1, _ = dbm._get_img_dbm_fast_confidence_interpolation_strategy(resolution, interpolation_method="cubic")
+        end = time.time()
+        print("Fast decoding time: ", end - start)
+        
+        start = time.time()
         img1, img_confidence1, _ = dbm._get_img_dbm_fast_confidence_interpolation_strategy(resolution, interpolation_method="cubic")
         end = time.time()
         print("Fast decoding time: ", end - start)
@@ -167,7 +170,6 @@ def show_errors():
     elif FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.CONFIDENCE_BASED:
         img_path = "img_C.npy"
     else:
-        # FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.HYBRID:
         img_path = "img_F.npy"
         
     TEST_FILE_PATH = f"/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/{img_path}"

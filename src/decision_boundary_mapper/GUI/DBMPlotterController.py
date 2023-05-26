@@ -389,9 +389,11 @@ class DBMPlotterController:
     def apply_labels_changes(self, decoding_strategy):
         num_changes = len(self.expert_updates_labels_mapper)
         if num_changes == 0:
-            raise Exception("No changes to apply")
+            self.console.error("No changes to apply")
+            return
         if num_changes < 10:
-            raise Exception("Less than 10 changes to apply, please apply more changes")
+            self.console.error("Less than 10 changes to apply, please apply more changes")
+            return
 
         # store the changes done so far so we can restore them when needed
         with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_LABELS_CHANGES_FILE), "wb") as f:

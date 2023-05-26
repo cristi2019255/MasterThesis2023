@@ -42,7 +42,7 @@ class FAST_DBM_STRATEGIES(Enum):
     NONE = "none"
     BINARY = "binary_split"
     CONFIDENCE_BASED = "confidence_split"
-    HYBRID = "hybrid_split"
+    CONFIDENCE_INTERPOLATION = "confidence_interpolation"
 
     @classmethod
     def list(cls):
@@ -88,7 +88,9 @@ class AbstractDBM:
         self.X2d: np.ndarray
         self.Xnd: np.ndarray
         self.resolution: int
-
+        # a dictionary that maps the resolution to the best block resolution for the confidence interpolation strategy in fast decoding
+        self.resolution_to_blocks_resolution_map = {} 
+        
     def refit_classifier(self, Xnd: np.ndarray, Y: np.ndarray, save_folder: str, epochs: int = 2, batch_size: int = 32):
         """ 
         Refits the classifier on the given data set.
@@ -167,10 +169,10 @@ class AbstractDBM:
                 save_img_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
                 save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
                 img, img_confidence, _ = self._get_img_dbm_fast_confidences_strategy(resolution)
-            case FAST_DBM_STRATEGIES.HYBRID:
-                save_img_path += f"_fast_{FAST_DBM_STRATEGIES.HYBRID.value}"
-                save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.HYBRID.value}"
-                img, img_confidence, _ = self._get_img_dbm_fast_hybrid_strategy(resolution)
+            case FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION:
+                save_img_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION.value}"
+                save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION.value}"
+                img, img_confidence, _ = self._get_img_dbm_fast_confidence_interpolation_strategy(resolution)
 
         with open(f"{save_img_path}.npy", 'wb') as f:
             np.save(f, img)  # type: ignore
@@ -529,14 +531,22 @@ class AbstractDBM:
 
         return img, img_confidence, confidence_map
     
-    def _get_img_dbm_fast_confidence_interpolation_strategy(self, resolution: int, interpolation_method: str = "linear", blocks_resolution: int | None = None):
+    @track_time_wrapper(logger=time_tracker_console)
+    def _get_img_dbm_fast_confidence_interpolation_strategy(self, resolution: int, interpolation_method: str = "cubic", blocks_resolution: int | None = None):
         img_confidence = np.zeros((resolution, resolution, 1))
+        
+        # check if the block resolution is provided by the user
         if blocks_resolution is not None:
             assert(blocks_resolution < resolution)
             assert(blocks_resolution > 0)
             assert(int(blocks_resolution) == blocks_resolution)
-            img_confidence = self._compute_confidence_interpolation_(blocks_resolution, resolution, interpolation_method)
-        else:
+            img_confidence = self.__compute_confidence_interpolation__(blocks_resolution, resolution, interpolation_method)
+        # check if the block resolution for this resolution was already computed
+        elif resolution in self.resolution_to_blocks_resolution_map:
+            blocks_resolution = self.resolution_to_blocks_resolution_map[resolution]
+            img_confidence = self.__compute_confidence_interpolation__(blocks_resolution, resolution, interpolation_method)
+        # get the best block resolution for this resolution otherwise
+        else:    
             self.console.log("Finding the necessary number of initial blocks for interpolation")
             blocks_resolution = 2
             CONFIDENCE_EPSILON = 0.01
@@ -544,7 +554,7 @@ class AbstractDBM:
             
             while blocks_resolution < resolution:
                 self.console.log(f"Computing confidence map for blocks resolution: {blocks_resolution}x{blocks_resolution}")
-                img_confidence = self._compute_confidence_interpolation_(blocks_resolution, resolution, interpolation_method)
+                img_confidence = self.__compute_confidence_interpolation__(blocks_resolution, resolution, interpolation_method)
             
                 if old_img_confidence is None:
                     old_img_confidence = np.copy(img_confidence)
@@ -552,14 +562,14 @@ class AbstractDBM:
                     continue
                 
                 if np.mean(np.abs(img_confidence - old_img_confidence)) < CONFIDENCE_EPSILON:
+                    self.resolution_to_blocks_resolution_map[resolution] = blocks_resolution
+                    self.console.log(f"Using blocks resolution: {blocks_resolution}x{blocks_resolution}")                  
                     break 
                 
                 blocks_resolution *= 2
                 old_img_confidence = np.copy(img_confidence)
             
-            self.console.log(f"Using blocks resolution: {blocks_resolution}x{blocks_resolution}")     
-        
-        
+            
         img = np.zeros((resolution, resolution))
         confidence_img = np.zeros((resolution, resolution))
         pseudo_decision_boundary_indexes = []
@@ -568,7 +578,7 @@ class AbstractDBM:
             confidences = img_confidence[i, j]
             label = np.argmax(confidences)
             confidence_img[i, j] =  np.max(confidences)
-            img[i, j] = label
+            img[i, j] = int(label)
         
         self.console.log("Finding the pseudo boundaries")
         for (i, j) in np.ndindex(img.shape):
@@ -594,14 +604,13 @@ class AbstractDBM:
         predicted_labels, predicted_confidence, _ = self._predict2dspace_(space2d)
         # fill the actual predicted labels and confidences
         for (i, j), label, conf in zip(pseudo_decision_boundary_indexes, predicted_labels, predicted_confidence):
-            img[i, j] = label
+            img[i, j] = int(label)
             confidence_img[i, j] = conf
         
 
         return img, confidence_img, None
 
-
-    def _compute_confidence_interpolation_(self, blocks_resolution, resolution, interpolation_method):
+    def __compute_confidence_interpolation__(self, blocks_resolution, resolution, interpolation_method):
         window_size = resolution // blocks_resolution
         
         # generate the initial points
@@ -632,15 +641,11 @@ class AbstractDBM:
         img_confidence = np.zeros((resolution, resolution, num_classes))
         for k in range(num_classes):
             confidence_map_class = [(i, j, confs[k]) for (i, j, confs) in confidence_map]
-                
-            self.console.log(f"Interpolating the confidence map for class {k}...")
-
             img_confidence[:, :, k] = self._generate_interpolated_image_(sparse_map=confidence_map_class,
                                                                                 resolution=resolution,
                                                                                 method=interpolation_method).T
         
         return img_confidence
-
 
     def _fill_initial_windows_(self, window_size: int, resolution: int, computational_budget: int, confidence_interpolation_method: str = "linear"):
         

@@ -91,7 +91,7 @@ def resolutions_run_times():
     DECODER = {
         FAST_DBM_STRATEGIES.BINARY: dbm._get_img_dbm_fast_,
         FAST_DBM_STRATEGIES.CONFIDENCE_BASED: dbm._get_img_dbm_fast_confidences_strategy,
-        FAST_DBM_STRATEGIES.HYBRID: dbm._get_img_dbm_fast_hybrid_strategy,
+        FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION: dbm._get_img_dbm_fast_confidence_interpolation_strategy,
         FAST_DBM_STRATEGIES.NONE: dbm._get_img_dbm_,
     }
     
