@@ -23,7 +23,7 @@ from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset
 
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
-FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.BINARY
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.HYBRID
 
 def import_data():
     # import the dataset
@@ -78,7 +78,7 @@ def test():
     classifier = import_classifier()
     X2d_train, X2d_test = import_2d_data()
     dbm = DBM(classifier)
-    resolution = 256
+    resolution = 2000
 
     dbm.generate_boundary_map(X_train,
                               X_test,
@@ -111,7 +111,8 @@ def test():
         img_confidence_path = "img_confidence_F.npy"
 
         start = time.time()
-        img1, img_confidence1, _ = dbm._get_img_dbm_fast_hybrid_strategy(resolution)
+        #img1, img_confidence1, _ = dbm._get_img_dbm_fast_hybrid_strategy(resolution)
+        img1, img_confidence1, _ = dbm._get_img_dbm_fast_confidence_interpolation_strategy(resolution, interpolation_method="cubic")
         end = time.time()
         print("Fast decoding time: ", end - start)
 
@@ -160,7 +161,7 @@ def test3():
     print("Time: ", end - start)
 
 
-def show_errors():
+def show_errors():      
     if FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.BINARY:
         img_path = "img_B.npy"
     elif FAST_DECODING_STRATEGY == FAST_DBM_STRATEGIES.CONFIDENCE_BASED:
@@ -181,13 +182,13 @@ def show_errors():
     fig, (ax1, ax2) = plt.subplots(1, 2)
     ax1.imshow(errors)
     ax2.imshow(errors2)
-
+    
     errors_count = 0
     for i in range(errors.shape[0]):
         for j in range(errors.shape[1]):
             if errors[i, j] != errors2[i, j]:
                 ax1.plot(j, i, 'ro')
-                errors_count += 1
+                errors_count += 1                
 
     print("Errors count: ", errors_count)
     print("Errors percentage:", errors_count / (errors.shape[0] * errors.shape[1]) * 100, "%")
@@ -211,17 +212,18 @@ def test_interpolation():
     yi = np.linspace(0, resolution-1, resolution)
     grid = interpolate.griddata((X, Y), Z, (xi[None, :], yi[:, None]), method="cubic")
 
-    print(grid)
+    #print(grid)
+    xx, yy = np.meshgrid(xi, yi)
+    #iterpolator = interpolate.SmoothBivariateSpline(X, Y, Z, kx=2, ky=2)
+    iterpolator = interpolate.Rbf(X, Y, Z, epsilon=2, function='multiquadric')
+    z = iterpolator(xx, yy)
 
-    iterpolator = interpolate.SmoothBivariateSpline(X, Y, Z, kx=2, ky=2)
-    z = iterpolator(xi[None, :], yi[:, None])
+    #print(z)
 
-    print(z)
-
-    grid = np.array(grid)
+    #grid = np.array(grid)
     z = np.array(z)
 
-    grid = (grid - np.min(grid)) / (np.max(grid) - np.min(grid))
+    #grid = (grid - np.min(grid)) / (np.max(grid) - np.min(grid))
     z = (z - np.min(z)) / (np.max(z) - np.min(z))
 
     ax1.imshow(grid)
@@ -235,10 +237,10 @@ def show_img(path):
     plt.imshow(img)
     plt.show()
 
-show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/DBM/t-SNE/FAST_DBM_STRATEGIES.NONE/img/50.npy")
+#show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/DBM/t-SNE/FAST_DBM_STRATEGIES.NONE/img/50.npy")
 
-#test()
-#show_errors()
+test()
+show_errors()
 
 # test2()
 # test3()

@@ -528,6 +528,119 @@ class AbstractDBM:
                                                             method=interpolation_method).T
 
         return img, img_confidence, confidence_map
+    
+    def _get_img_dbm_fast_confidence_interpolation_strategy(self, resolution: int, interpolation_method: str = "linear", blocks_resolution: int | None = None):
+        img_confidence = np.zeros((resolution, resolution, 1))
+        if blocks_resolution is not None:
+            assert(blocks_resolution < resolution)
+            assert(blocks_resolution > 0)
+            assert(int(blocks_resolution) == blocks_resolution)
+            img_confidence = self._compute_confidence_interpolation_(blocks_resolution, resolution, interpolation_method)
+        else:
+            self.console.log("Finding the necessary number of initial blocks for interpolation")
+            blocks_resolution = 2
+            CONFIDENCE_EPSILON = 0.01
+            old_img_confidence = None
+            
+            while blocks_resolution < resolution:
+                self.console.log(f"Computing confidence map for blocks resolution: {blocks_resolution}x{blocks_resolution}")
+                img_confidence = self._compute_confidence_interpolation_(blocks_resolution, resolution, interpolation_method)
+            
+                if old_img_confidence is None:
+                    old_img_confidence = np.copy(img_confidence)
+                    blocks_resolution *= 2
+                    continue
+                
+                if np.mean(np.abs(img_confidence - old_img_confidence)) < CONFIDENCE_EPSILON:
+                    break 
+                
+                blocks_resolution *= 2
+                old_img_confidence = np.copy(img_confidence)
+            
+            self.console.log(f"Using blocks resolution: {blocks_resolution}x{blocks_resolution}")     
+        
+        
+        img = np.zeros((resolution, resolution))
+        confidence_img = np.zeros((resolution, resolution))
+        pseudo_decision_boundary_indexes = []
+        self.console.log(f"Filling the decision boundary map using the interpolated confidence map")
+        for (i, j) in np.ndindex(img.shape):
+            confidences = img_confidence[i, j]
+            label = np.argmax(confidences)
+            confidence_img[i, j] =  np.max(confidences)
+            img[i, j] = label
+        
+        self.console.log("Finding the pseudo boundaries")
+        for (i, j) in np.ndindex(img.shape):
+            label = img[i, j]
+            if i - 1 >= 0 and img[i - 1, j] != label:
+                pseudo_decision_boundary_indexes.append((i, j))
+                continue
+            if i + 1 < resolution and img[i + 1, j] != label:
+                pseudo_decision_boundary_indexes.append((i, j))
+                continue
+            if j - 1 >= 0 and img[i, j - 1] != label:
+                pseudo_decision_boundary_indexes.append((i, j))
+                continue
+            if j + 1 < resolution and img[i, j + 1] != label:
+                pseudo_decision_boundary_indexes.append((i, j))
+                continue
+        
+        
+        self.console.log(f"Computing the pseudo-decision boundary, {len(pseudo_decision_boundary_indexes)} points.")
+        if len(pseudo_decision_boundary_indexes) == 0:
+            return img, confidence_img, None   
+        space2d = np.array(pseudo_decision_boundary_indexes) / resolution
+        predicted_labels, predicted_confidence, _ = self._predict2dspace_(space2d)
+        # fill the actual predicted labels and confidences
+        for (i, j), label, conf in zip(pseudo_decision_boundary_indexes, predicted_labels, predicted_confidence):
+            img[i, j] = label
+            confidence_img[i, j] = conf
+        
+
+        return img, confidence_img, None
+
+
+    def _compute_confidence_interpolation_(self, blocks_resolution, resolution, interpolation_method):
+        window_size = resolution // blocks_resolution
+        
+        # generate the initial points
+        indexes, _, initial_resolution = generate_windows(window_size, initial_resolution=blocks_resolution, resolution=resolution)
+        # creating an artificial border for the 2D confidence image
+            
+        confidence_map = []
+            
+        if interpolation_method != "nearest":
+            border_indices = [(i * window_size + window_size / 2 - 0.5, 0) for i in range(initial_resolution)] + \
+                    [(i * window_size + window_size / 2 - 0.5, resolution - 1) for i in range(initial_resolution)] + \
+                    [(0, i * window_size + window_size / 2 - 0.5) for i in range(-1, initial_resolution + 1)] + \
+                    [(resolution - 1, i * window_size + window_size / 2 - 0.5) for i in range(-1, initial_resolution + 1)]
+
+            space2d_border = np.array(border_indices) / resolution
+            _, _, confidences = self._predict2dspace_(space2d_border)
+            confidence_map = [(i, j, confs) for (i, j), confs in zip(border_indices, confidences)]
+            
+        space2d = np.array(indexes) / resolution  
+        _, _, predicted_confidences = self._predict2dspace_(space2d)
+        
+        for (i,j), confs in zip(indexes, predicted_confidences):
+            confidence_map.append((i, j, confs)) # type: ignore
+
+        num_classes = len(predicted_confidences[0])
+            
+        # interpolate the confidence map for each class
+        img_confidence = np.zeros((resolution, resolution, num_classes))
+        for k in range(num_classes):
+            confidence_map_class = [(i, j, confs[k]) for (i, j, confs) in confidence_map]
+                
+            self.console.log(f"Interpolating the confidence map for class {k}...")
+
+            img_confidence[:, :, k] = self._generate_interpolated_image_(sparse_map=confidence_map_class,
+                                                                                resolution=resolution,
+                                                                                method=interpolation_method).T
+        
+        return img_confidence
+
 
     def _fill_initial_windows_(self, window_size: int, resolution: int, computational_budget: int, confidence_interpolation_method: str = "linear"):
         
@@ -661,7 +774,7 @@ class AbstractDBM:
         return interpolate.griddata((X, Y), Z, (xi[None, :], yi[:, None]), method=method)
 
     @track_time_wrapper(logger=time_tracker_console)
-    def _generate_interpolation_rbf_(self, sparse_map, resolution, function='linear'):
+    def _generate_interpolation_rbf_(self, sparse_map, resolution:int, method:str='linear'):
         """A private method that uses interpolation to generate the values for the 2D space image
            The sparse map is a list of tuples (x, y, data) where x, y and data are in the range [0, 1]
 
@@ -678,7 +791,7 @@ class AbstractDBM:
             Y.append(y)
             Z.append(z)
 
-        rbf = interpolate.Rbf(X, Y, Z, function=function)
+        rbf = interpolate.Rbf(X, Y, Z, function=method)
         ti = np.linspace(0, 1, resolution)
         xx, yy = np.meshgrid(ti, ti)
         
@@ -795,7 +908,7 @@ class AbstractDBM:
             x, y = X2d[k]
             sparse_map.append((x, y, get_proj_error_parallel(indices_source[k], indices_embedded[k], k=K)))
 
-        errors = self._generate_interpolation_rbf_(sparse_map, resolution, function='linear').T
+        errors = self._generate_interpolation_rbf_(sparse_map, resolution, method='linear').T
 
         # resize the errors in range [0,1]
         errors = (errors - errors.min()) / (errors.max() - errors.min())
