@@ -15,7 +15,7 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from experiments.scripts.config import IMG_ERRORS_RESULTS_FILE_NAME
+from experiments.scripts.config import CONFIDENCE_ERRORS_RESULTS_FILE_NAME, IMG_ERRORS_RESULTS_FILE_NAME
 
 RESULTS_FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "t-SNE")
 
@@ -62,6 +62,51 @@ def errors_plot(folder=RESULTS_FOLDER):
     
     plt.show()
     
-def confidence_errors_plot(folder=RESULTS_FOLDER):
-    #TODO: Implement this function
-    pass
+def confidence_errors_plot(folder=RESULTS_FOLDER, interpolation_method = "linear"):
+    strategies_folders = os.listdir(folder)
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+    plt.title("Confidence errors vs Resolution")
+    
+    for dir in strategies_folders:
+        if dir == "none" or dir=="confidence_interpolation" or os.path.isfile(os.path.join(folder, dir)):
+            continue
+        
+        path = os.path.join(folder, dir, str(interpolation_method) + "_" + CONFIDENCE_ERRORS_RESULTS_FILE_NAME)
+        df = pd.read_csv(path)
+        df["RESOLUTION"] = df["RESOLUTION"].astype('int')
+        df = df.sort_values(by=["RESOLUTION"])
+        ax1.plot(df["RESOLUTION"], df["ERROR"], label=dir)
+        ax2.plot(df["RESOLUTION"], df["ERROR RATE"], label=dir)
+    
+    ax1.set_xlabel("Resolution")
+    ax1.set_ylabel("Error")
+    ax1.legend()
+    ax2.set_xlabel("Resolution")
+    ax2.set_ylabel("Error rate")
+    ax2.legend()
+    plt.savefig(os.path.join(RESULTS_FOLDER, "confidence_errors_experiment.png"))
+    
+    plt.show()
+    
+def confidence_errors_plot_for_confidence_interpolation():
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+    plt.title("Confidence errors vs Resolution")
+        
+    path = os.path.join(RESULTS_FOLDER, "confidence_interpolation", CONFIDENCE_ERRORS_RESULTS_FILE_NAME)
+    df = pd.read_csv(path)
+    df["RESOLUTION"] = df["RESOLUTION"].astype('int')
+    df = df.sort_values(by=["RESOLUTION"])
+    ax1.plot(df["RESOLUTION"], df["ERROR"], label="confidence interpolation strategy")
+    ax2.plot(df["RESOLUTION"], df["ERROR RATE"], label="confidence interpolation strategy")
+    
+    ax1.set_xlabel("Resolution")
+    ax1.set_ylabel("Error")
+    ax1.legend()
+    ax2.set_xlabel("Resolution")
+    ax2.set_ylabel("Error rate")
+    ax2.legend()
+    plt.savefig(os.path.join(RESULTS_FOLDER, "confidence_errors_experiment.png"))
+    
+    plt.show()
+    

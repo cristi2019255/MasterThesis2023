@@ -33,7 +33,7 @@ CLASSIFIER_PATH = os.path.join(TMP_FOLDER, DATASET_NAME, "classifier")
 LOAD_FOLDER = os.path.join(TMP_FOLDER, DATASET_NAME, DBM_TECHNIQUE)
 
 # ---------------------------------------------------
-FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_BASED
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION
 # ---------------------------------------------------
 
 RESOLUTION_RANGE = (50, 2000, 50)
@@ -109,7 +109,10 @@ def resolutions_run_times():
     # Run the generation of the boundary map for different resolutions
     for resolution in range(*RESOLUTION_RANGE):
         start = time.time()
-        img, img_confidence, confidence_map = DECODER[FAST_DECODING_STRATEGY](resolution)
+        if FAST_DECODING_STRATEGY != FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION:
+            img, img_confidence, confidence_map = DECODER[FAST_DECODING_STRATEGY](resolution)
+        else: 
+            img, img_confidence, confidence_map = dbm._get_img_dbm_fast_confidence_interpolation_strategy(resolution, blocks_resolution = 32)
         end = time.time()
         decoding_time = round(end - start, 3)
         print("Resolution: ", resolution, "Decoding time: ", decoding_time)

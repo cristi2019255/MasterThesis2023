@@ -580,6 +580,8 @@ class AbstractDBM:
             confidence_img[i, j] =  np.max(confidences)
             img[i, j] = int(label)
         
+        # apply brute force at the boundaries to get less errors
+        """
         self.console.log("Finding the pseudo boundaries")
         for (i, j) in np.ndindex(img.shape):
             label = img[i, j]
@@ -606,7 +608,7 @@ class AbstractDBM:
         for (i, j), label, conf in zip(pseudo_decision_boundary_indexes, predicted_labels, predicted_confidence):
             img[i, j] = int(label)
             confidence_img[i, j] = conf
-        
+        """
 
         return img, confidence_img, None
 

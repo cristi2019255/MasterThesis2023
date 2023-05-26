@@ -60,13 +60,13 @@ def compute_confidence_errors(folder=RESULTS_FOLDER, interpolation_method='linea
     strategies_folders = os.listdir(folder)
     ground_truth_img_folder = os.path.join(folder, "none", CONFIDENCE_FOLDER_NAME)
     for dir in strategies_folders:
-        if dir == "none" or os.path.isfile(os.path.join(folder, dir)):
+        if dir == "none" or dir=="confidence_interpolation" or os.path.isfile(os.path.join(folder, dir)):
             continue
         
         errors_file_path = os.path.join(folder, dir, interpolation_method + "_" + CONFIDENCE_ERRORS_RESULTS_FILE_NAME)
-        if os.path.isfile(errors_file_path):
-            print("WARNING: The experiment was already run. If you want to run it again, please delete the file: ", errors_file_path)
-            continue
+        #if os.path.isfile(errors_file_path):
+        #    print("WARNING: The experiment was already run. If you want to run it again, please delete the file: ", errors_file_path)
+        #    continue
         
         with open(errors_file_path, "w") as f:
             f.write("RESOLUTION,ERROR,ERROR RATE\n")
@@ -89,3 +89,28 @@ def compute_confidence_errors(folder=RESULTS_FOLDER, interpolation_method='linea
                 file.write(line)
     
     print("Confidence errors computed successfully")
+
+def compute_confidence_errors_for_confidence_interpolation():
+    conf_interpolation_folder = os.path.join(RESULTS_FOLDER, "confidence_interpolation", CONFIDENCE_FOLDER_NAME)
+    ground_truth_conf_img_folder = os.path.join(RESULTS_FOLDER, "none", CONFIDENCE_FOLDER_NAME)
+    
+    errors_file_path = os.path.join(RESULTS_FOLDER, "confidence_interpolation", CONFIDENCE_ERRORS_RESULTS_FILE_NAME)
+    with open(errors_file_path, "w") as f:
+            f.write("RESOLUTION,ERROR,ERROR RATE\n")
+      
+    confidence_names = os.listdir(conf_interpolation_folder)
+    for conf_img_name in confidence_names:
+        conf_img_path = os.path.join(conf_interpolation_folder, conf_img_name)
+        ground_truth_conf_img_path = os.path.join(ground_truth_conf_img_folder, conf_img_name)
+        with open(conf_img_path, "rb") as f:
+            conf_img = np.load(f)
+        with open(ground_truth_conf_img_path, "rb") as f:
+            ground_truth_conf_img = np.load(f)
+        
+        resolution = conf_img_name.split(".")[0]   
+        error, error_rate = compute_error(conf_img, ground_truth_conf_img, comparing_confidence=True)  
+        line = f"{resolution},{str(error)},{str(error_rate)}\n"
+        with open(errors_file_path, "a") as file:
+            file.write(line)
+    
+    print("Confidence errors for confidence_interpolation method computed successfully")

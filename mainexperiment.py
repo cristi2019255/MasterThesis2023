@@ -14,6 +14,8 @@
 
 import os
 from experiments import resolutions_run_times, compute_errors, resolutions_experiment_plot, errors_plot, compute_confidence_errors, compute_confidence_images, confidence_errors_plot
+from experiments.scripts.compute_errors import compute_confidence_errors_for_confidence_interpolation
+from experiments.scripts.plotter import confidence_errors_plot_for_confidence_interpolation
 
 # ---------------------------------------------------
 # INSTRUCTIONS:
@@ -59,7 +61,6 @@ from experiments import resolutions_run_times, compute_errors, resolutions_exper
 # EXPERIMENT 7: Run EXPERIMENT DATASET for all the datasets (MNIST, Fashion-MNIST, CIFAR-10, [placeholder for parasites dataset])
 #
 # EXPERIMENT 8: (Compute the confidence images for the different interpolation methods)
-# TODO: implement this experiment scripts
 #        1. Set the FOLDER to the corresponding folder for your dataset, dbm strategy, projection, fast decoding strategy
 #        2. Choose an interpolation method from the following list: 'linear', 'nearest', 'cubic'
 #        3. Run compute_confidence_images(folder=FOLDER, interpolation_method={interpolation_method}, resolutions=[250, 500, 1000]) from this file
@@ -67,13 +68,11 @@ from experiments import resolutions_run_times, compute_errors, resolutions_exper
 # OUTPUT: The confidence images will be saved in the folder: experiments/results/{dataset_name}/{dbm_strategy}/({projection})/{FAST_DECODING_STRATEGY}/confidence_images/{interpolation_method}/
 #
 # EXPERIMENT 9: (Compute errors for the different interpolation methods)
-# TODO: implement this experiment scripts
 #        1. Set the FOLDER to the corresponding folder for your dataset, dbm strategy, projection, fast decoding strategy and interpolation method
 #        2. Run compute_confidence_errors(folder=FOLDER, interpolation_method={interpolation_method}) from this file
 # OUTPUT: The confidence errors will be saved in the folder: experiments/results/{dataset_name}/{dbm_strategy}/({projection})/{FAST_DECODING_STRATEGY}/confidence_errors.txt
 #
 # EXPERIMENT 10: (Compute a plot to compare the errors for the different interpolation methods)
-# TODO: implement this experiment scripts
 #        1. Set the FOLDER to the corresponding folder for your dataset, dbm strategy, projection, fast decoding strategy
 #        2. Run confidence_errors_plot(folder=FOLDER) from this file
 # OUTPUT: The plot will be saved in the folder experiments/results/{dataset_name}/{dbm_strategy}/({projection})/{FAST_DECODING_STRATEGY}/confidence_errors.png
@@ -106,7 +105,10 @@ if __name__ == "__main__":
    # ---------------------------------------------------
    #                 EXPERIMENT 8-10
    # ---------------------------------------------------
-   folder = os.path.join(FOLDER, "confidence_split")
-   #compute_confidence_images(folder=folder, interpolation_method='linear', resolutions=[250, 500, 1000])
+   #compute_confidence_images(folder=os.path.join(FOLDER, "confidence_split"), interpolation_method='linear', resolutions=[50, 250, 500, 750, 1000, 1250, 1500, 1750, 1950])
+   #compute_confidence_images(folder=os.path.join(FOLDER, "binary_split"), interpolation_method='linear', resolutions=[50, 250, 500, 750, 1000, 1250, 1500, 1750, 1950])
+   #compute_confidence_errors_for_confidence_interpolation()
    #compute_confidence_errors(folder=FOLDER, interpolation_method='linear')
-   #confidence_errors_plot(folder=folder)
+   #confidence_errors_plot(folder=FOLDER, interpolation_method='linear')
+   confidence_errors_plot_for_confidence_interpolation()
+   
