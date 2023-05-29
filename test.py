@@ -23,7 +23,7 @@ from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset
 
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
-FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_BASED
 
 def import_data():
     # import the dataset

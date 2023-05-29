@@ -282,22 +282,6 @@ def get_split_position(x1: float, x2:float, bound: float, c11: float, c12: float
     
     return None
 
-@njit
-def get_split_position_v1(x1: float, x2: float, bound: float, c1, c2):
-    assert(x1 != x2)
-    c2 = -c2
-
-    a, b = (c1 - c2) / (x1 - x2), c1 - x1 * ((c1 - c2) / (x1 - x2)) 
-    
-    boundary = round( - b / a)
-
-    if (bound < x1) and (bound < boundary < x1):
-        return boundary
-    if (bound > x1) and (x1 < boundary < bound - 1):
-        return boundary
-    
-    return None
-
 def get_confidence_splits(img, conf_img, img_indexes, c_y, c_x, top, bottom, left, right):
     resolution = img.shape[0]
     i, j = int(c_y), int(c_x)
@@ -315,8 +299,7 @@ def get_confidence_splits(img, conf_img, img_indexes, c_y, c_x, top, bottom, lef
         new_label = img[k, j]
         (x, y) = img_indexes[k, j]
         if new_label != label:
-            #split = get_split_position(c_y, y, k, c11, conf_img[y, j][label], conf_img[i, j][new_label], conf_img[y, j][new_label])
-            split = get_split_position_v1(c_y, y, k, c11, conf_img[y, j][label])
+            split = get_split_position(c_y, y, k, c11, conf_img[y, j][label], conf_img[i, j][new_label], conf_img[y, j][new_label])
             if split is not None:
                 splits_y.append(split)
 
@@ -324,8 +307,7 @@ def get_confidence_splits(img, conf_img, img_indexes, c_y, c_x, top, bottom, lef
         new_label = img[i, k]
         (x, y) = img_indexes[i, k]
         if new_label != label:
-            #split = get_split_position(c_x, x, k, c11, conf_img[i, x][label], conf_img[i, j][new_label], conf_img[i, x][new_label])
-            split = get_split_position_v1(c_x, x, k, c11, conf_img[i, x][label])
+            split = get_split_position(c_x, x, k, c11, conf_img[i, x][label], conf_img[i, j][new_label], conf_img[i, x][new_label])
             if split is not None:
                 splits_x.append(split)
                 
