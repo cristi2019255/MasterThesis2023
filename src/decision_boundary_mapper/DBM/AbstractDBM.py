@@ -572,7 +572,6 @@ class AbstractDBM:
             
         img = np.zeros((resolution, resolution))
         confidence_img = np.zeros((resolution, resolution))
-        pseudo_decision_boundary_indexes = []
         self.console.log(f"Filling the decision boundary map using the interpolated confidence map")
         for (i, j) in np.ndindex(img.shape):
             confidences = img_confidence[i, j]
@@ -582,6 +581,7 @@ class AbstractDBM:
         
         # apply brute force at the boundaries to get less errors
         """
+        pseudo_decision_boundary_indexes = []
         self.console.log("Finding the pseudo boundaries")
         for (i, j) in np.ndindex(img.shape):
             label = img[i, j]
