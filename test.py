@@ -23,7 +23,7 @@ from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset
 
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
-FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_BASED
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION
 
 def import_data():
     # import the dataset
@@ -108,14 +108,14 @@ def test():
         
         img_path = "img_F.npy"
         img_confidence_path = "img_confidence_F.npy"
-
+        """
         start = time.time()
         img1, img_confidence1, _ = dbm._get_img_dbm_fast_confidence_interpolation_strategy(resolution, interpolation_method="cubic")
         end = time.time()
         print("Fast decoding time: ", end - start)
-        
+        """
         start = time.time()
-        img1, img_confidence1, _ = dbm._get_img_dbm_fast_confidence_interpolation_strategy(resolution, interpolation_method="cubic")
+        img1, img_confidence1, _ = dbm._get_img_dbm_fast_confidence_interpolation_strategy(resolution, interpolation_method="linear", initial_resolution=32)
         end = time.time()
         print("Fast decoding time: ", end - start)
 
@@ -181,9 +181,10 @@ def show_errors():
     with open(GROUND_TRUTH_FILE_PATH, "rb") as f:
         errors2 = np.load(f)
 
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-    ax1.imshow(errors)
-    ax2.imshow(errors2)
+    fig, ax1 = plt.subplots(1, 1)
+    ax1.imshow(errors, cmap='gray')
+    ax1.axis('off')
+    #ax2.imshow(errors2)
     
     errors_count = 0
     for i in range(errors.shape[0]):
@@ -238,6 +239,65 @@ def show_img(path):
         img = np.load(f)
     plt.imshow(img)
     plt.show()
+
+def show_grid():
+    fig, ax = plt.subplots(1,1)
+    x = np.linspace(0, 1, 4, endpoint=False)
+    y = np.linspace(0, 1, 4, endpoint=False)
+    xx, yy = np.meshgrid(x, y)
+    
+    ax.axis('off')
+    ax.scatter(xx, yy)
+    ax.scatter([0.5, 0.25, 0.25, 0.5], [0.5, 0.5, 0.25, 0.25], color='red')
+    ax.fill_between([0.5, 0.25], 0.5, 0.25, color='red', alpha=0.3)
+    ax.plot([0.25, 0.5], [0.5,0.5], 'r--')
+    ax.plot([0.25, 0.5], [0.25,0.25], 'r--')
+    ax.plot([0.5, 0.5], [0.25,0.5], 'r--')
+    ax.plot([0.25, 0.25], [0.25,0.5], 'r--')
+    ax.scatter([0.375], [0.375], color='black')
+    ax.plot()
+    
+    plt.show()
+
+def show_bilinear_interpolation():
+    
+    ax = plt.figure().add_subplot(projection='3d')
+    X = np.linspace(0, 1, 10)
+    Y = np.linspace(0, 1, 10)
+    X, Y = np.meshgrid(X, Y)
+    
+    z = np.random.random(4)
+    
+    
+    Z = (X + Y) * 0
+    ax.plot_surface(X, Y, Z, alpha=0.3, color='red')
+    ax.scatter([0, 0, 1, 1], [0, 1, 0, 1], [0,0, 0, 0], color='red')
+    ax.plot([0, 0], [0, 0], [0, z[0]], 'r--')
+    ax.plot([0, 0], [1, 1], [0, z[1]], 'r--')
+    ax.plot([1, 1], [0, 0], [0, z[2]], 'r--')
+    ax.plot([1, 1], [1, 1], [0, z[3]], 'r--')
+    
+    ax.scatter([0, 0, 1, 1], [0, 1, 0, 1], z, c='red')
+   
+    x = [0, 0, 1, 1]
+    y = [0, 1, 0, 1]
+    X = np.linspace(0, 1, 10)
+    Y = np.linspace(0, 1, 10)
+   
+    Z = interpolate.griddata((x, y), z, (X[None, :], Y[:, None]), method='linear')
+    X, Y = np.meshgrid(X, Y)
+   
+    ax.plot_surface(X, Y, Z, edgecolor='royalblue', alpha=0.3)
+    ax.scatter(X[5][5], Y[5][5], Z[5][5], c='black') 
+    ax.scatter(X[5][5], Y[5][5], 0, c='black') 
+    ax.plot([X[5][5], X[5][5]], [Y[5][5], Y[5][5]], [0, Z[5][5]], '--', color='black')
+    
+    ax.axis('off')
+    plt.show()
+    
+#show_bilinear_interpolation()
+#show_grid()
+
 
 #show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/DBM/t-SNE/FAST_DBM_STRATEGIES.NONE/img/50.npy")
 
