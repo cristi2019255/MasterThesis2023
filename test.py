@@ -258,6 +258,86 @@ def show_grid():
     ax.plot()
     
     plt.show()
+    
+def show_fig_3_10():
+    annotation_offset_x, annotation_offset_y = 0.05, 0.05
+    fontsize = 16
+ 
+    fig, ax = plt.subplots(1,1, figsize=(15,10))
+    #ax.axis("off")
+    ax.set_xlim((-1.8,1.8))
+    ax.set_ylim((-1.6,1.6))
+    ax.set_xticks([])
+    ax.set_yticks([])
+    
+    
+    central_point = (0,0)
+    neighbour_1 = (-1.1, 0)
+    neighbour_2 = (0, -1.1)
+    neighbour_3 = (0, 1.1)
+    neighbour_4 = (1.1, 0)
+    
+    ax.scatter([neighbour_1[0]],[neighbour_1[1]], color='magenta')
+    ax.annotate('label: 1\nconfidence:  0.87', xy=neighbour_1, 
+                xytext=(neighbour_1[0] - 12 * annotation_offset_x, neighbour_1[1] + 2 * annotation_offset_y), 
+                arrowprops=dict(fc='w', arrowstyle="-|>"), fontsize=fontsize,fontweight="bold")
+    
+    ax.scatter([neighbour_2[0]],[neighbour_2[1]], color='black')
+    ax.annotate('label: 2\nconfidence:  0.9', xy=neighbour_2, 
+                xytext=(neighbour_2[0] + 2 * annotation_offset_x, neighbour_2[1] - 2 * annotation_offset_y), 
+                arrowprops=dict(fc='w', arrowstyle="-|>"), fontsize=fontsize,fontweight="bold")
+    
+    
+    ax.scatter([neighbour_3[0]],[neighbour_3[1]], color='pink')
+    ax.annotate('label: 3\nconfidence:  0.67', xy=neighbour_3, 
+                xytext=(neighbour_3[0] + annotation_offset_x, neighbour_3[1] + annotation_offset_y), 
+                arrowprops=dict(fc='w', arrowstyle="-|>"), fontsize=fontsize,fontweight="bold")
+   
+    ax.scatter([neighbour_4[0]],[neighbour_4[1]], color='red')
+    ax.annotate('label: 4\nconfidence:  0.74', xy=neighbour_4, 
+                xytext=(neighbour_4[0], neighbour_4[1] + annotation_offset_y), 
+                arrowprops=dict(fc='w', arrowstyle="-|>"), fontsize=fontsize,fontweight="bold")
+    
+    # block box
+    ax.plot([-1,1], [-1,-1], 'r-')
+    ax.plot([-1,1], [1,1], 'r-')
+    
+    ax.plot([-1,-1], [-1,1], 'r-')
+    ax.plot([1,1], [-1,1], 'r-')
+    
+    # binary split
+    
+    ax.scatter([central_point[0]],[central_point[1]], color='blue')
+    ax.annotate('label: 0\nconfidence:  0.65', xy=central_point, 
+                xytext=(central_point[0] + annotation_offset_x, central_point[1] + annotation_offset_y), 
+                arrowprops=dict(fc='w', arrowstyle="-|>"), fontsize=fontsize, fontweight="bold")
+   
+    ax.plot([-1,1], [0,0], 'r-')
+    ax.plot([0,0], [-1,1], 'r-')
+    
+    # sub-blocks pixels
+    ax.scatter([0.5,-0.5,-0.5,0.5], [0.5,-0.5,0.5,-0.5], color='green')
+    
+    """
+    # confidence split
+    ax.scatter([central_point[0]],[central_point[1]], color='blue')
+    ax.annotate('label: 0\nconfidence:  0.65', xy=central_point, 
+                xytext=(central_point[0] - 6 * annotation_offset_x, central_point[1] - 6.5 * annotation_offset_y), 
+                arrowprops=dict(fc='w', arrowstyle="-|>"), fontsize=fontsize,fontweight="bold")
+    
+    ax.plot([-0.4,-0.4], [-1,1], 'r-')
+    ax.plot([0.5,0.5], [-1,1], 'r-')
+    
+    ax.plot([-1,1], [-0.4,-0.4], 'r-')
+    ax.plot([-1,1], [0.5,0.5], 'r-')
+    # sub-blocks pixels
+    ax.scatter([-0.7, 0.05, 0.75], [-0.7,-0.7,-0.7], color='green')
+    ax.scatter([-0.7, 0.05, 0.75], [0.05,0.05,0.05], color='green')
+    ax.scatter([-0.7, 0.05, 0.75], [0.75,0.75,0.75], color='green')
+    """
+    
+    ax.plot()
+    plt.show()    
 
 def show_bilinear_interpolation():
     
@@ -297,12 +377,12 @@ def show_bilinear_interpolation():
     
 #show_bilinear_interpolation()
 #show_grid()
-
+show_fig_3_10()
 
 #show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/DBM/t-SNE/FAST_DBM_STRATEGIES.NONE/img/50.npy")
 
-test()
-show_errors()
+#test()
+#show_errors()
 
 # test2()
 # test3()
