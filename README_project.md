@@ -14,12 +14,6 @@ If you want to use the functionalities directly from this repo the follow the ne
 2. Run the following command to start the application `python3 mainGUI.py`
 3. Run the following script to get an example of how the Decision Boundary Mapper works `python3 main.py`
 
-## :dart: Tasks to be done (This is for internal use only)
-
-1. Think about a way of how to upload the data to the GUI faster
-2. Solve the randering issue on Mac
-3. Check the confidence based algorithm
-
 ## For deveolpers
 
 1. each time doing a push to the repository run `autopep8 . --recursive --in-place` to automatically format the code
