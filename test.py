@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset
 
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+print("Num CPUs Available: ", len(tf.config.list_physical_devices('CPU')))
 
 FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION
 
@@ -84,8 +85,8 @@ def test():
                               X_test,
                               X2d_train,
                               X2d_test,
-                              resolution=10,
-                              fast_decoding_strategy=FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION,
+                              resolution=512,
+                              fast_decoding_strategy=FAST_DBM_STRATEGIES.NONE,
                               load_folder=os.path.join("tmp", "MNIST", "DBM"),
                               projection='t-SNE')
 
@@ -364,7 +365,7 @@ def show_bilinear_interpolation():
     X = np.linspace(0, 1, 10)
     Y = np.linspace(0, 1, 10)
    
-    Z = interpolate.griddata((x, y), z, (X[None, :], Y[:, None]), method='linear')
+    Z = interpolate.griddata((x, y), z, (X[None, :], Y[:, None]), method='cubic')
     X, Y = np.meshgrid(X, Y)
    
     ax.plot_surface(X, Y, Z, edgecolor='royalblue', alpha=0.3)
@@ -377,11 +378,11 @@ def show_bilinear_interpolation():
     
 #show_bilinear_interpolation()
 #show_grid()
-show_fig_3_10()
+#show_fig_3_10()
 
 #show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/DBM/t-SNE/FAST_DBM_STRATEGIES.NONE/img/50.npy")
 
-#test()
+test()
 #show_errors()
 
 # test2()
