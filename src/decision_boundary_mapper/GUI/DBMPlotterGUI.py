@@ -38,6 +38,7 @@ import matplotlib
 
 from .. import Logger, LoggerGUI, FAST_DBM_STRATEGIES
 from .DBMPlotterController import DBMPlotterController
+from .DBMPlotterController import EPOCHS_FOR_REFIT, EPOCHS_FOR_REFIT_RANGE
 from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, BLACK_COLOR, WHITE_COLOR, RED_COLOR, GREEN_COLOR, YELLOW_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2, APP_PRIMARY_COLOR, APP_FONT
 
 matplotlib.use("TkAgg")
@@ -239,6 +240,19 @@ class DBMPlotterGUI:
                             readonly=True,
                         ),
                     ],
+                    [   
+                        sg.Text(f"Number of epochs:", font=APP_FONT, key="-DBM RELABELING CLASSIFIER EPOCHS TEXT-"),
+                        sg.Slider(range=EPOCHS_FOR_REFIT_RANGE, 
+                               default_value=EPOCHS_FOR_REFIT, 
+                               expand_x=True, 
+                               enable_events=False,
+                               orientation='horizontal',
+                               trough_color=WHITE_COLOR,
+                               font=APP_FONT,
+                               #button_color=(WHITE_COLOR, APP_PRIMARY_COLOR),
+                               tooltip="Select the number of epochs for which \nthe classifier will be retrained.",
+                               key="-DBM RELABELING CLASSIFIER EPOCHS-")
+                    ],
                     [
                         sg.Button("Apply Changes", font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),
                         sg.Button("Undo Changes", font=APP_FONT, expand_x=True, key="-UNDO CHANGES-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),
@@ -367,8 +381,8 @@ class DBMPlotterGUI:
         # draw the figure to the canvas
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
        
-    def compute_classifier_metrics(self):
-        accuracy, loss = self.controller.compute_classifier_metrics()
+    def compute_classifier_metrics(self, epochs=None):
+        accuracy, loss = self.controller.compute_classifier_metrics(epochs)
         self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(100 * accuracy):.2f} %  Loss: {loss:.2f}")
         self.update_classifier_performance_canvas()
 
@@ -440,9 +454,9 @@ class DBMPlotterGUI:
         self.update_labels_by_circle_select = values["-CIRCLE SELECTING LABELS-"]
 
     def handle_apply_changes_event(self, event, values):
-        self.controller.apply_labels_changes(decoding_strategy=FAST_DBM_STRATEGIES(values["-DBM FAST DECODING STRATEGY-"]))
+        self.controller.apply_labels_changes(decoding_strategy=FAST_DBM_STRATEGIES(values["-DBM FAST DECODING STRATEGY-"]), epochs=int(values["-DBM RELABELING CLASSIFIER EPOCHS-"]))
         self.initialize()
-        self.compute_classifier_metrics()
+        self.compute_classifier_metrics(int(values["-DBM RELABELING CLASSIFIER EPOCHS-"]))
         self.handle_checkbox_change_event(event, values)
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
        

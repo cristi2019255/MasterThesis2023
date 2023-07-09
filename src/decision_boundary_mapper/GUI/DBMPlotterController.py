@@ -35,6 +35,7 @@ CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE = "classifier_old_boundary_map_confidence
 LABELS_CHANGES_FILE = "label_changes.json"
 
 EPOCHS_FOR_REFIT = 2
+EPOCHS_FOR_REFIT_RANGE = (1, 100)
 
 class DBMPlotterController:
     def __init__(self,
@@ -182,13 +183,13 @@ class DBMPlotterController:
                 line = line.strip()
                 if len(line) == 0:
                     continue
-                _, time, _, acc, _, _, loss = line.replace("\n", "").replace("%", "").split(" ")
+                _, time, _, acc, _, loss, _, _ = line.replace("\n", "").replace("%", "").split(" ")
                 times.append(time)
                 accuracies.append(float(acc))
                 losses.append(float(loss))
         return times, accuracies, losses
     
-    def compute_classifier_metrics(self):
+    def compute_classifier_metrics(self, epochs):
         self.console.log("Evaluating classifier...")
         loss, accuracy = self.dbm_model.classifier.evaluate(self.X_test, self.Y_test, verbose=0)
         self.console.log(f"Classifier Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.2f}")
@@ -197,7 +198,7 @@ class DBMPlotterController:
 
         with open(path, "a") as f:
             time = datetime.now().strftime("%D %H:%M:%S")
-            message = f"Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.2f}"
+            message = f"Accuracy: {(100 * accuracy):.2f}% Loss: {loss:.2f} Epochs: {epochs}"
             f.write(f"{time} {message}\n")
         return accuracy, loss
     
@@ -386,7 +387,7 @@ class DBMPlotterController:
         self.Y_train = Y_transformed
         self.initialize()
         
-    def apply_labels_changes(self, decoding_strategy):
+    def apply_labels_changes(self, decoding_strategy, epochs = None):
         num_changes = len(self.expert_updates_labels_mapper)
         if num_changes == 0:
             self.console.error("No changes to apply")
@@ -406,7 +407,7 @@ class DBMPlotterController:
         self.console.log("Saving changes to a local folder...")
         self.save_labels_changes(self.save_folder, label_changes=label_changes)
 
-        self.updates_logger.log("Applying changes... This might take a couple of seconds, after this the window will be closed")
+        self.updates_logger.log("Applying changes... This might take a couple of seconds...")
 
         save_folder = os.path.join(self.save_folder, CLASSIFIER_REFIT_FOLDER)
 
@@ -422,7 +423,12 @@ class DBMPlotterController:
         with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE), "wb") as f:
             np.save(f, self.img_confidence)
 
-        self.dbm_model.refit_classifier(self.X_train, Y_transformed, save_folder=save_folder, epochs=EPOCHS_FOR_REFIT)
+        if epochs is None:
+            epochs = EPOCHS_FOR_REFIT
+        
+        self.updates_logger.log(f"The classifier will be retrained for {epochs} epochs")
+
+        self.dbm_model.refit_classifier(self.X_train, Y_transformed, save_folder=save_folder, epochs=epochs)
         self.regenerate_boundary_map(Y_transformed, decoding_strategy)
         
     def set_dbm_model_logger(self, logger):
