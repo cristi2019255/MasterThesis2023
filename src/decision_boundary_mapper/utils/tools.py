@@ -39,7 +39,7 @@ def generate_class_name_mapper(file: str):
     with open(file, "r") as f:
         lines = f.readlines()
     for line in lines:
-        class_num, class_name = int(line.split(" ")[0]), line.split(" ")[1]
+        class_num, class_name = int(line.split(" ")[0]) - 1, line.split(" ")[1].replace("\n", "")
         mapper[class_num] = class_name
     
     def class_name_mapper(x: int):

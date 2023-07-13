@@ -36,6 +36,9 @@ DBM_CONFIDENCE_IMAGE_NAME = "boundary_map_confidence"
 
 PROJECTION_ERRORS_NEIGHBORS_NUMBER = 10
 
+DEFAULT_TRAINING_EPOCHS = 10
+DEFAULT_BATCH_SIZE = 128
+
 time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
 
 class FAST_DBM_STRATEGIES(Enum):

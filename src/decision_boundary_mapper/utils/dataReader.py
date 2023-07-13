@@ -68,12 +68,15 @@ def import_folder_dataset(dir:str, train_test_split = 0.8) -> tuple:
     console = Logger(name="Dataset importer")
     
     file_list = [os.path.join(dir, file) for file in os.listdir(dir)]
-    Y = np.array([int(fname.split("_")[0]) for fname in os.listdir(dir)]) 
+    Y = np.array([int(fname.split("_")[0]) - 1 for fname in os.listdir(dir)]) 
     X = np.array([np.array(Image.open(fname)) for fname in file_list])
     console.log(f"Dataset imported from {dir}")
     console.log(f"Dataset shape: X {X.shape}, Y {Y.shape}")
     
     size = len(Y)
+    #np.random.seed(42)
+    #indices = np.random.permutation(X.shape[0])
+    #X, Y = X[indices], Y[indices]
     (train_X, test_X) = X[:int(train_test_split*size)], X[int(train_test_split*size):]
     (train_Y, test_Y) = Y[:int(train_test_split*size)], Y[int(train_test_split*size):]
     

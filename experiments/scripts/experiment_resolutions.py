@@ -21,8 +21,8 @@ import time
 # ---------------------------------------------------
 # Prepare the configurations
 DATASET_NAME = 'MNIST'
-DBM_TECHNIQUE = 'DBM'
-PROJECTION = 'PCA'
+DBM_TECHNIQUE = 'SDBM'
+PROJECTION = 'UMAP'
 # ---------------------------------------------------
 
 
@@ -38,8 +38,8 @@ FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.NONE
 
 RESOLUTION_RANGE = (50, 2000, 50)
 
-RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, FAST_DECODING_STRATEGY.value)
-#RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, FAST_DECODING_STRATEGY.value) # the results folder for SDBM
+#RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, FAST_DECODING_STRATEGY.value)
+RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, FAST_DECODING_STRATEGY.value) # the results folder for SDBM
 CONFIDENCE_SUBFOLDER = os.path.join(RESULTS_FOLDER, "confidence")
 CONFIDENCE_MAP_SUBFOLDER = os.path.join(RESULTS_FOLDER, "confidence_map")
 IMG_SUBFOLDER = os.path.join(RESULTS_FOLDER, "img")

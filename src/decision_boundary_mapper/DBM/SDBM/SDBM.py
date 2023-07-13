@@ -19,7 +19,7 @@ from enum import Enum
 
 from .Autoencoder import Autoencoder
 from .SSNP import SSNP
-from ..AbstractDBM import AbstractDBM, DBM_DEFAULT_RESOLUTION, FAST_DBM_STRATEGIES
+from ..AbstractDBM import AbstractDBM, DBM_DEFAULT_RESOLUTION, DEFAULT_TRAINING_EPOCHS, DEFAULT_BATCH_SIZE, FAST_DBM_STRATEGIES
 
 from ...utils import track_time_wrapper, TEST_DATA_POINT_MARKER, TRAIN_DATA_POINT_MARKER
 from ...Logger import LoggerInterface, Logger
@@ -69,7 +69,7 @@ class SDBM(AbstractDBM):
     def fit(self,
             X: np.ndarray, Y: np.ndarray,
             architecture: NNArchitecture = NNArchitecture.AUTOENCODER,
-            epochs: int = 300, batch_size: int = 32,
+            epochs: int = DEFAULT_TRAINING_EPOCHS, batch_size: int = DEFAULT_BATCH_SIZE,
             load_folder: str = DEFAULT_MODEL_PATH):
         """
         Train a neural network that will contain the direct projection and the inverse projection.
@@ -99,8 +99,8 @@ class SDBM(AbstractDBM):
     def generate_boundary_map(self,
                               X_train: np.ndarray, Y_train: np.ndarray,
                               X_test: np.ndarray, Y_test: np.ndarray,
-                              nn_train_epochs: int = 300, 
-                              nn_train_batch_size: int = 32,
+                              nn_train_epochs: int = DEFAULT_TRAINING_EPOCHS, 
+                              nn_train_batch_size: int = DEFAULT_BATCH_SIZE,
                               nn_architecture: NNArchitecture = NNArchitecture.AUTOENCODER,
                               resolution: int = DBM_DEFAULT_RESOLUTION,
                               fast_decoding_strategy: FAST_DBM_STRATEGIES = FAST_DBM_STRATEGIES.NONE,

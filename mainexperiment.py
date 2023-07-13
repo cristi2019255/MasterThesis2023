@@ -88,7 +88,7 @@ from experiments.scripts.plotter import confidence_errors_plot_for_confidence_in
 # ---------------------------------------------------
 
 
-FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "PCA")
+FOLDER = os.path.join("experiments", "results", "MNIST", "SDBM")
 
 # ---------------------------------------------------
 #                 RUN THE EXPERIMENT(S)

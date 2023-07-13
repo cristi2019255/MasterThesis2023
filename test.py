@@ -19,7 +19,7 @@ import os
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset
+from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset, import_folder_dataset
 
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 print("Num CPUs Available: ", len(tf.config.list_physical_devices('CPU')))
@@ -380,7 +380,8 @@ def show_bilinear_interpolation():
 #show_grid()
 #show_fig_3_10()
 
-show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/DBM/UMAP/none/img/150.npy")
+show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/SDBM/none/img/200.npy")
+#import_folder_dataset("./data/parasites_focus_plane_divided/larvas/resized")
 
 #test()
 #show_errors()

@@ -94,6 +94,12 @@ class GUI:
                     ],
                     [
                        sg.pin(sg.Column([
+                            [sg.Text(key="-DATA FOLDER TOUT-", font=APP_FONT, expand_x=True)],
+                           ], key="-DATA FOLDER TOUT PIN-", visible=False, expand_x=True), 
+                        shrink=True, expand_x=True), 
+                    ],
+                    [
+                       sg.pin(sg.Column([
                             [sg.Text(key="-DATA FILE TOUT-", font=APP_FONT, expand_x=True)],
                            ], key="-DATA FILE TOUT PIN-", visible=False, expand_x=True), 
                         shrink=True, expand_x=True), 
@@ -109,12 +115,13 @@ class GUI:
                         sg.Button("Upload train data for DBM", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD TRAIN DATA BTN-"),
                         sg.Button("Upload test data for DBM", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD TEST DATA BTN-"),
                     ],
+                    [
+                        sg.Button("Upload Data set as folder", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD FOLDER DATASET BTN-"),
+                    ],
+            
                 ], "-UPLOAD DATA COLLAPSABLE-", "Upload the dataset from a folder", collapsed=True, visible=True), 
             ],
             [ sg.HSeparator() ],
-            [
-                sg.Button("Upload Data set as folder", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD FOLDER DATASET BTN-"),
-            ],
             [
                 sg.Text("Training data file: ", font=APP_FONT, key="-TRAIN DATA FILE-",  expand_x=True),
             ],
@@ -339,6 +346,8 @@ class GUI:
         
     def handle_select_data_folder_event(self, event, values):
         folder = values["-DATA FOLDER-"]
+        self.window["-DATA FOLDER TOUT-"].update(folder)
+        self.switch_visibility(["-DATA FOLDER TOUT PIN-"], True)
         files = self.controller.handle_select_data_folder(folder)
         self.window["-DATA FILE LIST-"].update(files)
         

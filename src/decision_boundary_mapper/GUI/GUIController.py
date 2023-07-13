@@ -216,8 +216,8 @@ class GUIController:
         self._post_uploading_processing_()
     
     def handle_upload_folder_dataset_event(self, event, values):
-        folder = values["-DATA 2D FOLDER-"]
-        self.dataset_name = "".join(folder.split(os.sep)[:-2])
+        folder = values["-DATA FOLDER-"]
+        self.dataset_name = "_".join(folder.split(os.sep)[-2:])
         (X_train, Y_train), (X_test, Y_test) = import_folder_dataset(folder)
 
         X_train = X_train.astype('float32') / 255
