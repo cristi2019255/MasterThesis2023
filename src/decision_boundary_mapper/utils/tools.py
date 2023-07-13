@@ -33,3 +33,15 @@ def track_time_wrapper(logger: LoggerInterface | None = None):
             return result
         return wrapper
     return function_wrapper
+
+def generate_class_name_mapper(file: str):
+    mapper = {}
+    with open(file, "r") as f:
+        lines = f.readlines()
+    for line in lines:
+        class_num, class_name = int(line.split(" ")[0]), line.split(" ")[1]
+        mapper[class_num] = class_name
+    
+    def class_name_mapper(x: int):
+        return mapper[x]
+    return class_name_mapper

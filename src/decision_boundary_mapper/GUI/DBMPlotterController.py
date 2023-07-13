@@ -123,7 +123,7 @@ class DBMPlotterController:
             img (np.ndarray): Label image.
             img_confidence (np.ndarray): Confidence image.
             colors_mapper (dict): Mapper of labels to colors.
-            class_name_mapper (function, optional): Describes how to map the data labels. Defaults to lambdax:str(x).
+            class_name_mapper (function, optional): Describes how to map the data labels. Defaults to lambda x:str(x).
             
         Returns:
             np.ndarray: The combined image.

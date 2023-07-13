@@ -21,7 +21,7 @@ import numpy as np
 from .DBMPlotterGUI import DBMPlotterGUI
 from ..DBM import SDBM, DBM, NNArchitecture
 from ..Logger import Logger
-from ..utils import import_dataset, import_mnist_dataset, import_cifar10_dataset, import_fashion_mnist_dataset, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME
+from ..utils import import_dataset, import_mnist_dataset, import_cifar10_dataset, import_fashion_mnist_dataset, import_folder_dataset, generate_class_name_mapper, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME
 
 DBM_NNINV_TECHNIQUE = "nnInv"
 SDBM_SSNP_TECHNIQUE = "ssnp"
@@ -83,7 +83,8 @@ class GUIController:
         self.classifier = None
         
         # --------------- Others ---------------------
-        self.data_shape = (28, 28) # this is the shape of the data, it is used to reshape the data when importing it
+        self.data_shape = (28, 28) # this is the shape of the data, it is used to reshape the data when importing it from a csv file
+        self.class_names_mapper = lambda x: str(x)
        
     def stop(self):
         self.logger.log("Clearing resources...")
@@ -214,6 +215,21 @@ class GUIController:
         self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
         self._post_uploading_processing_()
     
+    def handle_upload_folder_dataset_event(self, event, values):
+        folder = values["-DATA 2D FOLDER-"]
+        self.dataset_name = "".join(folder.split(os.sep)[:-2])
+        (X_train, Y_train), (X_test, Y_test) = import_folder_dataset(folder)
+
+        X_train = X_train.astype('float32') / 255
+        X_test = X_test.astype('float32') / 255
+
+        self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
+        
+        self.class_names_mapper = generate_class_name_mapper(os.path.join(folder, "..", "classes.txt"))
+        
+        self._post_uploading_processing_()
+
+    
     def _post_uploading_processing_(self):
         self.num_classes = np.unique(self.Y_train).shape[0]
 
@@ -322,5 +338,6 @@ class GUIController:
             main_gui=self.gui,  # reference to the main GUI
             save_folder=save_folder,
             projection_technique=projection_technique,
+            class_name_mapper=self.class_names_mapper
         )
         

@@ -114,6 +114,7 @@ class DBMPlotterGUI:
                  projection_technique=None,
                  logger=None,
                  main_gui=None,
+                 class_name_mapper= lambda x: str(x)
                  ):
         """[summary] DBMPlotterGUI is a GUI that allows the user to visualize the decision boundary map and the errors of the DBM model.
         It also allows the user to change the labels of the data points and see the impact of the changes on the model.
@@ -133,9 +134,11 @@ class DBMPlotterGUI:
             projection_technique (string, optional): The projection technique the user wants to use if DBM is used as dbm_model. Defaults to None.
             logger (Logger, optional): The logger which is meant for logging the info messages. Defaults to None.
             main_gui (GUI, optional): The GUI that started the DBMPlotterGUI if any. Defaults to None.
+            class_name_mapper (function, optional): The function which is meant for mapping class names to their corresponding values. Defaults to lambda x -> str(x).
         """
         
         self.main_gui = main_gui  # reference to main window
+        self.class_name_mapper = class_name_mapper
         if logger is None:
             self.console = Logger(name="DBMPlotterGUI")
         else:
@@ -154,7 +157,7 @@ class DBMPlotterGUI:
         
 
     def initialize(self):
-        self.color_img, legend = self.controller.build_2D_image(colors_mapper=COLORS_MAPPER)
+        self.color_img, legend = self.controller.build_2D_image(colors_mapper=COLORS_MAPPER, class_name_mapper=self.class_name_mapper)
         # --------------------- Plotter related ---------------------
         self.classifier_performance_fig, self.classifier_performance_ax = self._build_plot_()
         self.fig, self.ax = self._build_plot_()

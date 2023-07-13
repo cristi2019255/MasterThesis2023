@@ -16,6 +16,7 @@ import numpy as np
 from keras.datasets import fashion_mnist, mnist, cifar10
 import os
 import pandas as pd
+from PIL import Image
 
 from .. import Logger
 
@@ -63,6 +64,24 @@ def import_cifar10_dataset() -> tuple:
     console.log(f"Test set: {test_X.shape}")
     return (train_X, train_y), (test_X, test_y)
 
+def import_folder_dataset(dir:str, train_test_split = 0.8) -> tuple:
+    console = Logger(name="Dataset importer")
+    
+    file_list = [os.path.join(dir, file) for file in os.listdir(dir)]
+    Y = np.array([int(fname.split("_")[0]) for fname in os.listdir(dir)]) 
+    X = np.array([np.array(Image.open(fname)) for fname in file_list])
+    console.log(f"Dataset imported from {dir}")
+    console.log(f"Dataset shape: X {X.shape}, Y {Y.shape}")
+    
+    size = len(Y)
+    (train_X, test_X) = X[:int(train_test_split*size)], X[int(train_test_split*size):]
+    (train_Y, test_Y) = Y[:int(train_test_split*size)], Y[int(train_test_split*size):]
+    
+    console.log(f"Train set: {train_X.shape}")
+    console.log(f"Test set: {test_X.shape}")
+    return (train_X, train_Y), (test_X, test_Y)
+
+    
 def import_dataset(file_path:str,
                    labels_index: int | None = 0,
                    limit: int | None = None,

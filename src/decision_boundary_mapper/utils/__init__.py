@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .dataReader import import_dataset, import_mnist_dataset, import_cifar10_dataset, import_fashion_mnist_dataset
-from .tools import track_time_wrapper
+from .dataReader import import_dataset, import_mnist_dataset, import_cifar10_dataset, import_fashion_mnist_dataset, import_folder_dataset
+from .tools import track_time_wrapper, generate_class_name_mapper
 from .config import *

@@ -74,7 +74,7 @@ class GUI:
             [
                 sg.Button("Upload CIFAR10 Data set", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD CIFAR10 DATA BTN-"),
             ],
-            [ sg.HSeparator()],
+            [ sg.HSeparator() ],
             [
                 Collapsible([
                     [
@@ -111,7 +111,10 @@ class GUI:
                     ],
                 ], "-UPLOAD DATA COLLAPSABLE-", "Upload the dataset from a folder", collapsed=True, visible=True), 
             ],
-            [ sg.HSeparator()],
+            [ sg.HSeparator() ],
+            [
+                sg.Button("Upload Data set as folder", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD FOLDER DATASET BTN-"),
+            ],
             [
                 sg.Text("Training data file: ", font=APP_FONT, key="-TRAIN DATA FILE-",  expand_x=True),
             ],
@@ -310,6 +313,8 @@ class GUI:
             "-UPLOAD MNIST DATA BTN-": self.controller.handle_upload_known_data_event,
             "-UPLOAD FASHION MNIST DATA BTN-": self.controller.handle_upload_known_data_event,
             "-UPLOAD CIFAR10 DATA BTN-": self.controller.handle_upload_known_data_event,
+            "-UPLOAD FOLDER DATASET BTN-": self.controller.handle_upload_folder_dataset_event,
+            
             "-UPLOAD CLASSIFIER-": self.controller.handle_upload_classifier_event,
             
             # collapsable components
