@@ -14,15 +14,15 @@
 
 import os
 from .utils import import_2d_data, import_data, import_dbm, experiment, save_result
-from src import FAST_DBM_STRATEGIES
+from src import FAST_DBM_STRATEGIES, NNArchitecture
 import time
 
-# WARNING: !!! for now we only use the DBM !!!
+# WARNING: !!! If you change the DBM_TECHNIQUE make sure the RESULTS_FOLDER set correctly !!!
 # ---------------------------------------------------
 # Prepare the configurations
 DATASET_NAME = 'MNIST'
 DBM_TECHNIQUE = 'DBM'
-PROJECTION = 't-SNE'
+PROJECTION = 'PCA'
 # ---------------------------------------------------
 
 
@@ -33,12 +33,13 @@ CLASSIFIER_PATH = os.path.join(TMP_FOLDER, DATASET_NAME, "classifier")
 LOAD_FOLDER = os.path.join(TMP_FOLDER, DATASET_NAME, DBM_TECHNIQUE)
 
 # ---------------------------------------------------
-FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.NONE
 # ---------------------------------------------------
 
 RESOLUTION_RANGE = (50, 2000, 50)
 
 RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, FAST_DECODING_STRATEGY.value)
+#RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, FAST_DECODING_STRATEGY.value) # the results folder for SDBM
 CONFIDENCE_SUBFOLDER = os.path.join(RESULTS_FOLDER, "confidence")
 CONFIDENCE_MAP_SUBFOLDER = os.path.join(RESULTS_FOLDER, "confidence_map")
 IMG_SUBFOLDER = os.path.join(RESULTS_FOLDER, "img")
@@ -70,24 +71,31 @@ def resolutions_run_times():
     # ---------------------------------------------------
     
     # Prepare the data    
-    X_train, X_test, _, _ = import_data(dataset_name=DATASET_NAME)
-    X2d_train, X2d_test = import_2d_data(train_2d_path=TRAIN_2D_PATH, test_2d_path=TEST_2D_PATH)
+    X_train, X_test, Y_train, Y_test = import_data(dataset_name=DATASET_NAME)
     
     # Prepare the DBM
     dbm = import_dbm(dbm_technique=DBM_TECHNIQUE, classifier_path=CLASSIFIER_PATH)
     
-  
-    # Run the generation of the boundary map first time to upload the decoding model
-    dbm.generate_boundary_map(X_train,
-                              X_test,
-                              X2d_train,
-                              X2d_test,
-                              resolution=10,
-                              fast_decoding_strategy=FAST_DBM_STRATEGIES.NONE,
-                              load_folder=LOAD_FOLDER,
-                              projection='t-SNE')
+    # Run the generation of the boundary map first time to upload the decoding model    
+    if DBM_TECHNIQUE == 'DBM':
+        X2d_train, X2d_test = import_2d_data(train_2d_path=TRAIN_2D_PATH, test_2d_path=TEST_2D_PATH)
+        dbm.generate_boundary_map(X_train,
+                                X_test,
+                                X2d_train,
+                                X2d_test,
+                                resolution=10,
+                                fast_decoding_strategy=FAST_DBM_STRATEGIES.NONE,
+                                load_folder=LOAD_FOLDER,
+                                projection=PROJECTION
+                            )
+    else:
+        dbm.generate_boundary_map(X_train, Y_train,
+                                  X_test, Y_test,
+                                  nn_architecture=NNArchitecture.SSNP,
+                                  load_folder=LOAD_FOLDER,
+                                  resolution=10
+                                )
 
-    
     DECODER = {
         FAST_DBM_STRATEGIES.BINARY: dbm._get_img_dbm_fast_,
         FAST_DBM_STRATEGIES.CONFIDENCE_BASED: dbm._get_img_dbm_fast_confidences_strategy,
@@ -112,7 +120,7 @@ def resolutions_run_times():
         if FAST_DECODING_STRATEGY != FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION:
             img, img_confidence, confidence_map = DECODER[FAST_DECODING_STRATEGY](resolution)
         else: 
-            img, img_confidence, confidence_map = dbm._get_img_dbm_fast_confidence_interpolation_strategy(resolution, blocks_resolution = 32)
+            img, img_confidence, confidence_map = dbm._get_img_dbm_fast_confidence_interpolation_strategy(resolution, initial_resolution = 32)
         end = time.time()
         decoding_time = round(end - start, 3)
         print("Resolution: ", resolution, "Decoding time: ", decoding_time)

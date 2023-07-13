@@ -21,13 +21,17 @@ RESULTS_FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "t-SNE")
 
 def resolutions_experiment_plot(folder=RESULTS_FOLDER):
     strategies_folders = os.listdir(folder)
+    #strategies_folders = ["none", "confidence_interpolation"]
     
     for dir in strategies_folders:
         if os.path.isfile(os.path.join(folder, dir)):
             continue
         path = os.path.join(folder, dir, "experiment_results.txt")
         df = pd.read_csv(path)
-        plt.plot(df["RESOLUTION"], df["TIME"], label=dir)
+        label = dir
+        if dir == "none":
+            label = "dummy_dbm"            
+        plt.plot(df["RESOLUTION"], df["TIME"], label=label)
     
     plt.title("Resolutions experiment")
     plt.xlabel("Resolution")
@@ -38,6 +42,7 @@ def resolutions_experiment_plot(folder=RESULTS_FOLDER):
     
 def errors_plot(folder=RESULTS_FOLDER):
     strategies_folders = os.listdir(folder)
+    #strategies_folders = ["none", "confidence_interpolation"]
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
     plt.title("Errors vs Resolution")
@@ -64,6 +69,7 @@ def errors_plot(folder=RESULTS_FOLDER):
     
 def confidence_errors_plot(folder=RESULTS_FOLDER, interpolation_method = "linear"):
     strategies_folders = os.listdir(folder)
+    #strategies_folders = ["none", "binary_split"]
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
     plt.title("Confidence errors vs Resolution")

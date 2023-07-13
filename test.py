@@ -380,9 +380,9 @@ def show_bilinear_interpolation():
 #show_grid()
 #show_fig_3_10()
 
-#show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/DBM/t-SNE/FAST_DBM_STRATEGIES.NONE/img/50.npy")
+show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/DBM/UMAP/none/img/150.npy")
 
-test()
+#test()
 #show_errors()
 
 # test2()

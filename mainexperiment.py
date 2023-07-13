@@ -88,7 +88,7 @@ from experiments.scripts.plotter import confidence_errors_plot_for_confidence_in
 # ---------------------------------------------------
 
 
-FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "t-SNE")
+FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "PCA")
 
 # ---------------------------------------------------
 #                 RUN THE EXPERIMENT(S)
@@ -97,7 +97,7 @@ if __name__ == "__main__":
    # ---------------------------------------------------
    #                 EXPERIMENT 1-4-5-6-7
    # ---------------------------------------------------
-   #resolutions_run_times()
+   resolutions_run_times()
    #resolutions_experiment_plot(folder=FOLDER)
    #compute_errors(folder=FOLDER)
    #errors_plot(folder=FOLDER)
@@ -110,5 +110,5 @@ if __name__ == "__main__":
    #compute_confidence_errors_for_confidence_interpolation()
    #compute_confidence_errors(folder=FOLDER, interpolation_method='linear')
    #confidence_errors_plot(folder=FOLDER, interpolation_method='linear')
-   confidence_errors_plot_for_confidence_interpolation()
+   #confidence_errors_plot_for_confidence_interpolation()
    
