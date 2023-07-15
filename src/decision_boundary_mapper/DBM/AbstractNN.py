@@ -63,7 +63,7 @@ class AbstractNN:
         try:
             self.load()
         except Exception as e:
-            self.console.error("Error loading the model: {}".format(e))
+            self.console.warn("Model not found, {}".format(e))
             self.console.warn("The model will be built and trained from scratch.")
 
     def load(self):

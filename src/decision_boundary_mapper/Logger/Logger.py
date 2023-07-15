@@ -39,7 +39,7 @@ class Logger(LoggerInterface):
 
         if show_init:
             sep = "=" * 30
-            time = datetime.now().strftime("%H:%M:%S:%f")
+            time = datetime.now().strftime("%H:%M:%S")
             print(colored(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color))
             print(colored(f"[INFO] [{time}] [{self.name}] {self.name} initialized", self.info_color))
             print(colored(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color))
@@ -50,25 +50,25 @@ class Logger(LoggerInterface):
                 message (str): the message to log
         """
         if self.active:
-            time = datetime.now().strftime("%H:%M:%S:%f")
+            time = datetime.now().strftime("%H:%M:%S")
             print(colored(f"[INFO] [{time}] [{self.name}] {message}", self.info_color))
 
     def warn(self, message: str):
         if self.active:
-            time = datetime.now().strftime("%H:%M:%S:%f")
+            time = datetime.now().strftime("%H:%M:%S")
             print(colored(f"[WARNING] [{time}] [{self.name}] {message}", "yellow"))
 
     def error(self, message: str):
         if self.active:
-            time = datetime.now().strftime("%H:%M:%S:%f")
+            time = datetime.now().strftime("%H:%M:%S")
             print(colored(f"[ERROR] [{time}] [{self.name}] {message}", "red"))
 
     def debug(self, message: str):
         if self.active:
-            time = datetime.now().strftime("%H:%M:%S:%f")
+            time = datetime.now().strftime("%H:%M:%S")
             print(colored(f"[DEBUG] [{time}] [{self.name}] {message}", "blue"))
 
     def success(self, message: str):
         if self.active:
-            time = datetime.now().strftime("%H:%M:%S:%f")
+            time = datetime.now().strftime("%H:%M:%S")
             print(colored(f"[SUCCESS] [{time}] [{self.name}] {message}", "green"))

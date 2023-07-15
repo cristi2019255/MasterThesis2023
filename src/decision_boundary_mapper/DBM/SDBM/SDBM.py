@@ -88,11 +88,11 @@ class SDBM(AbstractDBM):
         """
         match architecture:
             case NNArchitecture.SSNP:
-                ssnp = SSNP(folder_path=load_folder)
+                ssnp = SSNP(folder_path=load_folder, logger=self.console)
                 ssnp.fit(X, Y, epochs, batch_size)
                 return ssnp
             case _:
-                autoencoder = Autoencoder(folder_path=load_folder)
+                autoencoder = Autoencoder(folder_path=load_folder, logger=self.console)
                 autoencoder.fit(X, epochs, batch_size)
                 return autoencoder
 

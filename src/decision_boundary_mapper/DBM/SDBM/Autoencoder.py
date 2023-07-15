@@ -94,7 +94,7 @@ class Autoencoder(AbstractNN):
                                     metrics=["accuracy"])
 
         if show_summary:
-            self.neural_network.summary()
+            self.neural_network.summary(print_fn=self.console.log)
 
     def fit(self, X: np.ndarray,
             epochs: int = 10,
@@ -117,7 +117,7 @@ class Autoencoder(AbstractNN):
         self.__build__(input_shape=X.shape[1:], show_summary=True)
 
         stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=20, restore_best_weights=True)
-        logger_callback = LoggerModel(name=AUTOENCODER_NAME, show_init=False, epochs=epochs)
+        logger_callback = LoggerModel(name=AUTOENCODER_NAME, show_init=False, epochs=epochs, print_fn=self.console.log)
 
         self.console.log("Fitting model...")
 

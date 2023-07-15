@@ -106,7 +106,7 @@ class SSNP(AbstractNN):
                                     metrics={DECODER_NAME: "accuracy", CLASSIFIER_NAME: "accuracy"})
 
         if show_summary:
-            self.neural_network.summary()
+            self.neural_network.summary(print_fn=self.console.log)
 
     def fit(self, X: np.ndarray, Y: np.ndarray,
             epochs: int = 10, batch_size: int = 128):
@@ -129,7 +129,7 @@ class SSNP(AbstractNN):
         self.__build__(input_shape=X.shape[1:], num_classes=num_classes, show_summary=True)
 
         stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=20, restore_best_weights=True)
-        logger_callback = LoggerModel(name=SSNP_NAME, show_init=False, epochs=epochs)
+        logger_callback = LoggerModel(name=SSNP_NAME, show_init=False, epochs=epochs, print_fn=self.console.log)
 
         self.console.log("Fitting model...")
 

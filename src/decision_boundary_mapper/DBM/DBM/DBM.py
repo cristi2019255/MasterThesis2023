@@ -75,7 +75,7 @@ class DBM(AbstractDBM):
             inverse_porjection_NN (NNInv): The trained inverse projection neural network.
         """
 
-        inverse_projection_NN = NNInv(folder_path=load_folder)
+        inverse_projection_NN = NNInv(folder_path=load_folder, logger=self.console)
         inverse_projection_NN.fit(X2d, Xnd,
                                   epochs=epochs,
                                   batch_size=batch_size)
