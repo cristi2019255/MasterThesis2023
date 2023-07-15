@@ -474,6 +474,8 @@ class DBMPlotterController:
             x_data, y_data = find_data_point(i, j)
             if x_data is not None:
                 annImage.set_visible(True)
+                resize_factor = int(len(x_data) / 50 + 1)
+                annImage.xybox = (50. * ws * resize_factor, 50. * hs * resize_factor)
                 image.set_data(x_data)
             else:
                 annImage.set_visible(False)

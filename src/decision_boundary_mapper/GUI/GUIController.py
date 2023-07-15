@@ -238,7 +238,9 @@ class GUIController:
 
         self.window["-TEST DATA FILE-"].update(f"Testing data: {self.dataset_name}")
         self.window["-TEST DATA SHAPE-"].update(f"Testing data shape: X {self.X_test.shape} Y {self.Y_test.shape}")
-
+        
+        self.window["-UPLOAD DATA COLLAPSABLE-"].update(visible=False)
+        
         if self.classifier is not None:
             self.switch_visibility(["-DBM BTN-"], True)
 
