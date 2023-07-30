@@ -26,6 +26,18 @@ def resize_images(dir:str, shape:int = 28):
         new_filename = os.path.join(resized_dir, f)
         img = Image.open(os.path.join(dir, f))
         resized_img = img.resize((shape, shape))
-        resized_img.save(new_filename)    
+        resized_img.save(new_filename) 
+        
+def convert_to_grayscale_images(dir:str):
+    grayscale_dir = dir + "_grayscale"
+    if not os.path.exists(grayscale_dir):
+        os.makedirs(grayscale_dir)
+    
+    for f in os.listdir(dir):
+        new_filename = os.path.join(grayscale_dir, f)
+        grayscale_img = Image.open(os.path.join(dir, f)).convert('L')
+        grayscale_img.save(new_filename)
+    
 
-resize_images('./data/parasites_focus_plane_divided/proto/resized', shape=64)
+resize_images('./data/parasites_focus_plane_divided/proto/resized', shape=28)
+#convert_to_grayscale_images('./data/parasites_focus_plane_divided/proto/resized_64')

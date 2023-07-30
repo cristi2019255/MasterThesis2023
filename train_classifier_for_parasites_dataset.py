@@ -18,13 +18,19 @@ import os
 from src.decision_boundary_mapper.utils.dataReader import import_folder_dataset
 
 CLASSIFIER_NAME = 'classifier'
-SAVE_FOLDER = os.path.join("tmp","ovos_resized_64", CLASSIFIER_NAME)
 FOLDER = './data/parasites_focus_plane_divided/ovos/resized_64'
+DATASET_NAME = "_".join(FOLDER.split(os.sep)[-2:])
+SAVE_FOLDER = os.path.join("tmp", DATASET_NAME, CLASSIFIER_NAME)
+
 
 if not os.path.exists(SAVE_FOLDER):
     os.makedirs(SAVE_FOLDER)
 
 (X_train, Y_train), (X_test, Y_test) = import_folder_dataset(FOLDER)
+
+X_train = X_train.astype("float32") / 255
+X_test = X_test.astype("float32") / 255
+
 num_classes = len(np.unique(Y_train))
 print('Number of classes: ', num_classes)
 
