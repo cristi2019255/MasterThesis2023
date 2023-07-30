@@ -90,11 +90,11 @@ def compute_confidence_errors(folder=RESULTS_FOLDER, interpolation_method='linea
     
     print("Confidence errors computed successfully")
 
-def compute_confidence_errors_for_confidence_interpolation():
-    conf_interpolation_folder = os.path.join(RESULTS_FOLDER, "confidence_interpolation", CONFIDENCE_FOLDER_NAME)
-    ground_truth_conf_img_folder = os.path.join(RESULTS_FOLDER, "none", CONFIDENCE_FOLDER_NAME)
+def compute_confidence_errors_for_confidence_interpolation(folder=RESULTS_FOLDER):
+    conf_interpolation_folder = os.path.join(folder, "confidence_interpolation", CONFIDENCE_FOLDER_NAME)
+    ground_truth_conf_img_folder = os.path.join(folder, "none", CONFIDENCE_FOLDER_NAME)
     
-    errors_file_path = os.path.join(RESULTS_FOLDER, "confidence_interpolation", CONFIDENCE_ERRORS_RESULTS_FILE_NAME)
+    errors_file_path = os.path.join(folder, "confidence_interpolation", CONFIDENCE_ERRORS_RESULTS_FILE_NAME)
     with open(errors_file_path, "w") as f:
             f.write("RESOLUTION,ERROR,ERROR RATE\n")
       

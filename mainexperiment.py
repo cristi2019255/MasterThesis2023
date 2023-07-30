@@ -88,7 +88,7 @@ from experiments.scripts.plotter import confidence_errors_plot_for_confidence_in
 # ---------------------------------------------------
 
 
-FOLDER = os.path.join("experiments", "results", "MNIST", "SDBM")
+FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "t-SNE")
 
 # ---------------------------------------------------
 #                 RUN THE EXPERIMENT(S)
@@ -97,7 +97,7 @@ if __name__ == "__main__":
    # ---------------------------------------------------
    #                 EXPERIMENT 1-4-5-6-7
    # ---------------------------------------------------
-   resolutions_run_times()
+   #resolutions_run_times()
    #resolutions_experiment_plot(folder=FOLDER)
    #compute_errors(folder=FOLDER)
    #errors_plot(folder=FOLDER)
@@ -105,10 +105,19 @@ if __name__ == "__main__":
    # ---------------------------------------------------
    #                 EXPERIMENT 8-10
    # ---------------------------------------------------
+   #compute_confidence_images(folder=os.path.join(FOLDER, "confidence_split"), interpolation_method='nearest', resolutions=[50, 250, 500, 750, 1000, 1250, 1500, 1750, 1950])
+   #compute_confidence_images(folder=os.path.join(FOLDER, "binary_split"), interpolation_method='nearest', resolutions=[50, 250, 500, 750, 1000, 1250, 1500, 1750, 1950])
    #compute_confidence_images(folder=os.path.join(FOLDER, "confidence_split"), interpolation_method='linear', resolutions=[50, 250, 500, 750, 1000, 1250, 1500, 1750, 1950])
    #compute_confidence_images(folder=os.path.join(FOLDER, "binary_split"), interpolation_method='linear', resolutions=[50, 250, 500, 750, 1000, 1250, 1500, 1750, 1950])
-   #compute_confidence_errors_for_confidence_interpolation()
+   #compute_confidence_images(folder=os.path.join(FOLDER, "confidence_split"), interpolation_method='cubic', resolutions=[50, 250, 500, 750, 1000, 1250, 1500, 1750, 1950])
+   #compute_confidence_images(folder=os.path.join(FOLDER, "binary_split"), interpolation_method='cubic', resolutions=[50, 250, 500, 750, 1000, 1250, 1500, 1750, 1950])
+   
+   #compute_confidence_errors(folder=FOLDER, interpolation_method='nearest')
    #compute_confidence_errors(folder=FOLDER, interpolation_method='linear')
-   #confidence_errors_plot(folder=FOLDER, interpolation_method='linear')
-   #confidence_errors_plot_for_confidence_interpolation()
+   #compute_confidence_errors(folder=FOLDER, interpolation_method='cubic')
+   
+   #confidence_errors_plot(folder=FOLDER)
+   
+   compute_confidence_errors_for_confidence_interpolation(folder=FOLDER)
+   confidence_errors_plot_for_confidence_interpolation(folder=FOLDER)
    

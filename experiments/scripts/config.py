@@ -19,3 +19,4 @@ CONFIDENCE_MAP_FOLDER_NAME = "confidence_map"
 
 IMG_ERRORS_RESULTS_FILE_NAME = "errors_results.txt"
 CONFIDENCE_ERRORS_RESULTS_FILE_NAME = "confidence_errors_results.txt"
+CONFIDENCE_INTERPOLATION_DECODING_STRATEGY_FOLDER_NAME = "confidence_interpolation"
