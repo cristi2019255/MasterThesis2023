@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import time
 from .. import LoggerInterface
 
@@ -45,3 +46,40 @@ def generate_class_name_mapper(file: str):
     def class_name_mapper(x: int):
         return mapper[x]
     return class_name_mapper
+
+def get_latest_created_file_from_folder(folder_path: str) -> str:
+    """
+    Get the latest created file in a folder
+    
+    Args:
+        folder_path (str): The folder in which to search for the latest created file
+    
+    Returns:
+        latest_file_path (str): The path to the latest created file in the folder
+    
+    Throws:
+        Exception if no file in the folder
+    """
+    # Get a list of all files in the folder
+    files = os.listdir(folder_path)
+
+    # Filter out subdirectories (if any) and get the latest created file
+    latest_file = None
+    latest_timestamp = 0
+
+    for file in files:
+        file_path = os.path.join(folder_path, file)
+
+        # Check if it's a file (not a directory)
+        if os.path.isfile(file_path):
+            file_timestamp = os.path.getctime(file_path)
+
+            # Compare the file's creation timestamp to the latest found
+            if file_timestamp > latest_timestamp:
+                latest_timestamp = file_timestamp
+                latest_file = file_path
+
+    if latest_file is None:
+        raise Exception("Could not find latest file")
+
+    return latest_file

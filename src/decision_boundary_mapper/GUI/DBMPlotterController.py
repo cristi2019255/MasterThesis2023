@@ -22,7 +22,7 @@ from matplotlib.patches import Patch, Circle
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
 
 from .. import Logger
-from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME, INVERSE_PROJECTION_ERRORS_FILE, PROJECTION_ERRORS_INTERPOLATED_FILE, PROJECTION_ERRORS_INVERSE_PROJECTION_FILE
+from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME, INVERSE_PROJECTION_ERRORS_FILE, PROJECTION_ERRORS_INTERPOLATED_FILE, PROJECTION_ERRORS_INVERSE_PROJECTION_FILE, get_latest_created_file_from_folder
 
 CLASSIFIER_PERFORMANCE_HISTORY_FILE = "classifier_performance.log"
 CLASSIFIER_REFIT_FOLDER = "refit_classifier"
@@ -31,6 +31,8 @@ CLASSIFIER_STACKED_LABELS_FILE = "classifier_old_labels.npy"
 CLASSIFIER_STACKED_LABELS_CHANGES_FILE = "classifier_old_labels_changes.npy"
 CLASSIFIER_STACKED_BOUNDARY_MAP_FILE = "classifier_old_boundary_map.npy"
 CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE = "classifier_old_boundary_map_confidence.npy"
+
+PLOT_SNAPSHOTS_FOLDER = "plot_snapshots"
 
 LABELS_CHANGES_FILE = "label_changes.json"
 
@@ -48,6 +50,7 @@ class DBMPlotterController:
                 encoded_train, encoded_test,
                 save_folder,
                 projection_technique,
+                gui
                 ):
         
         if logger is None:
@@ -77,10 +80,22 @@ class DBMPlotterController:
         self.X_test_2d = X_test_2d
         self.encoded_train = encoded_train
         self.encoded_test = encoded_test
+        self.gui = gui # reference to the gui that uses the controller
         self.initialize()
         
     def initialize(self):
         self.train_mapper, self.test_mapper = self.generate_encoded_mapping()
+        # -------------- Create folder structure --------------------
+        folders_to_create = [
+            CLASSIFIER_REFIT_FOLDER, 
+            CLASSIFIER_STACKED_FOLDER, 
+            PLOT_SNAPSHOTS_FOLDER
+        ]
+        for folder in folders_to_create:
+            dir = os.path.join(self.save_folder, folder)
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+        
         # --------------------- Others ------------------------------
         self.expert_updates_labels_mapper = {}
         self.motion_event_cid = None
@@ -325,6 +340,22 @@ class DBMPlotterController:
             file = os.path.join(self.save_folder, file)
             if os.path.exists(file):
                 os.remove(file)
+                
+        # revoke the latest plot snapshot
+        if not os.path.exists(os.path.join(self.save_folder, PLOT_SNAPSHOTS_FOLDER)):
+            return
+        
+        plot_snapshots_folder = os.path.join(self.save_folder, PLOT_SNAPSHOTS_FOLDER)
+        try:
+            latest_plot_snapshot_file_path = get_latest_created_file_from_folder(plot_snapshots_folder)
+            os.rename(
+                      latest_plot_snapshot_file_path,
+                      latest_plot_snapshot_file_path.replace(".png", "_revoked.png")
+                      )
+        except FileExistsError:
+            self.console.error("Couldn't revoke the latest plot snapshot since it is already revoked.")
+        except Exception as e:
+            self.console.error(f"Error while revoking the latest plot snapshot: {str(e)}")
 
 
     def mix_image(self, show_color_map, show_confidence, show_inverse_projection_errors, show_projection_errors):
@@ -413,7 +444,7 @@ class DBMPlotterController:
         self.console.log("Saving changes to a local folder...")
         self.save_labels_changes(self.save_folder, label_changes=label_changes)
 
-        self.updates_logger.log("Applying changes... This might take a couple of seconds...")
+        self.updates_logger.log("Applying changes... This might take some time...")
 
         save_folder = os.path.join(self.save_folder, CLASSIFIER_REFIT_FOLDER)
 
@@ -428,6 +459,10 @@ class DBMPlotterController:
             np.save(f, self.img)
         with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE), "wb") as f:
             np.save(f, self.img_confidence)
+
+        # store the plot presented when the user applies the changes
+        current_time = datetime.now().strftime("%D %H:%M:%S").replace(" ", "_").replace("/", "_")
+        self.gui.fig.savefig(os.path.join(self.save_folder, PLOT_SNAPSHOTS_FOLDER, f"{current_time}.png"))
 
         if epochs is None:
             epochs = EPOCHS_FOR_REFIT

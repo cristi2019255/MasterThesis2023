@@ -152,7 +152,9 @@ class DBMPlotterGUI:
                                                 X_train_2d, X_test_2d,
                                                 encoded_train, encoded_test,
                                                 save_folder,
-                                                projection_technique)
+                                                projection_technique,
+                                                gui=self
+                                                )
         self.initialize()
         
 
