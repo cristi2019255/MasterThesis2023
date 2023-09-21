@@ -463,9 +463,6 @@ class DBMPlotterGUI:
         self.handle_checkbox_change_event(event, values)
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
        
-
-        self.updates_logger.log("Changes applied successfully!")
-
         if self.main_gui is not None and hasattr(self.main_gui, "handle_changes_in_dbm_plotter"):
             self.main_gui.handle_changes_in_dbm_plotter()
 

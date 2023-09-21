@@ -376,11 +376,28 @@ def show_bilinear_interpolation():
     ax.axis('off')
     plt.show()
     
+    
+def train_mnist_classifier():
+    X_train, X_test, Y_train, Y_test = import_data()
+    classifier = tf.keras.Sequential([
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(10, activation=tf.keras.activations.softmax,
+                              kernel_initializer=tf.keras.initializers.HeNormal(42))
+    ])
+
+    classifier.compile(
+        optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+    classifier.fit(X_train, Y_train, epochs=20, batch_size=32, shuffle=False)
+
+    classifier.evaluate(X_test, Y_test)
+    classifier.save(os.path.join(
+        "tmp", "MNIST", "classifier"), save_format="tf")
+    
 #show_bilinear_interpolation()
 #show_grid()
 #show_fig_3_10()
 
-show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/SDBM/none/img/200.npy")
+#show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/SDBM/none/img/200.npy")
 #import_folder_dataset("./data/parasites_focus_plane_divided/larvas/resized")
 
 #test()
@@ -389,3 +406,5 @@ show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/re
 # test2()
 # test3()
 # test_interpolation()
+
+#train_mnist_classifier()

@@ -17,3 +17,8 @@ If you want to use the functionalities directly from this repo the follow the ne
 ## For deveolpers
 
 1. each time doing a push to the repository run `autopep8 . --recursive --in-place` to automatically format the code
+
+## Notes
+
+1. In order to have reproducible results on each iteration please indicate kernel_initializer in your classifier layers
+   This is necessary because refitting classifier is fitting the classifier from scratch, it is creating a new classifier with the exact same architecture.

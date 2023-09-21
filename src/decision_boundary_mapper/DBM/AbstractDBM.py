@@ -94,7 +94,7 @@ class AbstractDBM:
         # a dictionary that maps the resolution to the best block resolution for the confidence interpolation strategy in fast decoding
         self.resolution_to_blocks_resolution_map = {} 
         
-    def refit_classifier(self, Xnd: np.ndarray, Y: np.ndarray, save_folder: str, epochs: int = 2, batch_size: int = 32):
+    def refit_classifier(self, Xnd: np.ndarray, Y: np.ndarray, save_folder: str, epochs: int = 20, batch_size: int = 32):
         """ 
         Refits the classifier on the given data set.
 
@@ -102,12 +102,21 @@ class AbstractDBM:
             Xnd (np.ndarray): The data set
             Y (np.ndarray): The new labels
             save_folder (str): Saving folder of the classifier
-            epochs (int, optional): Number of epochs. Defaults to 2.
+            epochs (int, optional): Number of epochs. Defaults to 20.
             batch_size (int): Number of training samples to be taken in a single batch. Defaults to 32.
         """
-        self.console.log(f"Refiting classifier for {epochs} epochs and batch size {batch_size}, please wait...")
-        self.classifier.fit(Xnd, Y, epochs=epochs, batch_size=batch_size, verbose=0)  # type: ignore
-        self.console.log("Finished refitting classifier")
+        
+        # copy the configuration of the current classifier
+        optimizer = self.classifier.optimizer.get_config()["name"] if self.classifier and self.classifier.optimizer else "adam"
+        loss = self.classifier.loss if self.classifier and self.classifier.loss else "sparse_categorical_crossentropy"
+        # create a clone of the current classifier but with no weights, so that the weights are reinitialized
+        self.classifier = tf.keras.models.clone_model(self.classifier)
+        self.classifier.compile(optimizer=optimizer, loss=loss, metrics=["accuracy"])
+        self.classifier.build(input_shape=Xnd.shape)
+        
+        self.console.log(f"Fitting classifier for {epochs} epochs and batch size {batch_size}, please wait...")
+        self.classifier.fit(Xnd, Y, epochs=epochs, batch_size=batch_size, verbose=0, shuffle=False)
+        self.console.log("Finished fitting classifier")
         self.save_classifier(save_folder=save_folder)
 
     def save_classifier(self, save_folder: str):
@@ -129,7 +138,7 @@ class AbstractDBM:
             load_folder (str): The folder where the classifier is saved
         """
         self.classifier = tf.keras.models.load_model(load_folder)
-
+       
     def _predict2dspace_(self, X2d: np.ndarray | list[tuple[float, float]]) -> tuple:
         """ 
         Predicts the labels for the given 2D data set.

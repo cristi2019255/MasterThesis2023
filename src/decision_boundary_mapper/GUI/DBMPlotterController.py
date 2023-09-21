@@ -34,7 +34,7 @@ CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE = "classifier_old_boundary_map_confidence
 
 LABELS_CHANGES_FILE = "label_changes.json"
 
-EPOCHS_FOR_REFIT = 2
+EPOCHS_FOR_REFIT = 20
 EPOCHS_FOR_REFIT_RANGE = (1, 100)
 
 class DBMPlotterController:
@@ -183,7 +183,7 @@ class DBMPlotterController:
                 line = line.strip()
                 if len(line) == 0:
                     continue
-                _, time, _, acc, _, loss, _, _ = line.replace("\n", "").replace("%", "").split(" ")
+                _, time, _, acc, _, loss = line.replace("\n", "").replace("%", "").split(" ")
                 times.append(time)
                 accuracies.append(float(acc))
                 losses.append(float(loss))
@@ -198,7 +198,7 @@ class DBMPlotterController:
 
         with open(path, "a") as f:
             time = datetime.now().strftime("%D %H:%M:%S")
-            message = f"Accuracy: {(100 * accuracy):.2f}% Loss: {loss:.2f} Epochs: {epochs}"
+            message = f"Accuracy: {(100 * accuracy):.2f}% Loss: {loss:.2f}"
             f.write(f"{time} {message}\n")
         return accuracy, loss
     
@@ -389,19 +389,25 @@ class DBMPlotterController:
         
     def apply_labels_changes(self, decoding_strategy, epochs = None):
         num_changes = len(self.expert_updates_labels_mapper)
+        
         if num_changes == 0:
-            self.console.error("No changes to apply")
+            message = "No changes to apply"
+            self.console.error(message)
+            self.updates_logger.error(message)
             return
-        if num_changes < 10:
-            self.console.error("Less than 10 changes to apply, please apply more changes")
-            return
-
+        
         # store the changes done so far so we can restore them when needed
         with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_LABELS_CHANGES_FILE), "wb") as f:
             np.save(f, self.positions_of_labels_changes)
 
-        self.console.log("Transforming changes...")
         Y_transformed, label_changes, positions_of_labels_changes = self.transform_changes(self.Y_train, self.expert_updates_labels_mapper, self.positions_of_labels_changes)
+        
+        if len(label_changes) > 0.8 * len(self.Y_train):
+            message = "The amount of changes can not be more than 80% of the training set in one iteration"
+            self.console.error(message)
+            self.updates_logger.error(message)
+            return
+            
         self.positions_of_labels_changes = positions_of_labels_changes
 
         self.console.log("Saving changes to a local folder...")
@@ -430,6 +436,9 @@ class DBMPlotterController:
 
         self.dbm_model.refit_classifier(self.X_train, Y_transformed, save_folder=save_folder, epochs=epochs)
         self.regenerate_boundary_map(Y_transformed, decoding_strategy)
+
+        self.updates_logger.log("Changes applied successfully!")
+
         
     def set_dbm_model_logger(self, logger):
         self.dbm_model.console = logger
