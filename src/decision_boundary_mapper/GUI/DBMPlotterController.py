@@ -15,6 +15,7 @@
 import os
 import numpy as np
 import json
+import threading
 from math import sqrt
 from datetime import datetime
 import shutil
@@ -22,7 +23,7 @@ from matplotlib.patches import Patch, Circle
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
 
 from .. import Logger
-from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME, INVERSE_PROJECTION_ERRORS_FILE, PROJECTION_ERRORS_INTERPOLATED_FILE, PROJECTION_ERRORS_INVERSE_PROJECTION_FILE, get_latest_created_file_from_folder
+from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME, INVERSE_PROJECTION_ERRORS_FILE, PROJECTION_ERRORS_INTERPOLATED_FILE, PROJECTION_ERRORS_INVERSE_PROJECTION_FILE, get_latest_created_file_from_folder, run_timer
 
 CLASSIFIER_PERFORMANCE_HISTORY_FILE = "classifier_performance.log"
 CLASSIFIER_REFIT_FOLDER = "refit_classifier"
@@ -35,6 +36,12 @@ CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE = "classifier_old_boundary_map_confidence
 PLOT_SNAPSHOTS_FOLDER = "plot_snapshots"
 
 LABELS_CHANGES_FILE = "label_changes.json"
+
+USER_ALLOWED_INTERACTION_ITERATIONS = 5
+
+TIMER_SOUND_FILE_PATH = "src/decision_boundary_mapper/GUI/assets/warning-sound.mp3"
+TIMER_DURATION = int(3 * 60) # seconds
+TIMER_WARNING_INTERVAL = 30 # seconds
 
 EPOCHS_FOR_REFIT = 20
 EPOCHS_FOR_REFIT_RANGE = (1, 100)
@@ -81,14 +88,12 @@ class DBMPlotterController:
         self.encoded_train = encoded_train
         self.encoded_test = encoded_test
         self.gui = gui # reference to the gui that uses the controller
-        self.initialize()
+        self.user_allowed_interaction_iterations = USER_ALLOWED_INTERACTION_ITERATIONS
         
-    def initialize(self):
-        self.train_mapper, self.test_mapper = self.generate_encoded_mapping()
         # -------------- Create folder structure --------------------
         folders_to_create = [
-            CLASSIFIER_REFIT_FOLDER, 
-            CLASSIFIER_STACKED_FOLDER, 
+            CLASSIFIER_REFIT_FOLDER,
+            CLASSIFIER_STACKED_FOLDER,
             PLOT_SNAPSHOTS_FOLDER
         ]
         for folder in folders_to_create:
@@ -96,6 +101,13 @@ class DBMPlotterController:
             if not os.path.exists(dir):
                 os.makedirs(dir)
         
+        # ----------------------------------------------------------------
+        self.stop_timer_event = threading.Event()
+        
+        self.initialize()
+        
+    def initialize(self):
+        self.train_mapper, self.test_mapper = self.generate_encoded_mapping()
         # --------------------- Others ------------------------------
         self.expert_updates_labels_mapper = {}
         self.motion_event_cid = None
@@ -108,6 +120,9 @@ class DBMPlotterController:
         self.update_labels_circle = None
     
     def clear_resources(self):
+        # stop the timer if there is any
+        self.stop_timer()
+        
         files_to_delete = [
             CLASSIFIER_PERFORMANCE_HISTORY_FILE,
             LABELS_CHANGES_FILE,
@@ -357,7 +372,6 @@ class DBMPlotterController:
         except Exception as e:
             self.console.error(f"Error while revoking the latest plot snapshot: {str(e)}")
 
-
     def mix_image(self, show_color_map, show_confidence, show_inverse_projection_errors, show_projection_errors):
         color_img = np.zeros((self.img.shape[0], self.img.shape[1], 3))
         alphas = 1 + np.zeros((self.img.shape[0], self.img.shape[1]))
@@ -419,10 +433,15 @@ class DBMPlotterController:
         self.initialize()
         
     def apply_labels_changes(self, decoding_strategy, epochs = None):
+        if self.user_allowed_interaction_iterations <= 0:
+            message = "Max number of iterations reached! Applying labels changes is not allowed anymore!"
+            self.console.error(message)
+            self.updates_logger.error(message)
+        
         num_changes = len(self.expert_updates_labels_mapper)
         
         if num_changes == 0:
-            message = "No changes to apply"
+            message = "No changes to apply!"
             self.console.error(message)
             self.updates_logger.error(message)
             return
@@ -438,7 +457,13 @@ class DBMPlotterController:
             self.console.error(message)
             self.updates_logger.error(message)
             return
-            
+        
+        # stop the user timer
+        self.stop_timer()
+        
+        # block the user from applying changes
+        self.gui.window["-APPLY CHANGES SECTION-"].update(visible=False)
+        
         self.positions_of_labels_changes = positions_of_labels_changes
 
         self.console.log("Saving changes to a local folder...")
@@ -474,14 +499,58 @@ class DBMPlotterController:
 
         self.updates_logger.log("Changes applied successfully!")
 
+        # decrease the number of user allowed interactions
+        self.user_allowed_interaction_iterations -= 1
         
+        # if user is not allowed interact block the buttons and show a informative message
+        if self.user_allowed_interaction_iterations <= 0:
+            self.gui.window["-USAGE ITERATIONS LEFT TEXT-"].update("Max number of iterations reached!\nApplying labels changes is not allowed anymore!", text_color='red')
+            self.gui.window["-APPLY CHANGES-"].hide_row()
+            self.gui.window["-UNDO CHANGES-"].hide_row()
+            self.timer_ui.hide_row()
+            self.gui.window["-APPLY CHANGES SECTION-"].update(visible=True)
+            return
+        
+        # update the number of user allowed interactions in the gui
+        self.gui.window["-USAGE ITERATIONS LEFT TEXT-"].update(f"Usage iterations left: {self.user_allowed_interaction_iterations}")
+               
+        # restart the timer
+        self.start_timer(self.timer_ui)
+        
+        self.gui.window["-APPLY CHANGES SECTION-"].update(visible=True)
+        
+    def start_timer(self, ui_component):
+        # create a new timer that will update the ui_component
+        # set the stop_timer_event in order to stop the timer when needed
+        self.stop_timer_event = threading.Event()
+        self.timer_ui = ui_component
+        self.timer_ui.update(visible=True)
+        
+        def timer_update_callback(msg, is_time_up):
+            text_color = "red" if is_time_up else "green"
+            self.timer_ui.update(msg, text_color=text_color)
+            self.gui.window.refresh()
+            
+        threading.Thread(target=run_timer,
+                        args=(
+                            timer_update_callback,
+                            self.stop_timer_event,
+                            TIMER_DURATION,
+                            TIMER_WARNING_INTERVAL,
+                            TIMER_SOUND_FILE_PATH,
+                            True,
+                            )).start()
+       
+    def stop_timer(self):
+        self.stop_timer_event.set()
+    
     def set_dbm_model_logger(self, logger):
         self.dbm_model.console = logger
     
     def set_updates_logger(self, logger):
         self.updates_logger = logger
     
-    def build_annotation_mapper(self, fig, ax):
+    def build_annotation_mapper(self, fig, ax, connect_click_event=True):
         """ Builds the annotation mapper.
             This is used to display the data point label when hovering over the decision boundary.
         """
@@ -692,4 +761,5 @@ class DBMPlotterController:
             return positions
 
         self.motion_event_cid = fig.canvas.mpl_connect('motion_notify_event', display_annotation)
-        self.click_event_cid = fig.canvas.mpl_connect('button_press_event', onclick)
+        if connect_click_event:
+            self.click_event_cid = fig.canvas.mpl_connect('button_press_event', onclick)

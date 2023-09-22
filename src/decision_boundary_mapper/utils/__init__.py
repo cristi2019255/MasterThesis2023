@@ -13,5 +13,5 @@
 # limitations under the License.
 
 from .dataReader import import_dataset, import_mnist_dataset, import_cifar10_dataset, import_fashion_mnist_dataset, import_folder_dataset
-from .tools import track_time_wrapper, generate_class_name_mapper, get_latest_created_file_from_folder
+from .tools import track_time_wrapper, generate_class_name_mapper, get_latest_created_file_from_folder, run_timer
 from .config import *

@@ -38,7 +38,7 @@ import matplotlib
 
 from .. import Logger, LoggerGUI, FAST_DBM_STRATEGIES
 from .DBMPlotterController import DBMPlotterController
-from .DBMPlotterController import EPOCHS_FOR_REFIT, EPOCHS_FOR_REFIT_RANGE
+from .DBMPlotterController import EPOCHS_FOR_REFIT, EPOCHS_FOR_REFIT_RANGE, USER_ALLOWED_INTERACTION_ITERATIONS
 from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, BLACK_COLOR, WHITE_COLOR, RED_COLOR, GREEN_COLOR, YELLOW_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2, APP_PRIMARY_COLOR, APP_FONT
 
 matplotlib.use("TkAgg")
@@ -97,7 +97,7 @@ COLORS_MAPPER = generate_color_mapper()
 
 TITLE = "Decision Boundary Map & Errors"
 WINDOW_SIZE = (1650, 1000)
-INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point click on the data point,\n or select the data point by including them into a circle.\nPress any digit key to indicate the new label.\nPress 'Enter' to confirm the new label. Press 'Esc' to cancel the action.\nTo remove a change just click on the data point.\nPress 'Apply Changes' to update the model."
+INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point(s) first click on the start usage button.\nThen click on the data point, or select the data point by including them into a circle.\nPress any digit key to indicate the new label. Press 'Enter' to confirm the new label. \nPress 'Esc' to cancel the action. To remove a change just click on the data point.\nPress 'Apply Changes' to update the model."
 DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon.png")
 
 
@@ -155,16 +155,16 @@ class DBMPlotterGUI:
                                                 projection_technique,
                                                 gui=self
                                                 )
-        self.initialize()
         
-
-    def initialize(self):
-        self.color_img, legend = self.controller.build_2D_image(colors_mapper=COLORS_MAPPER, class_name_mapper=self.class_name_mapper)
+        self.initialize_plots(connect_click_event = False)
+        
+    def initialize_plots(self, connect_click_event = True):
+        self.color_img, self.legend = self.controller.build_2D_image(colors_mapper=COLORS_MAPPER, class_name_mapper=self.class_name_mapper)
         # --------------------- Plotter related ---------------------
         self.classifier_performance_fig, self.classifier_performance_ax = self._build_plot_()
         self.fig, self.ax = self._build_plot_()
-        self.controller.build_annotation_mapper(self.fig, self.ax)
-        self.fig.legend(handles=legend, borderaxespad=0.)
+        self.controller.build_annotation_mapper(self.fig, self.ax, connect_click_event)
+        self.fig.legend(handles=self.legend, borderaxespad=0.)
 
     def _initialize_gui_(self):
         # --------------------- GUI related ---------------------
@@ -238,6 +238,7 @@ class DBMPlotterGUI:
                             default_value=FAST_DBM_STRATEGIES.NONE.value,
                             expand_x=True,
                             enable_events=True,
+                            font=APP_FONT,
                             key="-DBM FAST DECODING STRATEGY-",
                             background_color=WHITE_COLOR,
                             text_color=BLACK_COLOR,
@@ -246,7 +247,7 @@ class DBMPlotterGUI:
                         ),
                     ],
                     [   
-                        sg.Text(f"Number of epochs:", font=APP_FONT, key="-DBM RELABELING CLASSIFIER EPOCHS TEXT-"),
+                        sg.vbottom(sg.Text(f"Number of epochs:", font=APP_FONT, key="-DBM RELABELING CLASSIFIER EPOCHS TEXT-")),
                         sg.Slider(range=EPOCHS_FOR_REFIT_RANGE, 
                                default_value=EPOCHS_FOR_REFIT, 
                                expand_x=True, 
@@ -254,20 +255,61 @@ class DBMPlotterGUI:
                                orientation='horizontal',
                                trough_color=WHITE_COLOR,
                                font=APP_FONT,
-                               #button_color=(WHITE_COLOR, APP_PRIMARY_COLOR),
                                tooltip="Select the number of epochs for which \nthe classifier will be retrained.",
                                key="-DBM RELABELING CLASSIFIER EPOCHS-")
                     ],
                     [
-                        sg.Button("Apply Changes", font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),
-                        sg.Button("Undo Changes", font=APP_FONT, expand_x=True, key="-UNDO CHANGES-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),
-                    ],
-                    [
                         sg.HSeparator()
                     ],
-                    buttons_proj_errs[0],
-                    buttons_proj_errs[1],
-                    buttons_inv_proj_errs,
+                    [
+                        sg.Column([
+                            [sg.pin(
+                                sg.Column([
+                                    [
+                                        sg.Button("Start Usage", font=APP_FONT, expand_x=True, key="-START APPLY CHANGES BTN-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR))
+                                    ],
+                                    [
+                                        sg.HSeparator()
+                                    ],
+                                ], key="-START APPLY CHANGES SECTION-", visible=True, expand_x=True, expand_y=True),
+                                shrink=True, expand_x=True, expand_y=True)],
+                            ], pad=(0, 0), expand_x=True),  
+                    ],
+                    [
+                        sg.Column([
+                            [sg.pin(
+                            sg.Column([
+                                [
+                                    sg.Text(f"", font=APP_FONT, key="-APPLY CHANGES TIMER TEXT-", expand_x=True, justification='center'),
+                                ],
+                                [
+                                    sg.Text(f"Usage iterations left: {USER_ALLOWED_INTERACTION_ITERATIONS}", font=APP_FONT, key="-USAGE ITERATIONS LEFT TEXT-", expand_x=True, justification='center', text_color='green'),
+                                ],
+                                [
+                                    sg.Button("Apply Changes", font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),
+                                    sg.Button("Undo Changes", font=APP_FONT, expand_x=True, key="-UNDO CHANGES-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),
+                                ],
+                                [
+                                    sg.Button("Pause Usage", font=APP_FONT, expand_x=True, key="-PAUSE USAGE BTN-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),  
+                                ],
+                                [
+                                    sg.HSeparator()
+                                ],
+                            ], key="-APPLY CHANGES SECTION-", visible=False, expand_x=True, expand_y=True),
+                            shrink=True, expand_x=True, expand_y=True)],
+                        ], pad=(0, 0), expand_x=True),  
+                    ],
+                    [
+                        sg.Column([
+                            [sg.pin(
+                                sg.Column([
+                                    buttons_proj_errs[0],
+                                    buttons_proj_errs[1],
+                                    buttons_inv_proj_errs,
+                                ], key="-PROJECTION ERRORS SECTION-", visible=True, expand_x=True, expand_y=True),
+                                shrink=True, expand_x=True, expand_y=True)],
+                        ], pad=(0, 0), expand_x=True),
+                    ],
                     [sg.Multiline("", key="-LOGGER-", size=(40, 20),
                                           font=APP_FONT,
                                           background_color=WHITE_COLOR,
@@ -336,6 +378,8 @@ class DBMPlotterGUI:
             "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,
             "-UNDO CHANGES-": self.handle_undo_changes_event,
             "-DBM FAST DECODING STRATEGY-": self.handle_decoding_strategy_change_event,
+            "-START APPLY CHANGES BTN-": self.handle_start_apply_changes_usage_event,
+            "-PAUSE USAGE BTN-": self.handle_pause_apply_changes_usage_event,
         }
 
         EVENTS[event](event, values)
@@ -454,13 +498,12 @@ class DBMPlotterGUI:
 
         self.fig.canvas.draw_idle()
         
-
     def handle_circle_selecting_labels_change_event(self, event, values):
         self.update_labels_by_circle_select = values["-CIRCLE SELECTING LABELS-"]
 
     def handle_apply_changes_event(self, event, values):
         self.controller.apply_labels_changes(decoding_strategy=FAST_DBM_STRATEGIES(values["-DBM FAST DECODING STRATEGY-"]), epochs=int(values["-DBM RELABELING CLASSIFIER EPOCHS-"]))
-        self.initialize()
+        self.initialize_plots()
         self.compute_classifier_metrics(int(values["-DBM RELABELING CLASSIFIER EPOCHS-"]))
         self.handle_checkbox_change_event(event, values)
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
@@ -472,15 +515,15 @@ class DBMPlotterGUI:
         try:
             self.controller.undo_changes()
             self.pop_classifier_evaluation()
-
+            self.controller.user_allowed_interaction_iterations += 1
+            self.window["-USAGE ITERATIONS LEFT TEXT-"].update(f"Usage iterations left: {self.controller.user_allowed_interaction_iterations}")
             self.updates_logger.log("Undone changes successfully")
         except Exception as e:
             self.updates_logger.error("Failed to undo changes: " + str(e))
             
-        self.initialize()
+        self.initialize_plots()
         self.handle_checkbox_change_event(event, values)
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
-       
 
     def handle_show_classifier_performance_history_event(self, event=None, values=None):
         try:
@@ -504,6 +547,35 @@ class DBMPlotterGUI:
             plt.show()
         except Exception as e:
             self.updates_logger.error("Failed to show classifier performance history: " + str(e))
+
+    def handle_start_apply_changes_usage_event(self, event, values):
+        # hide the start usage btn
+        self.window["-START APPLY CHANGES SECTION-"].update(visible=False)
+        
+        # allow user to interact with the dbm plot by clicking
+        self.initialize_plots()
+        self.handle_checkbox_change_event(event, values)
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
+        
+        # start a timer
+        self.controller.start_timer(self.window["-APPLY CHANGES TIMER TEXT-"])
+        # reveal the apply changes section to the ui
+        self.window["-APPLY CHANGES SECTION-"].update(visible=True)
+        self.window["-PROJECTION ERRORS SECTION-"].update(visible=False)
+        
+    def handle_pause_apply_changes_usage_event(self, event, values):
+        # stop timer if any
+        self.controller.stop_timer()
+        # hide the apply changes section
+        self.window["-APPLY CHANGES SECTION-"].update(visible=False)
+        # reveal the start apply changes usage section
+        self.window["-START APPLY CHANGES SECTION-"].update(visible=True)
+        self.window["-PROJECTION ERRORS SECTION-"].update(visible=True)
+
+        # disable user to interact with the dbm plot by clicking
+        self.initialize_plots(connect_click_event=False)
+        self.handle_checkbox_change_event(event, values)
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
 
     def update_classifier_performance_canvas(self):
         times, accuracies, _ = self.controller.get_classifier_performance_history()

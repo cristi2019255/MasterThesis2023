@@ -46,6 +46,7 @@ setup(
         'opfython',
         'Pillow',
         'PySimpleGUI',
+        'playsound',
         'pydot',
         'pandas',
         'scikit_learn',
