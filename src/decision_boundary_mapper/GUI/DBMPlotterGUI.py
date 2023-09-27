@@ -41,6 +41,7 @@ from .DBMPlotterController import DBMPlotterController
 from .DBMPlotterController import EPOCHS_FOR_REFIT, EPOCHS_FOR_REFIT_RANGE, USER_ALLOWED_INTERACTION_ITERATIONS
 from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, BLACK_COLOR, WHITE_COLOR, RED_COLOR, GREEN_COLOR, YELLOW_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2, APP_PRIMARY_COLOR, APP_FONT
 
+plt.switch_backend('agg')
 matplotlib.use("TkAgg")
 
 def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
@@ -360,8 +361,9 @@ class DBMPlotterGUI:
         self.console.log("Closing the application...")
 
         self.controller.clear_resources()
-
+        
         self.window.close()
+
 
     def handle_event(self, event, values):
         EVENTS = {
