@@ -15,7 +15,7 @@
 import tensorflow as tf
 import numpy as np
 
-from ..AbstractNN import AbstractNN
+from ..AbstractNN import AbstractNN, SEED
 from ...Logger import LoggerInterface, LoggerModel
 
 DECODER_NAME = "decoder"
@@ -55,28 +55,29 @@ class Autoencoder(AbstractNN):
 
         encoder = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
-            tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(128, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),       # type: ignore
-            tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(64, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),   # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),       # type: ignore
-            tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(32, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),   # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),       # type: ignore
-            tf.keras.layers.Dense(
-                2, activation='sigmoid', bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
+            tf.keras.layers.Dense(2, activation='sigmoid', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED), # type: ignore
+                                  bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
         ], name=ENCODER_NAME)
 
         decoder = tf.keras.models.Sequential([
-            tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(32, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),   # type: ignore
                                   kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
-            tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(64, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),   # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(128, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(output_size, activation='sigmoid'),
+            tf.keras.layers.Dense(output_size, activation='sigmoid',
+                                  kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED)),  # type: ignore
             tf.keras.layers.Reshape(input_shape)
         ], name=DECODER_NAME)
 

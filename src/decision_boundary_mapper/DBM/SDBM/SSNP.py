@@ -15,7 +15,7 @@
 import tensorflow as tf
 import numpy as np
 
-from ..AbstractNN import AbstractNN
+from ..AbstractNN import AbstractNN, SEED
 from ...Logger import LoggerInterface, LoggerModel
 
 DECODER_NAME = "decoder"
@@ -58,34 +58,36 @@ class SSNP(AbstractNN):
 
         encoder = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
-            tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(128, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(64, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(32, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
             tf.keras.layers.Dense(
                 2, activation='sigmoid', bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
         ], name=ENCODER_NAME)
 
         decoder = tf.keras.models.Sequential([
-            tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(32, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
-            tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(64, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(128, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(output_size, activation='sigmoid'),
+            tf.keras.layers.Dense(output_size, activation='sigmoid',
+                                  kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED)),  # type: ignore
             tf.keras.layers.Reshape(input_shape)
         ], name=DECODER_NAME)
 
         classifier = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(num_classes, activation=tf.nn.softmax)
+            tf.keras.layers.Dense(num_classes, activation=tf.nn.softmax,
+                                  kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED))  # type: ignore
         ], name=CLASSIFIER_NAME)
 
         input_layer = tf.keras.Input(shape=input_shape, name="input")
@@ -109,7 +111,7 @@ class SSNP(AbstractNN):
             self.neural_network.summary(print_fn=self.console.log)
 
     def fit(self, X: np.ndarray, Y: np.ndarray,
-            epochs: int = 10, batch_size: int = 128):
+            epochs: int = 100, batch_size: int = 128):
         """ Fits the model to the specified data.
 
         Args:

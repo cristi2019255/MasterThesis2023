@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 from ..Logger import Logger, LoggerInterface
 
 TRAINING_HISTORY_FILE_NAME = "history.json"
+SEED = 42
 
 class AbstractNN:
     """ 

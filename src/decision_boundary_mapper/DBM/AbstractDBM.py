@@ -36,7 +36,7 @@ DBM_CONFIDENCE_IMAGE_NAME = "boundary_map_confidence"
 
 PROJECTION_ERRORS_NEIGHBORS_NUMBER = 10
 
-DEFAULT_TRAINING_EPOCHS = 10
+DEFAULT_TRAINING_EPOCHS = 300
 DEFAULT_BATCH_SIZE = 128
 
 time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
@@ -167,7 +167,7 @@ class AbstractDBM:
             img (np.ndarray): The DBM image
             img_confidence (np.ndarray): The DBM confidence image
         """
-        save_img_path = os.path.join(load_folder, DBM_IMAGE_NAME)
+        save_img_path = os.path.join(load_folder, DBM_IMAGE_NAME) # type: ignore
         save_img_confidence_path = os.path.join(load_folder, DBM_CONFIDENCE_IMAGE_NAME)
 
         match fast_decoding_strategy:

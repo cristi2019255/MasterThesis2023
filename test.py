@@ -21,24 +21,13 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from src.decision_boundary_mapper.DBM import SDBM
 from src.decision_boundary_mapper.DBM.SDBM.SDBM import NNArchitecture
-from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset, import_folder_dataset
+from src.decision_boundary_mapper.utils.dataReader import import_dataset, import_mnist_dataset, import_folder_dataset
+from experiments.scripts import import_data
 
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 print("Num CPUs Available: ", len(tf.config.list_physical_devices('CPU')))
 
 FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION
-
-def import_data():
-    # import the dataset
-    (X_train, Y_train), (X_test, Y_test) = import_mnist_dataset()
-
-    # if needed perform some preprocessing
-    SAMPLES_LIMIT = 5000
-    X_train = X_train.astype('float32') / 255
-    X_test = X_test.astype('float32') / 255
-    X_train, Y_train = X_train[:int(0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
-    X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
-    return X_train, X_test, Y_train, Y_test
 
 
 def import_classifier():
@@ -345,21 +334,6 @@ def show_bilinear_interpolation():
     ax.axis('off')
     plt.show()
     
-    
-def train_mnist_classifier():
-    X_train, X_test, Y_train, Y_test = import_data()
-    classifier = tf.keras.Sequential([
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(10, activation=tf.keras.activations.softmax,
-                              kernel_initializer=tf.keras.initializers.RandomNormal(42))
-    ])
-
-    classifier.compile(
-        optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-    classifier.fit(X_train, Y_train, epochs=20, batch_size=32, shuffle=False)
-
-    classifier.evaluate(X_test, Y_test)
-    classifier.save(os.path.join("tmp", "MNIST", "classifier"), save_format="tf")
 
 def compute_dbm_confidence_interpolation():
     X_train, X_test, Y_train, Y_test = import_data()
@@ -422,6 +396,21 @@ def test4():
         ground_truth = np.load(f)
     
     print(np.sum((ground_truth - interpolated_img) ** 2) / np.sum(ground_truth ** 2))
+    
+    
+def train_mnist_classifier():
+    X_train, X_test, Y_train, Y_test = import_data()
+    classifier = tf.keras.Sequential([
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(10, activation=tf.keras.activations.softmax,
+                              kernel_initializer=tf.keras.initializers.HeUniform(42))
+    ])
+
+    classifier.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+    classifier.fit(X_train, Y_train, epochs=20, batch_size=32, shuffle=False)
+
+    classifier.evaluate(X_test, Y_test)
+    classifier.save(os.path.join("tmp", "MNIST", "classifier"), save_format="tf")
 
 #show_bilinear_interpolation()
 #show_grid()

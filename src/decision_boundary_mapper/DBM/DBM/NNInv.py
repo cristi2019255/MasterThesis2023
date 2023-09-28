@@ -16,7 +16,7 @@ import tensorflow as tf
 import numpy as np
 import os
 
-from ..AbstractNN import AbstractNN
+from ..AbstractNN import AbstractNN, SEED
 from ...Logger import LoggerInterface, LoggerModel
 
 DEFAULT_MODEL_PATH = os.path.join("tmp", "DBM")
@@ -55,15 +55,16 @@ class NNInv(AbstractNN):
             output_size *= output_shape[i]
 
         self.decoder = tf.keras.Sequential([
-            tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(32, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
-            tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(64, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(128, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(output_size, activation='sigmoid', kernel_initializer='he_uniform'),
+            tf.keras.layers.Dense(output_size, activation='sigmoid',
+                                  kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED)),  # type: ignore
             tf.keras.layers.Reshape(output_shape)
         ], name=DECODER_NAME)
 
