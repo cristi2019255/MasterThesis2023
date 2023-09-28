@@ -78,21 +78,24 @@ def import_dbm(dbm_technique=DBM_TECHNIQUE, classifier_path=CLASSIFIER_PATH):
     dbm = DBM_TECHNIQUES[dbm_technique](classifier)
     return dbm
 
-def compute_error(img1, img2, comparing_confidence=False):
+def compute_error(img1, img2):
     errors = 0
     for i in range(img1.shape[0]):
         for j in range(img1.shape[1]):
             if img1[i, j] != img2[i, j]:
-                if comparing_confidence:
-                    if abs(img1[i, j] - img2[i, j]) > 0.03:
-                        errors += 1
-                else:
-                    errors += 1
+                errors += 1
 
     errors_rate: float = errors / (img1.shape[0] * img1.shape[1]) * 100
     #print("Error: ", errors)
     #print("Error rate: ", errors_rate, "%")
     return errors, round(errors_rate, 3)
+
+def compute_confidence_error(approximated_signal, original_signal):
+    # sum ((x_i - x^_i)^2) / sum (x^_i)^2
+    #return np.sum((original_signal - approximated_signal) ** 2) / np.sum(approximated_signal ** 2)
+    
+    # sum ((x_i - x^_i)^2) / sum (x_i)^2
+    return np.sum((original_signal - approximated_signal) ** 2) / np.sum(original_signal ** 2)
 
 
 def save_result(path, result):

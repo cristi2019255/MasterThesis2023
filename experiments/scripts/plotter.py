@@ -76,7 +76,7 @@ def confidence_errors_plot(folder=RESULTS_FOLDER):
         if dir == "none" or dir=="confidence_interpolation" or os.path.isfile(os.path.join(folder, dir)):
             continue
         
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+        fig, ax1 = plt.subplots(1, 1, figsize=(15, 10))
         plt.title("Confidence errors vs Resolution")
         for interpolation_method in interpolation_methods:
             path = os.path.join(folder, dir, str(interpolation_method) + "_" + CONFIDENCE_ERRORS_RESULTS_FILE_NAME)
@@ -84,20 +84,16 @@ def confidence_errors_plot(folder=RESULTS_FOLDER):
             df["RESOLUTION"] = df["RESOLUTION"].astype('int')
             df = df.sort_values(by=["RESOLUTION"])
             ax1.plot(df["RESOLUTION"], df["ERROR"], label=interpolation_method)
-            ax2.plot(df["RESOLUTION"], df["ERROR RATE"], label=interpolation_method)
-    
+            
         ax1.set_xlabel("Resolution")
         ax1.set_ylabel("Error")
         ax1.legend()
-        ax2.set_xlabel("Resolution")
-        ax2.set_ylabel("Error rate")
-        ax2.legend()
         plt.savefig(os.path.join(folder, dir, "confidence_errors_experiment.png"))
         
     #plt.show()
     
 def confidence_errors_plot_for_confidence_interpolation(folder=RESULTS_FOLDER):
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+    fig, ax1 = plt.subplots(1, 1, figsize=(15, 10))
     
     plt.title("Confidence errors vs Resolution")
         
@@ -106,14 +102,11 @@ def confidence_errors_plot_for_confidence_interpolation(folder=RESULTS_FOLDER):
     df["RESOLUTION"] = df["RESOLUTION"].astype('int')
     df = df.sort_values(by=["RESOLUTION"])
     ax1.plot(df["RESOLUTION"], df["ERROR"], label="confidence interpolation strategy")
-    ax2.plot(df["RESOLUTION"], df["ERROR RATE"], label="confidence interpolation strategy")
     
     ax1.set_xlabel("Resolution")
     ax1.set_ylabel("Error")
     ax1.legend()
-    ax2.set_xlabel("Resolution")
-    ax2.set_ylabel("Error rate")
-    ax2.legend()
+    
     plt.savefig(os.path.join(folder, CONFIDENCE_INTERPOLATION_DECODING_STRATEGY_FOLDER_NAME, "confidence_errors_experiment.png"))
     
     plt.show()

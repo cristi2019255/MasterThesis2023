@@ -19,6 +19,8 @@ import os
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+from src.decision_boundary_mapper.DBM import SDBM
+from src.decision_boundary_mapper.DBM.SDBM.SDBM import NNArchitecture
 from src.decision_boundary_mapper.utils.dataReader import import_mnist_dataset, import_folder_dataset
 
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
@@ -55,23 +57,6 @@ def import_2d_data():
     with open(os.path.join("tmp", "MNIST", "DBM", "t-SNE", "test_2d.npy"), "rb") as f:
         X2d_test = np.load(f)
     return X2d_train, X2d_test
-
-
-def compare_images(img1, img2, comparing_confidence=False):
-    errors = 0
-    for i in range(img1.shape[0]):
-        for j in range(img1.shape[1]):
-            if img1[i, j] != img2[i, j]:
-                if comparing_confidence:
-                    if abs(img1[i, j] - img2[i, j]) > 0.03:
-                        errors += 1
-                else:
-                    errors += 1
-
-    print("Errors: ", errors)
-    print("Error rate: ", errors / (img1.shape[0] * img1.shape[1]) * 100, "%")
-    return errors
-
 
 def test():
     
@@ -124,22 +109,6 @@ def test():
         np.save(f, img1)
     with open(img_confidence_path, "wb") as f:
         np.save(f, img_confidence1)
-
-def test2():
-    with open("img1.npy", "rb") as f:
-        img1 = np.load(f)
-    with open("img2.npy", "rb") as f:
-        img2 = np.load(f)
-    with open("img_confidence1.npy", "rb") as f:
-        img_confidence1 = np.load(f)
-    with open("img_confidence2.npy", "rb") as f:
-        img_confidence2 = np.load(f)
-
-    print("Comparing dbm images...")
-    compare_images(img1, img2)
-    print("Comparing confidence images...")
-    compare_images(img_confidence1, img_confidence2, comparing_confidence=True)
-
 
 def test3():
     X_train, X_test, Y_train, Y_test = import_data()
@@ -382,7 +351,7 @@ def train_mnist_classifier():
     classifier = tf.keras.Sequential([
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(10, activation=tf.keras.activations.softmax,
-                              kernel_initializer=tf.keras.initializers.HeNormal(42))
+                              kernel_initializer=tf.keras.initializers.RandomNormal(42))
     ])
 
     classifier.compile(
@@ -390,21 +359,80 @@ def train_mnist_classifier():
     classifier.fit(X_train, Y_train, epochs=20, batch_size=32, shuffle=False)
 
     classifier.evaluate(X_test, Y_test)
-    classifier.save(os.path.join(
-        "tmp", "MNIST", "classifier"), save_format="tf")
+    classifier.save(os.path.join("tmp", "MNIST", "classifier"), save_format="tf")
+
+def compute_dbm_confidence_interpolation():
+    X_train, X_test, Y_train, Y_test = import_data()
     
+    resolution = 500
+    classifier = import_classifier()
+    dbm = DBM(classifier)
+    
+    X2d_train, X2d_test = import_2d_data()
+        
+    dbm.generate_boundary_map(X_train,
+                              X_test,
+                              X2d_train,
+                              X2d_test,
+                              load_folder=os.path.join("tmp", "MNIST", "DBM"),
+                              resolution=10
+                              )
+
+    img, img_confidence, _ = dbm._get_img_dbm_fast_confidence_interpolation_strategy(resolution, initial_resolution=32)
+
+    with open(str(resolution) + "_img.npy", "wb") as f:
+        np.save(f, img)
+    with open(str(resolution) + "_conf.npy", "wb") as f:
+        np.save(f, img_confidence)
+        
+    # img, img_confidence, _ = dbm._get_img_dbm_(resolution)
+    # with open(str(resolution) + "_true_img.npy", "wb") as f:
+    #     np.save(f, img)
+    # with open(str(resolution) + "_true_conf.npy", "wb") as f:
+    #     np.save(f, img_confidence)
+
+
+def test4():
+    res = 500
+    
+    # true_img_path = f"experiments/results/MNIST/DBM/t-SNE/none/img/{res}.npy"
+    # true_img_conf_path = f"experiments/results/MNIST/DBM/t-SNE/none/confidence/{res}.npy"
+    
+    true_img_path = f"{res}_true_img.npy"
+    true_img_conf_path = f"{res}_true_conf.npy"
+
+    
+    with open(f"{res}_img.npy", "rb") as f:
+        interpolated_img = np.load(f)
+    with open(true_img_path, "rb") as f:
+        ground_truth = np.load(f)
+    
+    err = 0
+    for i in range(res):
+        for j in range(res):
+            if interpolated_img[i][j] != ground_truth[i][j]:
+                err += 1
+    print(err)
+    print(err / (res **2))
+
+
+    with open(f"{res}_conf.npy", "rb") as f:
+        interpolated_img = np.load(f)
+    with open(true_img_conf_path, "rb") as f:
+        ground_truth = np.load(f)
+    
+    print(np.sum((ground_truth - interpolated_img) ** 2) / np.sum(ground_truth ** 2))
+
 #show_bilinear_interpolation()
 #show_grid()
 #show_fig_3_10()
-
 #show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/SDBM/none/img/200.npy")
 #import_folder_dataset("./data/parasites_focus_plane_divided/larvas/resized")
-
 #test()
 #show_errors()
+#test3()
+#test_interpolation()
+train_mnist_classifier()
 
-# test2()
-# test3()
-# test_interpolation()
-
-#train_mnist_classifier()
+#compute_dbm_confidence_interpolation()
+#test4()

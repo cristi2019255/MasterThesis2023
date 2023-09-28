@@ -218,21 +218,30 @@ def get_projection_errors_using_inverse_projection(Xnd: np.ndarray, X2d: np.ndar
 def generate_windows(window_size: int, initial_resolution: int, resolution: int = 1024):
 
     indexes = [((i * window_size + window_size / 2 - 0.5), (j * window_size + window_size / 2 - 0.5)) for i in range(initial_resolution) for j in range(initial_resolution)]
+    
+    border_indexes = [(-1,-1), (-1, resolution), (resolution, -1), (resolution, resolution)]
+    for i in range(initial_resolution):
+        p = (i * window_size + window_size / 2 - 0.5)
+        border_indexes += [(-1, p), (p, -1), (p, resolution), (resolution, p)]
+    
     sizes = [(window_size, window_size)] * len(indexes)
     if initial_resolution * window_size == resolution:
-        return indexes, sizes, initial_resolution
+        return indexes, sizes, border_indexes
     
     slack = (resolution - initial_resolution * window_size) / 2
-        
-    indexes += [(i * window_size + window_size / 2 - 0.5, resolution - slack - 0.5) for i in range(initial_resolution)]
-    sizes += [(window_size, (resolution - initial_resolution * window_size))] * initial_resolution
-    indexes += [(resolution - slack - 0.5, i * window_size + window_size / 2 - 0.5) for i in range(initial_resolution)]
+    p = resolution - slack - 0.5
+       
+    indexes += [(i * window_size + window_size / 2 - 0.5, p) for i in range(initial_resolution)]
+    sizes += [(window_size, (resolution - initial_resolution * window_size))] * initial_resolution 
+    indexes += [(p, i * window_size + window_size / 2 - 0.5) for i in range(initial_resolution)]
     sizes += [((resolution - initial_resolution * window_size), window_size)] * initial_resolution
-    indexes += [(resolution - slack - 0.5, resolution - slack - 0.5)]
+    
+    indexes += [(p, p)]
     sizes += [((resolution - initial_resolution * window_size), (resolution - initial_resolution * window_size))]
-    initial_resolution += 1
-        
-    return indexes, sizes, initial_resolution
+    
+    border_indexes += [(-1, p), (p, -1), (p, resolution), (resolution, p)]
+    
+    return indexes, sizes, border_indexes
 
 @njit
 def get_window_borders(x, y, w, h):

@@ -16,7 +16,7 @@ import os
 import numpy as np
 
 from .config import CONFIDENCE_FOLDER_NAME, IMG_FOLDER_NAME, INTERPOLATION_FOLDER_NAME, IMG_ERRORS_RESULTS_FILE_NAME, CONFIDENCE_ERRORS_RESULTS_FILE_NAME
-from .utils import compute_error
+from .utils import compute_confidence_error, compute_error
 
 RESULTS_FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "t-SNE")
 
@@ -69,7 +69,7 @@ def compute_confidence_errors(folder=RESULTS_FOLDER, interpolation_method='linea
         #    continue
         
         with open(errors_file_path, "w") as f:
-            f.write("RESOLUTION,ERROR,ERROR RATE\n")
+            f.write("RESOLUTION,ERROR\n")
         
         # get all the images in the folder/img
         confidence_names = os.listdir(os.path.join(folder, dir, INTERPOLATION_FOLDER_NAME, interpolation_method))
@@ -83,8 +83,8 @@ def compute_confidence_errors(folder=RESULTS_FOLDER, interpolation_method='linea
             with open(ground_truth_conf_img_path, "rb") as f:
                 ground_truth_conf_img = np.load(f)
             # computing the error
-            error, error_rate = compute_error(conf_img, ground_truth_conf_img, comparing_confidence=True)  
-            line = f"{resolution},{str(error)},{str(error_rate)}\n"
+            error = compute_confidence_error(conf_img, ground_truth_conf_img)  
+            line = f"{resolution},{str(error)}\n"
             with open(errors_file_path, "a") as file:
                 file.write(line)
     
@@ -96,7 +96,7 @@ def compute_confidence_errors_for_confidence_interpolation(folder=RESULTS_FOLDER
     
     errors_file_path = os.path.join(folder, "confidence_interpolation", CONFIDENCE_ERRORS_RESULTS_FILE_NAME)
     with open(errors_file_path, "w") as f:
-            f.write("RESOLUTION,ERROR,ERROR RATE\n")
+            f.write("RESOLUTION,ERROR\n")
       
     confidence_names = os.listdir(conf_interpolation_folder)
     for conf_img_name in confidence_names:
@@ -108,8 +108,8 @@ def compute_confidence_errors_for_confidence_interpolation(folder=RESULTS_FOLDER
             ground_truth_conf_img = np.load(f)
         
         resolution = conf_img_name.split(".")[0]   
-        error, error_rate = compute_error(conf_img, ground_truth_conf_img, comparing_confidence=True)  
-        line = f"{resolution},{str(error)},{str(error_rate)}\n"
+        error = compute_confidence_error(conf_img, ground_truth_conf_img)  
+        line = f"{resolution},{str(error)}\n"
         with open(errors_file_path, "a") as file:
             file.write(line)
     
