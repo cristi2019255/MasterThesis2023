@@ -338,7 +338,7 @@ def show_bilinear_interpolation():
 def compute_dbm_confidence_interpolation():
     X_train, X_test, Y_train, Y_test = import_data()
     
-    resolution = 500
+    resolution = 50
     classifier = import_classifier()
     dbm = DBM(classifier)
     
@@ -367,13 +367,13 @@ def compute_dbm_confidence_interpolation():
 
 
 def test4():
-    res = 500
+    res = 50
     
-    # true_img_path = f"experiments/results/MNIST/DBM/t-SNE/none/img/{res}.npy"
-    # true_img_conf_path = f"experiments/results/MNIST/DBM/t-SNE/none/confidence/{res}.npy"
+    true_img_path = f"experiments/results/MNIST/DBM/t-SNE/none/img/{res}.npy"
+    true_img_conf_path = f"experiments/results/MNIST/DBM/t-SNE/none/confidence/{res}.npy"
     
-    true_img_path = f"{res}_true_img.npy"
-    true_img_conf_path = f"{res}_true_conf.npy"
+    # true_img_path = f"{res}_true_img.npy"
+    # true_img_conf_path = f"{res}_true_conf.npy"
 
     
     with open(f"{res}_img.npy", "rb") as f:
@@ -387,7 +387,7 @@ def test4():
             if interpolated_img[i][j] != ground_truth[i][j]:
                 err += 1
     print(err)
-    print(err / (res **2))
+    print(100 * (err / (res **2)))
 
 
     with open(f"{res}_conf.npy", "rb") as f:
@@ -421,7 +421,7 @@ def train_mnist_classifier():
 #show_errors()
 #test3()
 #test_interpolation()
-train_mnist_classifier()
+#train_mnist_classifier()
 
-#compute_dbm_confidence_interpolation()
-#test4()
+compute_dbm_confidence_interpolation()
+test4()

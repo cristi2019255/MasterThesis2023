@@ -22,7 +22,7 @@ import time
 # Prepare the configurations
 DATASET_NAME = 'MNIST'
 DBM_TECHNIQUE = 'SDBM'
-PROJECTION = 'UMAP'
+PROJECTION = 'PCA'
 # ---------------------------------------------------
 
 
@@ -33,10 +33,10 @@ CLASSIFIER_PATH = os.path.join(TMP_FOLDER, DATASET_NAME, "classifier")
 LOAD_FOLDER = os.path.join(TMP_FOLDER, DATASET_NAME, DBM_TECHNIQUE)
 
 # ---------------------------------------------------
-FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.NONE
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION
 # ---------------------------------------------------
 
-RESOLUTION_RANGE = (50, 2000, 50)
+RESOLUTION_RANGE = (100, 2000, 50)
 
 #RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, FAST_DECODING_STRATEGY.value)
 RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, FAST_DECODING_STRATEGY.value) # the results folder for SDBM

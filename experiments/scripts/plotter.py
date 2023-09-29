@@ -37,7 +37,7 @@ def resolutions_experiment_plot(folder=RESULTS_FOLDER):
     plt.xlabel("Resolution")
     plt.ylabel("Time (s)")
     plt.legend()
-    plt.savefig(os.path.join(RESULTS_FOLDER, "resolutions_experiment.png"))
+    plt.savefig(os.path.join(folder, "resolutions_experiment.png"))
     plt.show()
     
 def errors_plot(folder=RESULTS_FOLDER):
