@@ -18,5 +18,7 @@ In order to deploy the python package follow the steps:
 
 1) Run `python3 setup.py sdist`
 2) Run `twine upload dist/*`
+   2.1) For the username use `__token__`
+   2.2) For the password use `pypi-` + the token you get from the pypi website
 3) Provide your credentails from pypi
 4) Download the package by running `pip install decision-boundary-mapper`
