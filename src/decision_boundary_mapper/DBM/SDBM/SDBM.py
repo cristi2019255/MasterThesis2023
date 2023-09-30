@@ -172,8 +172,8 @@ class SDBM(AbstractDBM):
         for k in range(len(encoded_training_data)):
             [i, j] = encoded_training_data[k]
             encoded_2d_train[k] = [i, j, img[i, j]]
-        for k in range(len(encoded_training_data)):
-            [i, j] = encoded_training_data[k]
+        for k in range(len(encoded_testing_data)):
+            [i, j] = encoded_testing_data[k]
             encoded_2d_test[k] = [i, j, img[i, j]]
 
         for [i, j] in encoded_testing_data:
