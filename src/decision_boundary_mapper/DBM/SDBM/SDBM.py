@@ -167,7 +167,7 @@ class SDBM(AbstractDBM):
         encoded_testing_data = encoded_testing_data.astype(int)
 
         encoded_2d_train = np.zeros((len(encoded_training_data), 3))
-        encoded_2d_test = np.zeros((len(encoded_training_data), 3))
+        encoded_2d_test = np.zeros((len(encoded_testing_data), 3))
 
         for k in range(len(encoded_training_data)):
             [i, j] = encoded_training_data[k]
