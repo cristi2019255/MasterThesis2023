@@ -160,8 +160,8 @@ class DBM(AbstractDBM):
         self.console.log("Map the 2D embedding of the data to the 2D image")
 
         # transform the encoded data to be in the range [0, resolution)
-        X2d_train *= (resolution - 1)
-        X2d_test *= (resolution - 1)
+        X2d_train *= (resolution - 1) # type: ignore
+        X2d_test *= (resolution - 1)  # type: ignore
         X2d_train = X2d_train.astype(int)
         X2d_test = X2d_test.astype(int)
 
