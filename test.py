@@ -415,7 +415,7 @@ def train_mnist_classifier():
 #show_bilinear_interpolation()
 #show_grid()
 #show_fig_3_10()
-#show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/SDBM/none/img/200.npy")
+#show_img("/Users/cristiangrosu/Desktop/code_repo/MasterThesis2023/experiments/results/MNIST/DBM/t-SNE/none/img/250.npy")
 #import_folder_dataset("./data/parasites_focus_plane_divided/larvas/resized")
 #test()
 #show_errors()
@@ -423,5 +423,6 @@ def train_mnist_classifier():
 #test_interpolation()
 #train_mnist_classifier()
 
-compute_dbm_confidence_interpolation()
-test4()
+#compute_dbm_confidence_interpolation()
+#test4()
+

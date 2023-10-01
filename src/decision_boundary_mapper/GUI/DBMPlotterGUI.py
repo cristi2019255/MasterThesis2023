@@ -99,8 +99,7 @@ COLORS_MAPPER = generate_color_mapper()
 TITLE = "Decision Boundary Map & Errors"
 WINDOW_SIZE = (1650, 1000)
 INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point(s) first click on the start usage button.\nThen click on the data point, or select the data point by including them into a circle.\nPress any digit key to indicate the new label. Press 'Enter' to confirm the new label. \nPress 'Esc' to cancel the action. To remove a change just click on the data point.\nPress 'Apply Changes' to update the model."
-DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon.png")
-
+DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon_b64.txt")
 
 class DBMPlotterGUI:
     
@@ -335,12 +334,17 @@ class DBMPlotterGUI:
                            layout=self._get_GUI_layout_(),
                            size=WINDOW_SIZE,
                            resizable=True,
-                           icon=DBM_WINDOW_ICON_PATH,
                            element_justification='center',
                            )
+        
+        with open(DBM_WINDOW_ICON_PATH, "rb") as f:
+            iconb64 = f.read()
 
         window.finalize()
         window.maximize()
+        
+        window.set_icon(pngbase64=iconb64)
+
         return window
 
     def start(self):
@@ -363,7 +367,6 @@ class DBMPlotterGUI:
         self.controller.clear_resources()
         
         self.window.close()
-
 
     def handle_event(self, event, values):
         EVENTS = {
@@ -446,32 +449,42 @@ class DBMPlotterGUI:
         self.update_classifier_performance_canvas()
 
     def handle_compute_inverse_projection_errors_event(self, event, values):
-        self.window['-COMPUTE INVERSE PROJECTION ERRORS-'].hide_row()
         self.updates_logger.log("Computing inverse projection errors, please wait...")
+
+        self.window['-COMPUTE INVERSE PROJECTION ERRORS-'].hide_row()
+        self.window['-PROJECTION ERRORS SECTION-'].update(visible=False)
+
         self.controller.compute_inverse_projection_errors()
-        self.updates_logger.log("Inverse projection errors computed!")
-        self.window['-SHOW INVERSE PROJECTION ERRORS-'].update(visible=True)
         
         # redraw the figure to the canvas because the layout has changed, otherwise the axes of the figure will not work properly
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
 
-    def _set_loading_proj_errs_state_(self):
-        self.window['-COMPUTE PROJECTION ERRORS INTERPOLATION-'].hide_row()
-        self.window['-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-'].hide_row()
-        self.updates_logger.log("Computing projection errors, please wait...")
+        self.window['-SHOW INVERSE PROJECTION ERRORS-'].update(visible=True)
+        if self.controller.projection_errors is None:
+            self.window['-PROJECTION ERRORS SECTION-'].update(visible=True)
+
+        self.updates_logger.log("Inverse projection errors computed!")
 
     def handle_compute_projection_errors_event(self, event, values):
-        self._set_loading_proj_errs_state_()
+        self.updates_logger.log("Computing projection errors, please wait...")
+
+        self.window['-COMPUTE PROJECTION ERRORS INTERPOLATION-'].hide_row()
+        self.window['-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-'].hide_row()
+        self.window['-PROJECTION ERRORS SECTION-'].update(visible=False)
+        
         if event == "-COMPUTE PROJECTION ERRORS INTERPOLATION-":
             self.controller.compute_projection_errors(type="interpolated")    
         elif event == "-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-":
             self.controller.compute_projection_errors(type="non_interpolated")    
-    
-        self.updates_logger.log("Finished computing projection errors.")
-        self.window['-SHOW PROJECTION ERRORS-'].update(visible=True)
-        
+       
         # redraw the figure to the canvas because the layout has changed, otherwise the axes of the figure will not work properly
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
+
+        self.window['-SHOW PROJECTION ERRORS-'].update(visible=True)
+        if self.controller.inverse_projection_errors is None:
+            self.window['-PROJECTION ERRORS SECTION-'].update(visible=True)
+
+        self.updates_logger.log("Finished computing projection errors.")
 
     def handle_checkbox_change_event(self, event, values):
         img = self.controller.mix_image(values["-SHOW DBM COLOR MAP-"], values["-SHOW DBM CONFIDENCE-"], values["-SHOW INVERSE PROJECTION ERRORS-"], values["-SHOW PROJECTION ERRORS-"])
@@ -562,7 +575,7 @@ class DBMPlotterGUI:
         # start a timer
         self.controller.start_timer(self.window["-APPLY CHANGES TIMER TEXT-"])
         # reveal the apply changes section to the ui
-        self.window["-APPLY CHANGES SECTION-"].update(visible=True)
+        self.window["-APPLY CHANGES SECTION-"].update(visible=True)   
         self.window["-PROJECTION ERRORS SECTION-"].update(visible=False)
         
     def handle_pause_apply_changes_usage_event(self, event, values):
@@ -572,7 +585,9 @@ class DBMPlotterGUI:
         self.window["-APPLY CHANGES SECTION-"].update(visible=False)
         # reveal the start apply changes usage section
         self.window["-START APPLY CHANGES SECTION-"].update(visible=True)
-        self.window["-PROJECTION ERRORS SECTION-"].update(visible=True)
+        # reveal the compute errors buttons section
+        errors_computed = self.controller.projection_errors is not None and self.controller.inverse_projection_errors is not None
+        self.window["-PROJECTION ERRORS SECTION-"].update(visible=not errors_computed)
 
         # disable user to interact with the dbm plot by clicking
         self.initialize_plots(connect_click_event=False)

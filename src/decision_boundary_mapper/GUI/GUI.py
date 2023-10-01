@@ -26,7 +26,7 @@ from .utils import Collapsible
 sg.theme('DarkBlue1')
 TITLE = "Classifiers visualization tool"
 WINDOW_SIZE = (1150, 700)
-APP_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "main_icon.png")
+APP_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "main_icon_b64.txt")
 class GUI:
     def __init__(self):
         self.window = self.build_window()
@@ -41,10 +41,15 @@ class GUI:
         window = sg.Window(TITLE,
                            layout=self._get_layout(),
                            size=WINDOW_SIZE,
-                           icon=APP_ICON_PATH,
                            resizable=False,
                            )
+        
+        with open(APP_ICON_PATH, "rb") as f:
+            iconb64 = f.read()
+
         window.finalize()
+        window.set_icon(pngbase64=iconb64)
+        
         return window
 
     def start(self):
