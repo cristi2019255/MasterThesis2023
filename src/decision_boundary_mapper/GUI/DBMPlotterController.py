@@ -39,7 +39,7 @@ LABELS_CHANGES_FILE = "label_changes.json"
 
 USER_ALLOWED_INTERACTION_ITERATIONS = 5
 
-TIMER_SOUND_FILE_PATH = "src/decision_boundary_mapper/GUI/assets/warning-sound.mp3"
+TIMER_SOUND_FILE_PATH = os.path.join(os.path.dirname(__file__), "assets", "warning-sound.mp3")
 TIMER_DURATION = int(3 * 60) # seconds
 TIMER_WARNING_INTERVAL = 30 # seconds
 

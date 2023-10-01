@@ -25,7 +25,7 @@ os.system("pdoc --html src/decision_boundary_mapper -o docs")
 
 setup(
     name='decision-boundary-mapper',
-    version='0.6.5',
+    version='0.6.7',
     license='MIT',
     author="Cristian Grosu",
     author_email='c.grosu@students.uu.nl',
@@ -36,6 +36,7 @@ setup(
     description='A tool for visualizing the decision boundary of a machine learning model.',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
+    include_package_data=True,
     install_requires=[
         'dask',
         'keras',
