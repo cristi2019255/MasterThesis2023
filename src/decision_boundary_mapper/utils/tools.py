@@ -14,7 +14,7 @@
 import os
 import threading
 import time
-from playsound import playsound
+#from playsound import playsound
 from .. import LoggerInterface
 
 
@@ -126,8 +126,10 @@ def run_timer(update_callback = lambda msg, time_up: print(msg),
     """
 
     def play_sound(filename: str, amount=1):
+        # NB: playsound lib doesn't work so this function is doing nothing
         for _ in range(amount):
-            playsound(filename)
+            continue 
+            #playsound(filename)
 
     sound_thread = None
     start_time = time.time()

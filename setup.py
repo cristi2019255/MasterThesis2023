@@ -25,7 +25,7 @@ os.system("pdoc --html src/decision_boundary_mapper -o docs")
 
 setup(
     name='decision-boundary-mapper',
-    version='0.6.7',
+    version='0.6.8',
     license='MIT',
     author="Cristian Grosu",
     author_email='c.grosu@students.uu.nl',
@@ -47,7 +47,7 @@ setup(
         'opfython',
         'Pillow',
         'PySimpleGUI',
-        'playsound',
+        #'playsound',
         'pydot',
         'pandas',
         'scikit_learn',
