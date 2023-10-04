@@ -436,16 +436,16 @@ class DBMPlotterGUI:
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
        
     def compute_classifier_metrics(self, epochs=None):
-        accuracy, loss = self.controller.compute_classifier_metrics(epochs)
-        self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(100 * accuracy):.2f} %  Loss: {loss:.2f}")
+        accuracy, loss, kappa_score = self.controller.compute_classifier_metrics(epochs)
+        self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(100 * accuracy):.2f} %  Loss: {loss:.4f} Kappa score: {kappa_score:.4f}")
         self.update_classifier_performance_canvas()
 
     def pop_classifier_evaluation(self):
-        accuracy, loss = self.controller.pop_classifier_evaluation()
-        if accuracy is None or loss is None:
+        accuracy, loss, kappa_score = self.controller.pop_classifier_evaluation()
+        if accuracy is None and loss is None and kappa_score is None:
             return
         
-        self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(accuracy):.2f} %  Loss: {loss:.2f}")
+        self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(accuracy):.2f} %  Loss: {loss:.4f} Kappa score: {kappa_score:.4f}")
         self.update_classifier_performance_canvas()
 
     def handle_compute_inverse_projection_errors_event(self, event, values):
@@ -527,6 +527,7 @@ class DBMPlotterGUI:
             self.main_gui.handle_changes_in_dbm_plotter()
 
     def handle_undo_changes_event(self, event, values):
+        self.controller.stop_timer()
         try:
             self.controller.undo_changes()
             self.pop_classifier_evaluation()
@@ -539,26 +540,35 @@ class DBMPlotterGUI:
         self.initialize_plots()
         self.handle_checkbox_change_event(event, values)
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
+        # start a timer
+        self.controller.start_timer(self.window["-APPLY CHANGES TIMER TEXT-"])
 
     def handle_show_classifier_performance_history_event(self, event=None, values=None):
         try:
-            times, accuracies, losses = self.controller.get_classifier_performance_history()
-            _, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+            times, accuracies, losses, kappas = self.controller.get_classifier_performance_history()
+            _, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 8))
 
-            for tick in ax1.get_xticklabels():
-                tick.set_rotation(45)
-            for tick in ax2.get_xticklabels():
-                tick.set_rotation(45)
+            for ax in [ax1, ax2, ax3]:
+                for tick in ax.get_xticklabels():
+                    tick.set_rotation(45)
 
             ax1.set_title("Classifier accuracy history")
-            ax2.set_title("Classifier loss history")
             ax1.set_xlabel("Time")
-            ax2.set_xlabel("Time")
             ax1.set_ylabel("Accuracy (%)")
-            ax2.set_ylabel("Loss")
+
+            ax2.set_title("Kappa score history")
+            ax2.set_xlabel("Time")
+            ax2.set_ylabel("Kappa score")
+
+            ax3.set_title("Classifier loss history")
+            ax3.set_xlabel("Time")
+            ax3.set_ylabel("Loss")
+
 
             ax1.plot(times, accuracies, marker="o")
-            ax2.plot(times, losses, marker="o")
+            ax2.plot(times, kappas, marker="o")
+            ax3.plot(times, losses, marker="o")
+
             plt.show()
         except Exception as e:
             self.updates_logger.error("Failed to show classifier performance history: " + str(e))
@@ -595,7 +605,7 @@ class DBMPlotterGUI:
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
 
     def update_classifier_performance_canvas(self):
-        times, accuracies, _ = self.controller.get_classifier_performance_history()
+        times, accuracies, _, _ = self.controller.get_classifier_performance_history()
         self.classifier_performance_fig, self.classifier_performance_ax = self._build_plot_()
         self.classifier_performance_ax.set_axis_on()
         self.classifier_performance_ax.set_title("Classifier performance history")

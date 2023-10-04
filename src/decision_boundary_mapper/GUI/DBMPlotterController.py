@@ -19,6 +19,7 @@ import threading
 from math import sqrt
 from datetime import datetime
 import shutil
+from sklearn.metrics import cohen_kappa_score
 from matplotlib.patches import Patch, Circle
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
 
@@ -207,30 +208,37 @@ class DBMPlotterController:
         if not os.path.isfile(path):
             raise Exception("Classifier performance history file not found.")
 
-        times, accuracies, losses = [], [], []
+        times, accuracies, losses, kappas = [], [], [], []
         with open(path, "r") as f:
             for line in f.readlines():
-                line = line.strip()
+                line = line.rstrip()
                 if len(line) == 0:
                     continue
-                _, time, _, acc, _, loss = line.replace("\n", "").replace("%", "").split(" ")
+                
+                information = line.split(" || ")
+                info_dict = eval(information[1])
+                accuracy, loss, kappa_score = info_dict["Accuracy"], info_dict["Loss"], info_dict["Kappa"]
+                time = information[0].split(" ")[1]
                 times.append(time)
-                accuracies.append(float(acc))
+                accuracies.append(float(accuracy))
                 losses.append(float(loss))
-        return times, accuracies, losses
+                kappas.append(float(kappa_score))
+        return times, accuracies, losses, kappas
     
     def compute_classifier_metrics(self, epochs):
         self.console.log("Evaluating classifier...")
         loss, accuracy = self.dbm_model.classifier.evaluate(self.X_test, self.Y_test, verbose=0)
-        self.console.log(f"Classifier Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.2f}")
+        Y_pred = self.dbm_model.classifier.predict(self.X_test, verbose=0).argmax(axis=-1)
+        kappa_score = cohen_kappa_score(self.Y_test, Y_pred)
+        self.console.log(f"Classifier Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.4f} Kappa: {kappa_score:.4f}")
 
         path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
 
         with open(path, "a") as f:
             time = datetime.now().strftime("%D %H:%M:%S")
-            message = f"Accuracy: {(100 * accuracy):.2f}% Loss: {loss:.2f}"
-            f.write(f"{time} {message}\n")
-        return accuracy, loss
+            message = "{" + f"'Accuracy': {(100 * accuracy):.2f}, 'Loss': {loss:.4f}, 'Kappa': {kappa_score:.4f}" + "}"
+            f.write(f"{time} || {message}\n")
+        return accuracy, loss, kappa_score
     
     def pop_classifier_evaluation(self):
         path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
@@ -242,11 +250,12 @@ class DBMPlotterController:
             f.write("".join(lines))
 
         if len(lines) == 0:
-            return None, None
+            return None, None, None
 
-        last_line = lines[-1].replace("\n", "")
-        accuracy, loss = float(last_line.split("Accuracy: ")[1].split("%")[0]), float(last_line.split("Loss: ")[1])
-        return accuracy, loss
+        last_line = lines[-1].rstrip()
+        info_dict = eval(last_line.split(" || ")[1])
+        accuracy, loss, kappa_score = info_dict["Accuracy"], info_dict["Loss"], info_dict["Kappa"]
+        return accuracy, loss, kappa_score
     
     def load_2d_projection(self):
         if os.path.exists(os.path.join(self.save_folder, TRAIN_2D_FILE_NAME)) and os.path.exists(os.path.join(self.save_folder, TEST_2D_FILE_NAME)):
