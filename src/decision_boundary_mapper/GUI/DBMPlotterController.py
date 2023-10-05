@@ -37,6 +37,7 @@ CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE = "classifier_old_boundary_map_confidence
 PLOT_SNAPSHOTS_FOLDER = "plot_snapshots"
 
 LABELS_CHANGES_FILE = "label_changes.json"
+LABELS_RESULT_FILE = "labels_result.npy"
 
 USER_ALLOWED_INTERACTION_ITERATIONS = 5
 
@@ -513,6 +514,9 @@ class DBMPlotterController:
         
         # if user is not allowed interact block the buttons and show a informative message
         if self.user_allowed_interaction_iterations <= 0:
+            # store the labels results after the usage
+            with open(os.path.join(self.save_folder, LABELS_RESULT_FILE), "wb") as f:
+                np.save(f, self.Y_train)
             self.gui.window["-USAGE ITERATIONS LEFT TEXT-"].update("Max number of iterations reached!\nApplying labels changes is not allowed anymore!", text_color='red')
             self.gui.window["-APPLY CHANGES-"].hide_row()
             self.gui.window["-UNDO CHANGES-"].hide_row()
