@@ -22,7 +22,8 @@ import time
 # Prepare the configurations
 DATASET_NAME = 'MNIST'
 DBM_TECHNIQUE = 'SDBM'
-PROJECTION = 'PCA'
+PROJECTION = 'UMAP'
+SDBM_TECHNIQUE = 'autoencoder'
 # ---------------------------------------------------
 
 
@@ -33,13 +34,13 @@ CLASSIFIER_PATH = os.path.join(TMP_FOLDER, DATASET_NAME, "classifier")
 LOAD_FOLDER = os.path.join(TMP_FOLDER, DATASET_NAME, DBM_TECHNIQUE)
 
 # ---------------------------------------------------
-FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION
+FAST_DECODING_STRATEGY = FAST_DBM_STRATEGIES.NONE
 # ---------------------------------------------------
 
 RESOLUTION_RANGE = (100, 2000, 50)
 
-#RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, FAST_DECODING_STRATEGY.value)
-RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, FAST_DECODING_STRATEGY.value) # the results folder for SDBM
+#RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, PROJECTION, f"{FAST_DECODING_STRATEGY.value}")
+RESULTS_FOLDER = os.path.join("experiments", "results", DATASET_NAME, DBM_TECHNIQUE, SDBM_TECHNIQUE, f"{FAST_DECODING_STRATEGY.value}") # the results folder for SDBM
 CONFIDENCE_SUBFOLDER = os.path.join(RESULTS_FOLDER, "confidence")
 CONFIDENCE_MAP_SUBFOLDER = os.path.join(RESULTS_FOLDER, "confidence_map")
 IMG_SUBFOLDER = os.path.join(RESULTS_FOLDER, "img")
@@ -91,7 +92,7 @@ def resolutions_run_times():
     else:
         dbm.generate_boundary_map(X_train, Y_train,
                                   X_test, Y_test,
-                                  nn_architecture=NNArchitecture.SSNP,
+                                  nn_architecture=SDBM_TECHNIQUE,
                                   load_folder=LOAD_FOLDER,
                                   resolution=10
                                 )
@@ -117,10 +118,10 @@ def resolutions_run_times():
     # Run the generation of the boundary map for different resolutions
     for resolution in range(*RESOLUTION_RANGE):
         start = time.time()
-        if FAST_DECODING_STRATEGY != FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION:
+        if FAST_DECODING_STRATEGY != FAST_DBM_STRATEGIES.NONE:
+            img, img_confidence, confidence_map = DECODER[FAST_DECODING_STRATEGY](resolution, initial_resolution = 32)
+        else:
             img, img_confidence, confidence_map = DECODER[FAST_DECODING_STRATEGY](resolution)
-        else: 
-            img, img_confidence, confidence_map = dbm._get_img_dbm_fast_confidence_interpolation_strategy(resolution, initial_resolution = 32)
         end = time.time()
         decoding_time = round(end - start, 3)
         print("Resolution: ", resolution, "Decoding time: ", decoding_time)

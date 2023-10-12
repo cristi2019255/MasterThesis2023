@@ -42,7 +42,6 @@ def resolutions_experiment_plot(folder=RESULTS_FOLDER):
     
 def errors_plot(folder=RESULTS_FOLDER):
     strategies_folders = os.listdir(folder)
-    #strategies_folders = ["binary_split"]
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
     plt.title("Errors vs Resolution")

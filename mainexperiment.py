@@ -1,11 +1,11 @@
 # Copyright 2023 Cristian Grosu
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,8 +21,8 @@ from experiments.scripts.plotter import confidence_errors_plot_for_confidence_in
 # INSTRUCTIONS:
 #
 # WARNING: The experiments need to be run in the following order: 1, 2, 3, 4, ...
-# 
-# 
+#
+#
 # EXPERIMENT 1: (Run the experiments for resolutions with a specific fast decoding strategy)
 #     1. Set the FAST_DECODING_STRATEGY in the experiments/scripts/experiment_resolutions.py file
 #     1.1. (Optional) Set the RESOLUTION_RANGE in the experiments/scripts/experiment_resolutions.py file
@@ -42,7 +42,7 @@ from experiments.scripts.plotter import confidence_errors_plot_for_confidence_in
 # EXPERIMENT 3: (Compute the errors for the different resolutions)
 #     1. Set the FOLDER to the corresponding folder for your dataset, dbm strategy and projection
 #     2. Run compute_errors(folder=FOLDER) from this file
-# OUTPUT: The errors results will be saved for each fast decoding strategy in the folder: 
+# OUTPUT: The errors results will be saved for each fast decoding strategy in the folder:
 #         experiments/results/{dataset_name}/{dbm_strategy}/({projection})/{FAST_DECODING_STRATEGY}/errors_results.txt
 #
 # EXPERIMENT 4: (Compute a plot to compare the errors for the different resolutions)
@@ -88,8 +88,9 @@ from experiments.scripts.plotter import confidence_errors_plot_for_confidence_in
 # ---------------------------------------------------
 
 
-#FOLDER = os.path.join("experiments", "results", "MNIST", "SDBM")
-FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "t-SNE")
+#FOLDER = os.path.join("experiments", "results", "MNIST", "SDBM", "ssnp")
+#FOLDER = os.path.join("experiments", "results", "MNIST", "SDBM", "autoencoder")
+#FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "t-SNE")
 #FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "UMAP")
 #FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "PCA")
 
@@ -97,29 +98,29 @@ FOLDER = os.path.join("experiments", "results", "MNIST", "DBM", "t-SNE")
 #                 RUN THE EXPERIMENT(S)
 # ---------------------------------------------------
 if __name__ == "__main__":
-   # ---------------------------------------------------
-   #                 EXPERIMENT 1-4-5-6-7
-   # ---------------------------------------------------
-   #resolutions_run_times()
-   #resolutions_experiment_plot(folder=FOLDER)
-   compute_errors(folder=FOLDER)
-   errors_plot(folder=FOLDER)
-   
-   # ---------------------------------------------------
-   #                 EXPERIMENT 8-10
-   # ---------------------------------------------------
-   # compute_confidence_images(folder=os.path.join(FOLDER, "confidence_split"), interpolation_method='nearest', resolutions=[250, 500, 750, 1000, 1250, 1500, 1750, 1950])
-   # compute_confidence_images(folder=os.path.join(FOLDER, "binary_split"), interpolation_method='nearest', resolutions=[250, 500, 750, 1000, 1250, 1500, 1750, 1950])
-   # compute_confidence_images(folder=os.path.join(FOLDER, "confidence_split"), interpolation_method='linear', resolutions=[250, 500, 750, 1000, 1250, 1500, 1750, 1950])
-   # compute_confidence_images(folder=os.path.join(FOLDER, "binary_split"), interpolation_method='linear', resolutions=[250, 500, 750, 1000, 1250, 1500, 1750, 1950])
-   # compute_confidence_images(folder=os.path.join(FOLDER, "confidence_split"), interpolation_method='cubic', resolutions=[250, 500, 750, 1000, 1250, 1500, 1750, 1950])
-   # compute_confidence_images(folder=os.path.join(FOLDER, "binary_split"), interpolation_method='cubic', resolutions=[250, 500, 750, 1000, 1250, 1500, 1750, 1950])
-   
-   # compute_confidence_errors(folder=FOLDER, interpolation_method='nearest')
-   # compute_confidence_errors(folder=FOLDER, interpolation_method='linear')
-   # compute_confidence_errors(folder=FOLDER, interpolation_method='cubic')
-   
-   # confidence_errors_plot(folder=FOLDER)
-   
-   # compute_confidence_errors_for_confidence_interpolation(folder=FOLDER)
-   # confidence_errors_plot_for_confidence_interpolation(folder=FOLDER)
+    # ---------------------------------------------------
+    #                 EXPERIMENT 1-4-5-6-7
+    # ---------------------------------------------------
+    #resolutions_run_times()
+    #resolutions_experiment_plot(folder=FOLDER)
+    #compute_errors(folder=FOLDER)
+    #errors_plot(folder=FOLDER)
+
+    # ---------------------------------------------------
+    #                 EXPERIMENT 8-10
+    # ---------------------------------------------------
+    # compute_confidence_images(folder=os.path.join(FOLDER, "confidence_split"), interpolation_method='nearest', resolutions=[250, 500, 750, 1000, 1250, 1500, 1750, 1950])
+    # compute_confidence_images(folder=os.path.join(FOLDER, "binary_split"), interpolation_method='nearest', resolutions=[250, 500, 750, 1000, 1250, 1500, 1750, 1950])
+    # compute_confidence_images(folder=os.path.join(FOLDER, "confidence_split"), interpolation_method='linear', resolutions=[250, 500, 750, 1000, 1250, 1500, 1750, 1950])
+    # compute_confidence_images(folder=os.path.join(FOLDER, "binary_split"), interpolation_method='linear', resolutions=[250, 500, 750, 1000, 1250, 1500, 1750, 1950])
+    # compute_confidence_images(folder=os.path.join(FOLDER, "confidence_split"), interpolation_method='cubic', resolutions=[250, 500, 750, 1000, 1250, 1500, 1750, 1950])
+    # compute_confidence_images(folder=os.path.join(FOLDER, "binary_split"), interpolation_method='cubic', resolutions=[250, 500, 750, 1000, 1250, 1500, 1750, 1950])
+
+    # compute_confidence_errors(folder=FOLDER, interpolation_method='nearest')
+    # compute_confidence_errors(folder=FOLDER, interpolation_method='linear')
+    # compute_confidence_errors(folder=FOLDER, interpolation_method='cubic')
+
+    # confidence_errors_plot(folder=FOLDER)
+
+    # compute_confidence_errors_for_confidence_interpolation(folder=FOLDER)
+    # confidence_errors_plot_for_confidence_interpolation(folder=FOLDER)
