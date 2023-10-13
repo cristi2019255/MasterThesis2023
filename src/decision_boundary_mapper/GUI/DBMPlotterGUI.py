@@ -35,6 +35,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import PySimpleGUI as sg
 import matplotlib
+from matplotlib import cm
 
 from .. import Logger, LoggerGUI, FAST_DBM_STRATEGIES
 from .DBMPlotterController import DBMPlotterController
@@ -70,31 +71,21 @@ def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
     return figure_canvas_agg
 
 
-def generate_color_mapper():
+def generate_color_mapper(num_classes):
+   
+    colors = cm.tab10(np.linspace(0, 1, num_classes))
     colors_mapper = {
         # setting original test data to black
         TEST_DATA_POINT_MARKER: [0, 0, 0],
         # setting original train data to white
         TRAIN_DATA_POINT_MARKER: [1, 1, 1],
-        0: [1, 0, 0],
-        1: [0, 1, 0],
-        2: [0, 0, 1],
-        3: [1, 1, 0],
-        4: [0, 1, 1],
-        5: [1, 0, 1],
-        6: [0.5, 0.5, 0.5],
-        7: [0.5, 0, 0],
-        8: [0, 0.5, 0],
-        9: [0, 0, 0.5]
     }
     # setting the rest of the colors
-    for i in range(10, 100):
-        colors_mapper[i] = [i/200, i/200, i/200]
+    for i in range(num_classes):
+        colors_mapper[i] = colors[i][:3]
     return colors_mapper
 
 
-# Generating initial settings
-COLORS_MAPPER = generate_color_mapper()
 
 TITLE = "Decision Boundary Map & Errors"
 WINDOW_SIZE = (1650, 1000)
@@ -114,7 +105,8 @@ class DBMPlotterGUI:
                  projection_technique=None,
                  logger=None,
                  main_gui=None,
-                 class_name_mapper= lambda x: str(x)
+                 class_name_mapper= lambda x: str(x),
+                 color_mapper=generate_color_mapper(10)
                  ):
         """[summary] DBMPlotterGUI is a GUI that allows the user to visualize the decision boundary map and the errors of the DBM model.
         It also allows the user to change the labels of the data points and see the impact of the changes on the model.
@@ -135,6 +127,7 @@ class DBMPlotterGUI:
             logger (Logger, optional): The logger which is meant for logging the info messages. Defaults to None.
             main_gui (GUI, optional): The GUI that started the DBMPlotterGUI if any. Defaults to None.
             class_name_mapper (function, optional): The function which is meant for mapping class names to their corresponding values. Defaults to lambda x -> str(x).
+            color_mapper (dict, optional): The color mapper dictionary. Should include keys: TEST_DATA_POINT_MARKER = -2, TRAIN_DATA_POINT_MARKER = -1, 0, ..., num_classes. Each value should be an array of 3 numbers in range 0-1
         """
         
         self.main_gui = main_gui  # reference to main window
@@ -156,10 +149,22 @@ class DBMPlotterGUI:
                                                 gui=self
                                                 )
         
+        try:
+            assert(color_mapper is dict)
+            assert(TEST_DATA_POINT_MARKER in color_mapper.keys())
+            assert(TRAIN_DATA_POINT_MARKER in color_mapper.keys())
+            assert(len(color_mapper) == len(np.unique(img)))
+            assert (all(len(color) == 3 and channel <= 1 and channel >=0 for channel in color for color in color_mapper.values()))
+            self.colors_mapper = color_mapper
+        except AssertionError:
+            if color_mapper is not None:
+                self.console.log("The provided color mapper does not match the requirements, falling back to the default color mapper...")
+            self.colors_mapper = generate_color_mapper(len(np.unique(img)) - 2)
+            
         self.initialize_plots(connect_click_event = False)
         
     def initialize_plots(self, connect_click_event = True):
-        self.color_img, self.legend = self.controller.build_2D_image(colors_mapper=COLORS_MAPPER, class_name_mapper=self.class_name_mapper)
+        self.color_img, self.legend = self.controller.build_2D_image(colors_mapper=self.colors_mapper, class_name_mapper=self.class_name_mapper)
         # --------------------- Plotter related ---------------------
         self.classifier_performance_fig, self.classifier_performance_ax = self._build_plot_()
         self.fig, self.ax = self._build_plot_()
@@ -500,7 +505,7 @@ class DBMPlotterGUI:
 
         if values["-SHOW CLASSIFIER PREDICTIONS-"]:
             encoded_train = self.controller.get_encoded_train_data()
-            colors = [COLORS_MAPPER[label] for label in encoded_train[:, 2]]
+            colors = [self.colors_mapper[label] for label in encoded_train[:, 2]]
             self.axes_classifier_scatter = self.ax.scatter(encoded_train[:, 1], encoded_train[:, 0], s=10, c=colors)
 
         if hasattr(self, "ax_labels_changes") and self.ax_labels_changes is not None:
