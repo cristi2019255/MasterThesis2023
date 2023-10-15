@@ -149,17 +149,18 @@ class DBMPlotterGUI:
                                                 gui=self
                                                 )
         
+        num_classes = len(np.unique(np.concatenate((Y_train, Y_test))))
         try:
             assert(color_mapper is dict)
             assert(TEST_DATA_POINT_MARKER in color_mapper.keys())
             assert(TRAIN_DATA_POINT_MARKER in color_mapper.keys())
-            assert(len(color_mapper) == len(np.unique(img)))
+            assert(len(color_mapper) == num_classes + 2)
             assert (all(len(color) == 3 and channel <= 1 and channel >=0 for channel in color for color in color_mapper.values()))
             self.colors_mapper = color_mapper
         except AssertionError:
             if color_mapper is not None:
                 self.console.log("The provided color mapper does not match the requirements, falling back to the default color mapper...")
-            self.colors_mapper = generate_color_mapper(len(np.unique(img)) - 2)
+            self.colors_mapper = generate_color_mapper(num_classes)
             
         self.initialize_plots(connect_click_event = False)
         
