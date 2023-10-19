@@ -248,6 +248,9 @@ class DBMPlotterGUI:
                         sg.Checkbox("Show classifier predictions", default=False, key="-SHOW CLASSIFIER PREDICTIONS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
                     ],
                     [
+                        sg.Checkbox("Show data labels", default=False, key="-SHOW DATA LABELS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
+                    ],
+                    [
                         sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0), visible=computed_inverse_projection_errors),
                     ],
                     [
@@ -403,6 +406,7 @@ class DBMPlotterGUI:
             "-SHOW PROJECTION ERRORS-": self.handle_checkbox_change_event,
             "-SHOW LABELS CHANGES-": self.handle_checkbox_change_event,
             "-SHOW CLASSIFIER PREDICTIONS-": self.handle_checkbox_change_event,
+            "-SHOW DATA LABELS-": self.handle_checkbox_change_event,
             "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,
             "-UNDO CHANGES-": self.handle_undo_changes_event,
             "-DBM FAST DECODING STRATEGY-": self.handle_decoding_strategy_change_event,
@@ -515,19 +519,37 @@ class DBMPlotterGUI:
         if hasattr(self, "axes_image"):
             self.axes_image.remove()
 
-        if hasattr(self, "axes_classifier_scatter") and self.axes_classifier_scatter is not None:
-            self.axes_classifier_scatter.set_visible(False)
-            self.axes_classifier_scatter = None
+        if hasattr(self, "axes_labels_scatters") and self.axes_labels_scatters is not None:
+            for scatter in self.axes_labels_scatters:
+                scatter.remove()
+            self.axes_labels_scatters = None
 
         self.axes_image = self.ax.imshow(img)
 
-        if values["-SHOW CLASSIFIER PREDICTIONS-"]:
+        # allow only one of 2 options either show the data labels or the classifier predictions
+        show_data_labels, show_classifier_predictions = values["-SHOW DATA LABELS-"], values["-SHOW CLASSIFIER PREDICTIONS-"]
+        if show_data_labels:
+            values["-SHOW CLASSIFIER PREDICTIONS-"] = False
+        if show_classifier_predictions:
+            values["-SHOW DATA LABELS-"] = False
+            
+        if values["-SHOW CLASSIFIER PREDICTIONS-"] or values["-SHOW DATA LABELS-"]:
             encoded_train = self.controller.get_encoded_train_data()
-            colors = [self.colors_mapper[label] for label in encoded_train[:, 2]]
-            self.axes_classifier_scatter = self.ax.scatter(encoded_train[:, 1], encoded_train[:, 0], s=10, c=colors)
+            encoded_test = self.controller.get_encoded_test_data()
+            
+            labels_train = encoded_train[:, 2] if show_classifier_predictions else self.controller.Y_train
+            labels_test = encoded_test[:, 2] if show_classifier_predictions else self.controller.Y_test
+            
+            colors_train = [self.colors_mapper[label] for label in labels_train]
+            colors_test = [self.colors_mapper[label] for label in labels_test]
+            
+            train_data_points_scatter = self.ax.scatter(encoded_train[:, 1], encoded_train[:, 0], s=10, c=colors_train)
+            test_data_points_scatter = self.ax.scatter(encoded_test[:, 1], encoded_test[:, 0], s=5, c=colors_test, marker='*')
 
+            self.axes_labels_scatters = [train_data_points_scatter, test_data_points_scatter]
+       
         if hasattr(self, "ax_labels_changes") and self.ax_labels_changes is not None:
-            self.ax_labels_changes.set_visible(False)
+            self.ax_labels_changes.remove()
             self.ax_labels_changes = None
 
         positions_x, positions_y, alphas = self.controller.get_positions_of_labels_changes()
@@ -535,6 +557,8 @@ class DBMPlotterGUI:
             self.ax_labels_changes = self.ax.scatter(positions_x, positions_y, s=10, c='green', marker='^', alpha=alphas)
 
         self.fig.canvas.draw_idle()
+        self.window["-SHOW DATA LABELS-"].update(values["-SHOW DATA LABELS-"])
+        self.window["-SHOW CLASSIFIER PREDICTIONS-"].update(values["-SHOW CLASSIFIER PREDICTIONS-"])
         
     def handle_circle_selecting_labels_change_event(self, event, values):
         self.update_labels_by_circle_select = values["-CIRCLE SELECTING LABELS-"]

@@ -488,7 +488,7 @@ def make_parasites_classifier(X_train, X_test, Y_train, Y_test):
     ])
     classifier.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
     classifier.fit(X_train, Y_train, epochs=20, shuffle=False, validation_split=0.2)
-    classifier.evaluate(X_train, Y_test)
+    classifier.evaluate(X_test, Y_test)
     Y_pred = classifier.predict(X_test, verbose=0).argmax(axis=-1)
     
     kappa_score = cohen_kappa_score(Y_test, Y_pred)

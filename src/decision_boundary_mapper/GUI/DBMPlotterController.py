@@ -211,7 +211,7 @@ class DBMPlotterController:
         values = np.unique(img)
 
         patches = []
-        for value in values:
+        for value in colors_mapper.keys():
             color = colors_mapper[value]
             if value == TRAIN_DATA_POINT_MARKER:
                 label = "Original train data"
@@ -449,6 +449,9 @@ class DBMPlotterController:
     
     def get_encoded_train_data(self):
         return self.encoded_train
+    
+    def get_encoded_test_data(self):
+        return self.encoded_test
     
     def get_positions_of_labels_changes(self):
         return self.positions_of_labels_changes
