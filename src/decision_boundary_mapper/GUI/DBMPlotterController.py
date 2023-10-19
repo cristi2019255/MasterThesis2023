@@ -133,6 +133,7 @@ class DBMPlotterController:
         self.encoded_test = encoded_test
         self.gui = gui # reference to the gui that uses the controller
         self.user_allowed_interaction_iterations = USER_ALLOWED_INTERACTION_ITERATIONS
+        self.show_tooltip_for_dataset_only = False
         
         # -------------- Create folder structure --------------------
         folders_to_create = [
@@ -616,6 +617,9 @@ class DBMPlotterController:
     def set_updates_logger(self, logger):
         self.updates_logger = logger
     
+    def set_show_tooltip_for_dataset_only(self, value):
+        self.show_tooltip_for_dataset_only = value
+    
     def build_annotation_mapper(self, fig, ax, connect_click_event=True):
         """ Builds the annotation mapper.
             This is used to display the data point label when hovering over the decision boundary.
@@ -683,6 +687,9 @@ class DBMPlotterController:
                 k = self.test_mapper[f"{i} {j}"]
                 return self.X_test[k], f"Classifier label: {int(self.encoded_test[k][2])}"
 
+            if self.show_tooltip_for_dataset_only:
+                return None, None
+            
             # generate the nD data point on the fly using the inverse projection
             if self.helper_decoder is not None:
                 point = self.helper_decoder.predict(self.dbm_model.neural_network.decode(

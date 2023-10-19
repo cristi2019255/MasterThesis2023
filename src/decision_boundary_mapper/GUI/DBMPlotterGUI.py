@@ -233,6 +233,9 @@ class DBMPlotterGUI:
                     ],
                     [ sg.HSeparator() ],
                     [
+                        sg.Checkbox("Show tooltip for points outside of the dataset", default=True, key="-SHOW TOOLTIP OUTSIDE DATASET-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
+                    ],
+                    [
                         sg.Checkbox("Change labels by selecting with circle", default=True, key="-CIRCLE SELECTING LABELS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
                     ],
                     [
@@ -400,6 +403,7 @@ class DBMPlotterGUI:
             "-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-": self.handle_compute_projection_errors_event,
             "-COMPUTE INVERSE PROJECTION ERRORS-": self.handle_compute_inverse_projection_errors_event,
             "-APPLY CHANGES-": self.handle_apply_changes_event,
+            "-SHOW TOOLTIP OUTSIDE DATASET-": self.handle_tooltip_checkbox_change_event,
             "-SHOW DBM COLOR MAP-": self.handle_checkbox_change_event,
             "-SHOW DBM CONFIDENCE-": self.handle_checkbox_change_event,
             "-SHOW INVERSE PROJECTION ERRORS-": self.handle_checkbox_change_event,
@@ -415,6 +419,9 @@ class DBMPlotterGUI:
         }
 
         EVENTS[event](event, values)
+
+    def handle_tooltip_checkbox_change_event(self, event, value):
+        self.controller.set_show_tooltip_for_dataset_only(not value["-SHOW TOOLTIP OUTSIDE DATASET-"])
 
     def handle_decoding_strategy_change_event(self, event, values):
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
