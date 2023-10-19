@@ -63,7 +63,7 @@ class NNInv(AbstractNN):
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
             tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(output_size, activation='sigmoid',
+            tf.keras.layers.Dense(output_size, activation='relu', # TODO: check if this still works for MNIST, this was sigmoid before
                                   kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED)),  # type: ignore
             tf.keras.layers.Reshape(output_shape)
         ], name=DECODER_NAME)

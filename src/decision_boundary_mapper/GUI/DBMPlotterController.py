@@ -269,9 +269,9 @@ class DBMPlotterController:
                 kappas.append(float(kappa_score))
         return times, accuracies, losses, kappas
     
-    def compute_classifier_metrics(self, epochs):
+    def compute_classifier_metrics(self):
         self.console.log("Evaluating classifier...")
-        X_train = self.X_train if self.X_train_latent is None else self.X_train_latent
+    
         X_test = self.X_test if self.X_test_latent is None else self.X_test_latent
        
         loss, accuracy = self.dbm_model.classifier.evaluate(X_test, self.Y_test, verbose=0)

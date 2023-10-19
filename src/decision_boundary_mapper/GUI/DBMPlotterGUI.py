@@ -153,17 +153,22 @@ class DBMPlotterGUI:
         
         self.controller = DBMPlotterController(logger,
                                                 dbm_model,
-                                                img, img_confidence,
-                                                X_train, Y_train,
-                                                X_test, Y_test,
-                                                X_train_2d, X_test_2d,
-                                                encoded_train, encoded_test,
+                                                img, 
+                                                img_confidence,
+                                                X_train, 
+                                                Y_train,
+                                                X_test,
+                                                Y_test,
+                                                X_train_2d, 
+                                                X_test_2d,
+                                                encoded_train, 
+                                                encoded_test,
                                                 save_folder,
                                                 projection_technique,
                                                 gui=self,
+                                                X_train_latent=X_train_latent,
+                                                X_test_latent=X_test_latent,
                                                 helper_decoder=helper_decoder,
-                                                X_train_latent = X_train_latent,
-                                                X_test_latent = X_test_latent,
                                                 )
         
         num_classes = len(np.unique(np.concatenate((Y_train, Y_test))))
@@ -469,8 +474,8 @@ class DBMPlotterGUI:
         # draw the figure to the canvas
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
        
-    def compute_classifier_metrics(self, epochs=None):
-        accuracy, loss, kappa_score = self.controller.compute_classifier_metrics(epochs)
+    def compute_classifier_metrics(self):
+        accuracy, loss, kappa_score = self.controller.compute_classifier_metrics()
         self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(100 * accuracy):.2f} %  Loss: {loss:.4f} Kappa score: {kappa_score:.4f}")
         self.update_classifier_performance_canvas()
 
@@ -573,7 +578,7 @@ class DBMPlotterGUI:
     def handle_apply_changes_event(self, event, values):
         self.controller.apply_labels_changes(decoding_strategy=FAST_DBM_STRATEGIES(values["-DBM FAST DECODING STRATEGY-"]), epochs=int(values["-DBM RELABELING CLASSIFIER EPOCHS-"]))
         self.initialize_plots()
-        self.compute_classifier_metrics(int(values["-DBM RELABELING CLASSIFIER EPOCHS-"]))
+        self.compute_classifier_metrics()
         self.handle_checkbox_change_event(event, values)
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
        
