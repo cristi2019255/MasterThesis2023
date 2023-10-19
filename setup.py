@@ -25,7 +25,7 @@ os.system("pdoc --html src/decision_boundary_mapper -o docs")
 
 setup(
     name='decision-boundary-mapper',
-    version='0.7.0',
+    version='0.7.1',
     license='MIT',
     author="Cristian Grosu",
     author_email='c.grosu@students.uu.nl',
