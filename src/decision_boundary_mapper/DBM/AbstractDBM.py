@@ -115,7 +115,7 @@ class AbstractDBM:
         self.classifier.build(input_shape=Xnd.shape)
         
         self.console.log(f"Fitting classifier for {epochs} epochs and batch size {batch_size}, please wait...")
-        self.classifier.fit(Xnd, Y, epochs=epochs, batch_size=batch_size, verbose=0, shuffle=False) #type: ignore
+        self.classifier.fit(Xnd, Y, epochs=epochs, batch_size=batch_size, verbose=0, shuffle=True) #type: ignore
         self.console.log("Finished fitting classifier")
         self.save_classifier(save_folder=save_folder)
 
