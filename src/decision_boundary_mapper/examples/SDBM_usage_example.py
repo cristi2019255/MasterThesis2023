@@ -118,3 +118,45 @@ def SDBM_usage_example_GUI():
                                     save_folder=os.path.join("tmp", "MNIST", "SDBM"),
                                     )
     dbm_plotter_gui.start()
+
+def SDBM_usage_example_GUI_with_feature_extraction():
+    # import the dataset
+    X_train, X_test, Y_train, Y_test = import_data()
+
+    # import the classifier
+    classifier = import_classifier()
+
+    # create the DBM
+    sdbm = SDBM(classifier=classifier)
+    
+    # extract features
+    feature_extractor, feature_decoder = import_feature_extractor()
+
+    X_train_features = feature_extractor.predict(X_train)  # type: ignore
+    X_test_features = feature_extractor.predict(X_test)  # type: ignore
+
+
+    # use the SDBM to get the decision boundary map
+    img, img_confidence, encoded_training_data, encoded_testing_data = sdbm.generate_boundary_map(X_train_features, Y_train,
+                                                                                                  X_test_features, Y_test,
+                                                                                                  resolution=256,
+                                                                                                  nn_architecture=NNArchitecture.SSNP,
+                                                                                                  load_folder=os.path.join("tmp", "MNIST", "SDBM"),
+                                                                                                  )
+
+    dbm_plotter_gui = DBMPlotterGUI(dbm_model=sdbm,
+                                    img=img,
+                                    img_confidence=img_confidence,
+                                    encoded_train=encoded_training_data,
+                                    encoded_test=encoded_testing_data,
+                                    X_train=X_train,
+                                    Y_train=Y_train,
+                                    X_test=X_test,
+                                    Y_test=Y_test,
+                                    save_folder=os.path.join( "tmp", "MNIST", "SDBM"),
+                                    helper_decoder= feature_decoder,
+                                    X_train_latent=X_train_features,
+                                    X_test_latent=X_test_features,
+                                    )
+    dbm_plotter_gui.start()
+   

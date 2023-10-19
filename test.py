@@ -21,6 +21,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from src.decision_boundary_mapper.DBM import SDBM
 from src.decision_boundary_mapper.DBM.SDBM.SDBM import NNArchitecture
+from src.decision_boundary_mapper.GUI import DBMPlotterGUI
 from src.decision_boundary_mapper.utils.dataReader import import_dataset, import_mnist_dataset, import_folder_dataset
 from experiments.scripts import import_data
 
@@ -411,6 +412,141 @@ def train_mnist_classifier():
 
     classifier.evaluate(X_test, Y_test)
     classifier.save(os.path.join("tmp", "MNIST", "classifier"), save_format="tf")
+
+#-------------------------------------------------------------------------------------------
+from sklearn.metrics import cohen_kappa_score
+from PIL import Image
+
+
+DATA_FOLDER = os.path.join("data", "proto_simp")
+TEST_DATA_FOLDER = "test"
+TRAIN_DATA_FOLDER = "train"
+
+def import_feature_extractor():
+    # upload a feature extractor
+    # !!! the feature extractor encoder and decoder must be tf.keras.models.Model !!!
+    # !!! change the next line with the path to your feature extractor !!!
+    feature_extractor_path = os.path.join("AuNN")
+    encoder_path = os.path.join(feature_extractor_path, "encoder")
+    decoder_path = os.path.join(feature_extractor_path, "decoder")
+    try:
+        encoder = tf.keras.models.load_model(encoder_path)
+        decoder = tf.keras.models.load_model(decoder_path)
+        return encoder, decoder
+    except:
+        raise Exception("Error when loading models")
+
+
+def import_from_folder(folder, true_labels: bool = False):
+    files = os.listdir(folder)
+    files.sort()
+    file_list = [os.path.join(folder, file) for file in files if file.endswith(".png")]
+    X = np.array([np.array(Image.open(fname)) for fname in file_list])
+    
+    if true_labels:
+        Y = np.array([int(file.split("_")[0]) for file in files if file.endswith(".png")])
+    else:
+        with open(os.path.join(folder, "y.npy"), "rb") as f:
+            Y = np.load(f)
+    
+    # the labels are 1 unit wrong (e.g. the image shows a 9 whereas the label is 10)
+    Y -= 1
+    return X, Y
+
+def import_parasites_data(true_labels: bool = False):
+    
+    train_dir = os.path.join(DATA_FOLDER, TRAIN_DATA_FOLDER)
+    test_dir = os.path.join(DATA_FOLDER, TEST_DATA_FOLDER)
+
+    X_train, Y_train = import_from_folder(train_dir, true_labels)
+    X_test, Y_test = import_from_folder(test_dir)
+
+    print(f"X_train {X_train.shape}, Y_train {Y_train.shape}")
+    print(f"X_test {X_test.shape}, Y_test {Y_test.shape}")
+
+    return X_train.astype('float32') / 255, X_test.astype('float32') / 255, Y_train, Y_test
+
+
+def import_parasites_2d_data(projection='t-SNE'):
+    try:
+        # upload the 2D projection of the data
+        with open(os.path.join("tmp", "data_proto_simp", "DBM", projection, "train_2d.npy"), "rb") as f:
+            X2d_train = np.load(f)
+        with open(os.path.join("tmp", "data_proto_simp", "DBM", projection, "test_2d.npy"), "rb") as f:
+            X2d_test = np.load(f)
+        return X2d_train, X2d_test
+    except:
+        print("No 2d data projection found for projection " + projection)
+        return None, None
+
+def make_parasites_classifier(X_train, X_test, Y_train, Y_test):
+    # make a classifier
+    num_classes = len(np.unique(np.concatenate((Y_train, Y_test))))
+    classifier = tf.keras.Sequential([
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(num_classes, activation=tf.keras.activations.softmax, kernel_initializer=tf.keras.initializers.HeUniform(42))
+    ])
+    classifier.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+    classifier.fit(X_train, Y_train, epochs=20, shuffle=False, validation_split=0.2)
+    classifier.evaluate(X_train, Y_test)
+    Y_pred = classifier.predict(X_test, verbose=0).argmax(axis=-1)
+    
+    kappa_score = cohen_kappa_score(Y_test, Y_pred)
+    print(f"Kappa score: {kappa_score:.4f}")
+    
+    classifier.save(os.path.join("tmp", "data_proto_simp", "classifier"), save_format="tf")
+    
+
+def DBM_usage_example_GUI_with_feature_extraction():
+    # import the dataset
+    X_train, X_test, Y_train, Y_test = import_parasites_data(true_labels = False)
+
+    # extract features
+    feature_extractor, feature_decoder = import_feature_extractor()
+    print("Extracting features using the feature extractor...")
+    X_train_features = feature_extractor.predict(X_train)  # type: ignore
+    X_test_features = feature_extractor.predict(X_test)  # type: ignore
+
+    # getting the classifier
+    classifier = tf.keras.models.load_model(os.path.join("tmp", "data_proto_simp", "classifier")) 
+   
+    # create the DBM
+    dbm = DBM(classifier=classifier)
+
+    # import 2d data
+    X2d_train, X2d_test = import_parasites_2d_data(projection='t-SNE')
+   
+    # use the DBM to get the decision boundary map, if you don't have the 2D projection of the data
+    # the DBM will get it for you, you just need to specify the projection method you would like to use (t-SNE, PCA or UMAP)
+    img, img_confidence, encoded_training_data, encoded_testing_data = dbm.generate_boundary_map(X_train_features,
+                                                                                                 X_test_features,
+                                                                                                 X2d_train=X2d_train,
+                                                                                                 X2d_test=X2d_test,
+                                                                                                 resolution=256,
+                                                                                                 load_folder=os.path.join("tmp", "data_proto_simp", "DBM"),
+                                                                                                 projection="t-SNE",
+                                                                                                 )
+
+    dbm_plotter_gui = DBMPlotterGUI(dbm_model=dbm,
+                                    img=img,
+                                    img_confidence=img_confidence,
+                                    encoded_train=encoded_training_data,
+                                    encoded_test=encoded_testing_data,
+                                    X_train=X_train,
+                                    Y_train=Y_train,
+                                    X_test=X_test,
+                                    Y_test=Y_test,
+                                    # this is the folder where the DBM will save the changes in data the user makes
+                                    save_folder=os.path.join("tmp", "data_proto_simp", "DBM"),
+                                    projection_technique="t-SNE",
+                                    helper_decoder=feature_decoder,
+                                    X_train_latent=X_train_features,
+                                    X_test_latent=X_test_features
+                                    )
+    dbm_plotter_gui.start()
+
+
+DBM_usage_example_GUI_with_feature_extraction()
 
 #show_bilinear_interpolation()
 #show_grid()

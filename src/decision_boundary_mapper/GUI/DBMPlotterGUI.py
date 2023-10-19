@@ -38,6 +38,7 @@ import matplotlib
 from matplotlib import cm
 
 from .. import Logger, LoggerGUI, FAST_DBM_STRATEGIES
+from ..DBM import DBM, SDBM
 from .DBMPlotterController import DBMPlotterController
 from .DBMPlotterController import EPOCHS_FOR_REFIT, EPOCHS_FOR_REFIT_RANGE, USER_ALLOWED_INTERACTION_ITERATIONS
 from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, BLACK_COLOR, WHITE_COLOR, RED_COLOR, GREEN_COLOR, YELLOW_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2, APP_PRIMARY_COLOR, APP_FONT
@@ -95,24 +96,32 @@ DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_pl
 class DBMPlotterGUI:
     
     def __init__(self,
-                 dbm_model,
-                 img, img_confidence,
-                 X_train, Y_train,
-                 X_test, Y_test,
-                 encoded_train, encoded_test,
-                 save_folder,
-                 X_train_2d = None, X_test_2d = None,
-                 projection_technique=None,
+                 dbm_model: DBM | SDBM,
+                 img: np.ndarray,
+                 img_confidence: np.ndarray,
+                 X_train: np.ndarray, 
+                 Y_train: np.ndarray,
+                 X_test: np.ndarray, 
+                 Y_test: np.ndarray,
+                 encoded_train: np.ndarray, 
+                 encoded_test: np.ndarray,
+                 save_folder: str,
+                 X_train_2d: np.ndarray | None = None,
+                 X_test_2d: np.ndarray | None = None,
+                 projection_technique: str | None=None,
                  logger=None,
                  main_gui=None,
                  class_name_mapper= lambda x: str(x),
-                 color_mapper=generate_color_mapper(10)
+                 color_mapper=generate_color_mapper(10),
+                 helper_decoder=None,
+                 X_train_latent: np.ndarray | None = None,
+                 X_test_latent: np.ndarray | None = None,
                  ):
         """[summary] DBMPlotterGUI is a GUI that allows the user to visualize the decision boundary map and the errors of the DBM model.
         It also allows the user to change the labels of the data points and see the impact of the changes on the model.
 
         Args:
-            dbm_model (DBM or SDBM): The DBM model that will be used to generate the decision boundary map.
+            dbm_model (DBM | SDBM): The DBM model that will be used to generate the decision boundary map.
             img (np.ndarray): The decision boundary map image.
             img_confidence (np.ndarray): The decision boundary map confidence image.
             X_train (np.ndarray): The training data.
@@ -121,13 +130,18 @@ class DBMPlotterGUI:
             Y_test (np.ndarray): The test labels.
             encoded_train (np.ndarray): Positions of the training data points in the 2D embedding space.
             encoded_test (np.ndarray): Positions of the test data points in the 2D embedding space.
-            spaceNd (np.ndarray): This is a list of lists of size resolution*resolution. Each point in this list is an nd data point which can be a vector, a matrix or a multidimensional matrix.
             save_folder (string): The folder where all the DBM model related files will be saved.
+            X_train_2d (np.ndarray | None): The 2D embedding space of the training data, if provided it will be used to faster load the 2D plot. Defaults to None 
+            X_test_2d (np.ndarray | None): The 2D embedding space of the testing data, if provided it will be used to faster load the 2D plot. Defaults to None
             projection_technique (string, optional): The projection technique the user wants to use if DBM is used as dbm_model. Defaults to None.
             logger (Logger, optional): The logger which is meant for logging the info messages. Defaults to None.
             main_gui (GUI, optional): The GUI that started the DBMPlotterGUI if any. Defaults to None.
             class_name_mapper (function, optional): The function which is meant for mapping class names to their corresponding values. Defaults to lambda x -> str(x).
             color_mapper (dict, optional): The color mapper dictionary. Should include keys: TEST_DATA_POINT_MARKER = -2, TRAIN_DATA_POINT_MARKER = -1, 0, ..., num_classes. Each value should be an array of 3 numbers in range 0-1
+            -------------------------------------------------------------------------------------------------------------------------------
+            helper_decoder (tf.keras.Model, optional): The feature extractor helper decoder. When provided together with helper_encoder it will be used to reduce the dimensionality of the data. Defaults to None.
+            X_train_latent (np.ndarray | None, optional) The features of the X_train when dimensionality reduction is needed for X_train. Defaults to None,
+            X_test_latent (np.ndarray | None, optional) The features of the X_test when dimensionality reduction is needed for X_test. Defaults to None,
         """
         
         self.main_gui = main_gui  # reference to main window
@@ -146,7 +160,10 @@ class DBMPlotterGUI:
                                                 encoded_train, encoded_test,
                                                 save_folder,
                                                 projection_technique,
-                                                gui=self
+                                                gui=self,
+                                                helper_decoder=helper_decoder,
+                                                X_train_latent = X_train_latent,
+                                                X_test_latent = X_test_latent,
                                                 )
         
         num_classes = len(np.unique(np.concatenate((Y_train, Y_test))))

@@ -16,6 +16,7 @@ import os
 import numpy as np
 import json
 import threading
+import tensorflow as tf
 from math import sqrt
 from datetime import datetime
 import shutil
@@ -23,7 +24,8 @@ from sklearn.metrics import cohen_kappa_score
 from matplotlib.patches import Patch, Circle
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
 
-from .. import Logger
+from .. import Logger, LoggerInterface
+from ..DBM import DBM, SDBM 
 from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME, INVERSE_PROJECTION_ERRORS_FILE, PROJECTION_ERRORS_INTERPOLATED_FILE, PROJECTION_ERRORS_INVERSE_PROJECTION_FILE, get_latest_created_file_from_folder, run_timer
 
 CLASSIFIER_PERFORMANCE_HISTORY_FILE = "classifier_performance.log"
@@ -51,22 +53,62 @@ EPOCHS_FOR_REFIT_RANGE = (1, 100)
 class DBMPlotterController:
     def __init__(self,
                 logger,
-                dbm_model,
-                img, img_confidence,
-                X_train, Y_train,
-                X_test, Y_test,
-                X_train_2d, X_test_2d,
-                encoded_train, encoded_test,
-                save_folder,
-                projection_technique,
-                gui
+                dbm_model: DBM | SDBM,
+                img: np.ndarray, 
+                img_confidence: np.ndarray,
+                X_train: np.ndarray, 
+                Y_train: np.ndarray,
+                X_test: np.ndarray, 
+                Y_test: np.ndarray,
+                X_train_2d: np.ndarray | None, 
+                X_test_2d: np.ndarray | None, 
+                encoded_train: np.ndarray, 
+                encoded_test: np.ndarray,
+                save_folder: str,
+                projection_technique: str | None,
+                gui,
+                X_train_latent: np.ndarray | None = None,
+                X_test_latent: np.ndarray | None = None,
+                helper_decoder: tf.keras.Model | None = None
                 ):
+        """[summary] DBMPlotterController is the controller for the DBMPlotterGUI that will perform all the non GUI related computations.
+
+
+        Args:
+            dbm_model (DBM | SDBM): The DBM model that will be used to generate the decision boundary map.
+            img (np.ndarray): The decision boundary map image.
+            img_confidence (np.ndarray): The decision boundary map confidence image.
+            X_train (np.ndarray): The training data.
+            Y_train (np.ndarray): The training labels.
+            X_test (np.ndarray): The test data.
+            Y_test (np.ndarray): The test labels.
+            X_train_2d (np.ndarray | None): The 2D embedding space of the training data, if provided it will be used to faster load the 2D plot. Defaults to None 
+            X_test_2d (np.ndarray | None): The 2D embedding space of the testing data, if provided it will be used to faster load the 2D plot. Defaults to None
+            encoded_train (np.ndarray): Positions of the training data points in the 2D embedding space.
+            encoded_test (np.ndarray): Positions of the test data points in the 2D embedding space.
+            save_folder (string): The folder where all the DBM model related files will be saved.
+            projection_technique (string, optional): The projection technique the user wants to use if DBM is used as dbm_model. Defaults to None.
+            gui (GUI, optional): The GUI that started the DBMPlotterGUI if any. Defaults to None.
+            -------------------------------------------------------------------------------------------------------------------------------
+            helper_decoder (tf.keras.Model, optional): The feature extractor helper decoder. When provided together with helper_encoder it will be used to reduce the dimensionality of the data. Defaults to None.
+            X_train_latent (np.ndarray | None, optional) The features of the X_train when dimensionality reduction is needed for X_train. Defaults to None,
+            X_test_latent (np.ndarray | None, optional) The features of the X_test when dimensionality reduction is needed for X_test. Defaults to None,
+          """
         
         if logger is None:
             self.console = Logger(name="DBMPlotterController")
         else:
             self.console = logger
-            
+        
+       
+        if helper_decoder is not None and X_train_latent is not None and X_test_latent is not None:
+            self.console.log("Helper feature extractor was provided, data features will be used accordingly...")
+        
+        self.helper_decoder = helper_decoder
+        self.X_train_latent = X_train_latent
+        self.X_test_latent = X_test_latent
+        
+
         # folder where to save the changes made to the data by the user
         self.save_folder = save_folder
         # projection technique used to generate the DBM
@@ -228,8 +270,11 @@ class DBMPlotterController:
     
     def compute_classifier_metrics(self, epochs):
         self.console.log("Evaluating classifier...")
-        loss, accuracy = self.dbm_model.classifier.evaluate(self.X_test, self.Y_test, verbose=0)
-        Y_pred = self.dbm_model.classifier.predict(self.X_test, verbose=0).argmax(axis=-1)
+        X_train = self.X_train if self.X_train_latent is None else self.X_train_latent
+        X_test = self.X_test if self.X_test_latent is None else self.X_test_latent
+       
+        loss, accuracy = self.dbm_model.classifier.evaluate(X_test, self.Y_test, verbose=0)
+        Y_pred = self.dbm_model.classifier.predict(X_test, verbose=0).argmax(axis=-1)
         kappa_score = cohen_kappa_score(self.Y_test, Y_pred)
         self.console.log(f"Classifier Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.4f} Kappa: {kappa_score:.4f}")
 
@@ -409,22 +454,26 @@ class DBMPlotterController:
         return self.positions_of_labels_changes
     
     def regenerate_boundary_map(self, Y_transformed, fast_decoding_strategy):
-        if self.projection_technique is None:
+        X_train = self.X_train if self.X_train_latent is None else self.X_train_latent
+        X_test = self.X_test if self.X_test_latent is None else self.X_test_latent
+        
+        if isinstance(self.dbm_model, SDBM):
             dbm_info = self.dbm_model.generate_boundary_map(
-                self.X_train,
-                Y_transformed,
-                self.X_test,
-                self.Y_test,
+                X_train = X_train,
+                Y_train = Y_transformed,
+                X_test = X_test,
+                Y_test = self.Y_test,
                 resolution=len(self.img),
                 fast_decoding_strategy=fast_decoding_strategy,
-                load_folder=self.save_folder
+                load_folder=self.save_folder,
             )
         else:
             if self.X_train_2d is None or self.X_test_2d is None:
                 self.X_train_2d, self.X_test_2d = self.load_2d_projection()
+                
             dbm_info = self.dbm_model.generate_boundary_map(
-                Xnd_train=self.X_train,
-                Xnd_test=self.X_test,
+                Xnd_train=X_train,
+                Xnd_test=X_test,
                 X2d_train=self.X_train_2d,
                 X2d_test=self.X_test_2d,
                 resolution=len(self.img),
@@ -504,7 +553,8 @@ class DBMPlotterController:
         
         self.updates_logger.log(f"The classifier will be retrained for {epochs} epochs")
 
-        self.dbm_model.refit_classifier(self.X_train, Y_transformed, save_folder=save_folder, epochs=epochs)
+        X_train = self.X_train if self.X_train_latent is None else self.X_train_latent
+        self.dbm_model.refit_classifier(X_train, Y_transformed, save_folder=save_folder, epochs=epochs)
         self.regenerate_boundary_map(Y_transformed, decoding_strategy)
 
         self.updates_logger.log("Changes applied successfully!")
@@ -567,7 +617,10 @@ class DBMPlotterController:
         """ Builds the annotation mapper.
             This is used to display the data point label when hovering over the decision boundary.
         """
-        image = OffsetImage(self.X_train[0], zoom=2, cmap="gray")
+        TOOLTIP_SIZE = 100.
+        zoom = TOOLTIP_SIZE / self.X_train[0].shape[0]
+        zoom = zoom if isinstance(zoom, float) else 1
+        image = OffsetImage(self.X_train[0], zoom=zoom)
         label = TextArea("Data point label: None")
 
         annImage = AnnotationBbox(image, (0, 0), xybox=(50., 50.), xycoords='data', boxcoords="offset points",  pad=0.1,  arrowprops=dict(arrowstyle="->"))
@@ -590,7 +643,7 @@ class DBMPlotterController:
             # change the annotation box position relative to mouse.
             ws = (event.x > fig_width/2.)*-1 + (event.x <= fig_width/2.)
             hs = (event.y > fig_height/2.)*-1 + (event.y <= fig_height/2.)
-            annImage.xybox = (50. * ws, 50. * hs)
+            annImage.xybox = (TOOLTIP_SIZE * ws, TOOLTIP_SIZE * hs)
             annLabels.xybox = (-50. * ws, 50. * hs)
             # make annotation box visible
             annImage.set_visible(True)
@@ -600,8 +653,6 @@ class DBMPlotterController:
             x_data, y_data = find_data_point(i, j)
             if x_data is not None:
                 annImage.set_visible(True)
-                resize_factor = int(len(x_data) / 50 + 1)
-                annImage.xybox = (50. * ws * resize_factor, 50. * hs * resize_factor)
                 image.set_data(x_data)
             else:
                 annImage.set_visible(False)
@@ -630,7 +681,12 @@ class DBMPlotterController:
                 return self.X_test[k], f"Classifier label: {int(self.encoded_test[k][2])}"
 
             # generate the nD data point on the fly using the inverse projection
-            point = self.dbm_model.neural_network.decode([(i/self.img.shape[0], j/self.img.shape[1])])[0]
+            if self.helper_decoder is not None:
+                point = self.helper_decoder.predict(self.dbm_model.neural_network.decode(
+                    [(i/self.img.shape[0], j/self.img.shape[1])]), verbose=0)[0]
+            else:
+                point = self.dbm_model.neural_network.decode([(i/self.img.shape[0], j/self.img.shape[1])])[0]
+            
             return point, None
 
         def onclick(event):

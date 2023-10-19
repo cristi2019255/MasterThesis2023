@@ -85,7 +85,12 @@ class GUIController:
         # --------------- Others ---------------------
         self.data_shape = (28, 28) # this is the shape of the data, it is used to reshape the data when importing it from a csv file
         self.class_names_mapper = lambda x: str(x)
+        self.helper_encoder = None
+        self.helper_decoder = None
        
+        self.X_train_features = None 
+        self.X_test_features = None
+
     def stop(self):
         self.logger.log("Clearing resources...")
         # self.logger.log("Removing tmp folder...")
@@ -104,7 +109,7 @@ class GUIController:
             self.window[x].update(visible=visible)
         self.window.refresh()
 
-    def handle_select_classifier_folder(self, folder):
+    def handle_select_neural_network_folder(self, folder):
         try:
             # Get list of files in folder
             file_list = os.listdir(folder)
@@ -142,6 +147,14 @@ class GUIController:
             self.switch_visibility(["-CLASSIFIER PATH TOUT PIN-"], True)
         except Exception as e:
             self.logger.error("Error while loading data file" + str(e))
+            
+    def handle_feature_extractor_file_list_event(self, event, values):
+        try:
+            filename = os.path.join(values["-FEATURE EXTRACTOR FOLDER-"], values["-FEATURE EXTRACTOR FILE LIST-"][0])
+            self.window["-FEATURE EXTRACTOR PATH TOUT-"].update(filename)
+            self.switch_visibility(["-FEATURE EXTRACTOR PATH TOUT PIN-"], True)
+        except Exception as e:
+            self.logger.error("Error while loading data file" + str(e))
         
     def handle_upload_classifier_event(self, event, values):
         try:
@@ -155,6 +168,24 @@ class GUIController:
                 self.switch_visibility(["-DBM BTN-"], True)
         except Exception as e:
             self.logger.error("Error while loading classifier" + str(e))
+    
+    def handle_upload_feature_extractor_event(self, event, values):
+        try:
+            fname = os.path.join(values["-FEATURE EXTRACTOR FOLDER-"], values["-FEATURE EXTRACTOR FILE LIST-"][0])
+            model = tf.keras.models.load_model(fname)
+            if event == "-UPLOAD FEATURE EXTRACTOR ENCODER-":
+                self.helper_encoder = model
+                model_type = "encoder"
+            elif event == "-UPLOAD FEATURE EXTRACTOR DECODER-":
+                self.helper_decoder = model
+                model_type = "decoder"
+            else:
+                raise Exception("DEVELOPMENT ISSUE, the event can only be -UPLOAD FEATURE EXTRACTOR ENCODER- or -UPLOAD FEATURE EXTRACTOR DECODER-")
+            self.window["-FEATURE EXTRACTOR PATH TOUT-"].update(fname)
+            self.logger.log(f"Feature extractor {model_type} loaded successfully")
+            self.gui_logger.log(f"Feature extractor {model_type} loaded successfully")
+        except Exception as e:
+            self.logger.error("Error while loading feature extractor " + fe_type + " " + str(e))
     
     def handle_upload_train_data_event(self, event, values):
         try:
@@ -225,11 +256,11 @@ class GUIController:
 
         self.X_train, self.Y_train, self.X_test, self.Y_test = X_train, Y_train, X_test, Y_test
         
-        self.class_names_mapper = generate_class_name_mapper(os.path.join(folder, "..", "classes.txt"))
+        # Not supporting class names mapper because the dataset can be structured in a lot of different formats
+        #self.class_names_mapper = generate_class_name_mapper(os.path.join(folder, "..", "classes.txt"))
         
         self._post_uploading_processing_()
-
-    
+   
     def _post_uploading_processing_(self):
         self.num_classes = np.unique(self.Y_train).shape[0]
 
@@ -266,6 +297,15 @@ class GUIController:
             self.gui_logger.error("Data is incomplete impossible to generate the DBM...")
             return
 
+        if self.helper_decoder is not None and self.helper_encoder is not None and self.X_train_features is None and self.X_test_features is None:
+            self.gui_logger.log("Extracting the features from the data using the provided feature encoder, please wait...")
+            self.X_train_features = self.helper_encoder.predict(self.X_train, verbose=0)
+            self.X_test_features = self.helper_encoder.predict(self.X_test, verbose=0)
+            self.gui_logger.log("Features extracted successfully using the feature encoder.")
+       
+        X_train = self.X_train if self.X_train_features is None else self.X_train_features
+        X_test = self.X_test if self.X_test_features is None else self.X_test_features
+
         # update loading state
         self.switch_visibility(["-DBM IMAGE-"], False)
         self.switch_visibility(["-DBM TEXT-", "-DBM IMAGE LOADING-"], True)
@@ -291,8 +331,8 @@ class GUIController:
                 self.X_train_2d, self.X_test_2d = self.fetch_2d_data_from_folder(load_folder)
 
             dbm_info = dbm.generate_boundary_map(
-                Xnd_train=self.X_train,
-                Xnd_test=self.X_test,
+                Xnd_train=X_train,
+                Xnd_test=X_test,
                 X2d_train=self.X_train_2d,
                 X2d_test=self.X_test_2d,
                 resolution=resolution,
@@ -303,9 +343,9 @@ class GUIController:
             save_folder = os.path.join(save_folder, SDBM_FOLDER_NAME)
             projection_technique = None
             dbm_info = dbm.generate_boundary_map(
-                X_train=self.X_train,
+                X_train=X_train,
                 Y_train=self.Y_train,
-                X_test=self.X_test,
+                X_test=X_test,
                 Y_test=self.Y_test,
                 nn_architecture=NNArchitecture(dbm_technique),
                 resolution=resolution,
@@ -340,6 +380,9 @@ class GUIController:
             main_gui=self.gui,  # reference to the main GUI
             save_folder=save_folder,
             projection_technique=projection_technique,
-            class_name_mapper=self.class_names_mapper
+            class_name_mapper=self.class_names_mapper,
+            helper_decoder=self.helper_decoder,
+            X_train_latent=self.X_train_features,
+            X_test_latent=self.X_test_features
         )
         

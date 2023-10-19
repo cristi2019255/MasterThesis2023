@@ -144,3 +144,46 @@ def DBM_usage_example_GUI():
                                     projection_technique="t-SNE",
                                     )
     dbm_plotter_gui.start()
+
+def DBM_usage_example_GUI_with_feature_extraction():
+    # import the dataset
+    X_train, X_test, Y_train, Y_test = import_data()
+
+    # import the classifier
+    classifier = import_classifier()
+
+    # create the DBM
+    dbm = DBM(classifier=classifier)
+    
+    # extract features
+    feature_extractor, feature_decoder = import_feature_extractor()
+    
+    X_train_features = feature_extractor.predict(X_train) #type: ignore
+    X_test_features = feature_extractor.predict(X_test) #type: ignore
+
+    # use the DBM to get the decision boundary map, if you don't have the 2D projection of the data
+    # the DBM will get it for you, you just need to specify the projection method you would like to use (t-SNE, PCA or UMAP)
+    img, img_confidence, encoded_training_data, encoded_testing_data = dbm.generate_boundary_map(X_train_features,
+                                                                                                 X_test_features,
+                                                                                                 resolution=256,
+                                                                                                 load_folder=os.path.join("tmp", "MNIST", "DBM"),
+                                                                                                 projection="t-SNE",
+                                                                                                 )
+
+    dbm_plotter_gui = DBMPlotterGUI(dbm_model=dbm,
+                                    img=img,
+                                    img_confidence=img_confidence,
+                                    encoded_train=encoded_training_data,
+                                    encoded_test=encoded_testing_data,
+                                    X_train=X_train,
+                                    Y_train=Y_train,
+                                    X_test=X_test,
+                                    Y_test=Y_test,
+                                    # this is the folder where the DBM will save the changes in data the user makes
+                                    save_folder=os.path.join("tmp", "MNIST", "DBM"),
+                                    projection_technique="t-SNE",
+                                    helper_decoder=feature_decoder,
+                                    X_train_latent = X_train_features,
+                                    X_test_latent = X_test_features
+                                    )
+    dbm_plotter_gui.start()

@@ -31,10 +31,8 @@ def import_data():
     SAMPLES_LIMIT = 5000
     X_train = X_train.astype('float32') / 255
     X_test = X_test.astype('float32') / 255
-    X_train, Y_train = X_train[:int(
-        0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
-    X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)
-                            ], Y_test[:int(0.3*SAMPLES_LIMIT)]
+    X_train, Y_train = X_train[:int(0.7*SAMPLES_LIMIT)], Y_train[:int(0.7*SAMPLES_LIMIT)]
+    X_test, Y_test = X_test[:int(0.3*SAMPLES_LIMIT)], Y_test[:int(0.3*SAMPLES_LIMIT)]
     return X_train, X_test, Y_train, Y_test
 
 
@@ -47,6 +45,20 @@ def import_classifier():
     return classifier
 
 
+def import_feature_extractor():
+    # upload a feature extractor
+    # !!! the feature extractor encoder and decoder must be tf.keras.models.Model !!!
+    # !!! change the next line with the path to your feature extractor !!!
+    feature_extractor_path = os.path.join("tmp", "MNIST", "AuNN")
+    encoder_path = os.path.join(feature_extractor_path, "encoder")
+    decoder_path = os.path.join(feature_extractor_path, "decoder")
+    try:
+        encoder = tf.keras.models.load_model(encoder_path)
+        decoder = tf.keras.models.load_model(decoder_path)
+        return encoder, decoder
+    except:
+        raise Exception("Error when loading models")
+
 def generate_classifier(X_train, Y_train):
     input_shape = X_train.shape[1:]
     num_classes = len(np.unique(Y_train))
@@ -56,8 +68,7 @@ def generate_classifier(X_train, Y_train):
         tf.keras.layers.Dense(num_classes, activation=tf.nn.softmax),
     ])
 
-    classifier.compile(
-        optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    classifier.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
     classifier.fit(X_train, Y_train, epochs=20)
     return classifier
 
@@ -65,8 +76,7 @@ def generate_classifier(X_train, Y_train):
 def opf(X_train, Y_train):
     pr_x = int(0.1*len(X_train))
     pr_y = int(0.1*len(Y_train))
-    X_train, X_unlabeled, Y_train, Y_unlabeled = X_train[:
-                                                         pr_x], X_train[pr_x:], Y_train[:pr_y], Y_train[pr_y:]
+    X_train, X_unlabeled, Y_train, Y_unlabeled = X_train[:pr_x], X_train[pr_x:], Y_train[:pr_y], Y_train[pr_y:]
 
     # Creates a SemiSupervisedOPF instance
     opf = SemiSupervisedOPF(

@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .DBM_usage_example import DBM_usage_example, DBM_usage_example_GUI
-from .SDBM_usage_example import SDBM_usage_example, SDBM_usage_example_GUI
+from .DBM_usage_example import DBM_usage_example, DBM_usage_example_GUI, DBM_usage_example_GUI_with_feature_extraction
+from .SDBM_usage_example import SDBM_usage_example, SDBM_usage_example_GUI, SDBM_usage_example_GUI_with_feature_extraction
