@@ -531,10 +531,9 @@ class DBMPlotterGUI:
         if hasattr(self, "axes_image"):
             self.axes_image.remove()
 
-        if hasattr(self, "axes_labels_scatters") and self.axes_labels_scatters is not None:
-            for scatter in self.axes_labels_scatters:
-                scatter.remove()
-            self.axes_labels_scatters = None
+        if hasattr(self, "axes_labels_scatters") and self.axes_labels_scatter is not None:
+            self.axes_labels_scatter.remove()
+            self.axes_labels_scatter = None
 
         self.axes_image = self.ax.imshow(img)
 
@@ -547,19 +546,10 @@ class DBMPlotterGUI:
             
         if values["-SHOW CLASSIFIER PREDICTIONS-"] or values["-SHOW DATA LABELS-"]:
             encoded_train = self.controller.get_encoded_train_data()
-            encoded_test = self.controller.get_encoded_test_data()
-            
             labels_train = encoded_train[:, 2] if show_classifier_predictions else self.controller.Y_train
-            labels_test = encoded_test[:, 2] if show_classifier_predictions else self.controller.Y_test
-            
             colors_train = [self.colors_mapper[label] for label in labels_train]
-            colors_test = [self.colors_mapper[label] for label in labels_test]
+            self.axes_labels_scatter = self.ax.scatter(encoded_train[:, 1], encoded_train[:, 0], s=10, c=colors_train)
             
-            train_data_points_scatter = self.ax.scatter(encoded_train[:, 1], encoded_train[:, 0], s=10, c=colors_train)
-            test_data_points_scatter = self.ax.scatter(encoded_test[:, 1], encoded_test[:, 0], s=5, c=colors_test, marker='*')
-
-            self.axes_labels_scatters = [train_data_points_scatter, test_data_points_scatter]
-       
         if hasattr(self, "ax_labels_changes") and self.ax_labels_changes is not None:
             self.ax_labels_changes.remove()
             self.ax_labels_changes = None
