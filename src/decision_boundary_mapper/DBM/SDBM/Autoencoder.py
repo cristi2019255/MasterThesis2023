@@ -76,7 +76,7 @@ class Autoencoder(AbstractNN):
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
             tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(output_size, activation='sigmoid',
+            tf.keras.layers.Dense(output_size, activation='sigmoid', #TODO: make this relu in order to support feature extraction
                                   kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED)),  # type: ignore
             tf.keras.layers.Reshape(input_shape)
         ], name=DECODER_NAME)
