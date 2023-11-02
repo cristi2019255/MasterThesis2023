@@ -70,7 +70,7 @@ class SDBM(AbstractDBM):
             X: np.ndarray, Y: np.ndarray,
             architecture: NNArchitecture = NNArchitecture.AUTOENCODER,
             epochs: int = DEFAULT_TRAINING_EPOCHS, batch_size: int = DEFAULT_BATCH_SIZE,
-            load_folder: str = DEFAULT_MODEL_PATH):
+            load_folder: str = DEFAULT_MODEL_PATH, is_data_normalized: bool = True):
         """
         Train a neural network that will contain the direct projection and the inverse projection.
         This neural network will be used to reduce the dimensionality of the data (nD -> 2D) and decode the 2D space to nD.
@@ -82,18 +82,19 @@ class SDBM(AbstractDBM):
             epochs (int, optional): The number of epochs to train the neural network. Defaults to 300.
             batch_size (int, optional): Defaults to 32.
             load_folder (str, optional): The folder path which contains a pre-trained network or will be used to store it if not exists. Defaults to DEFAULT_MODEL_PATH.
-
+            is_data_normalized (bool, optional): Determine the last layer activation function of the decoder, sigmoid or relu. Defaults to True (i.e. activation sigmoid).
+     
         Returns:
             neural_network (Autoencoder | SSNP): The trained neural network.
         """
         match architecture:
             case NNArchitecture.SSNP:
                 ssnp = SSNP(folder_path=load_folder, logger=self.console)
-                ssnp.fit(X, Y, epochs, batch_size)
+                ssnp.fit(X, Y, epochs, batch_size, is_data_normalized=is_data_normalized)
                 return ssnp
             case _:
                 autoencoder = Autoencoder(folder_path=load_folder, logger=self.console)
-                autoencoder.fit(X, epochs, batch_size)
+                autoencoder.fit(X, epochs, batch_size, is_data_normalized=is_data_normalized)
                 return autoencoder
 
     def generate_boundary_map(self,
@@ -105,6 +106,7 @@ class SDBM(AbstractDBM):
                               resolution: int = DBM_DEFAULT_RESOLUTION,
                               fast_decoding_strategy: FAST_DBM_STRATEGIES = FAST_DBM_STRATEGIES.NONE,
                               load_folder: str = DEFAULT_MODEL_PATH,
+                              is_data_normalized: bool = True,
                               ):
         """Generate the decision boundary map
 
@@ -119,7 +121,8 @@ class SDBM(AbstractDBM):
                 resolution (int, optional): The resolution of the decision boundary map. Defaults to DBM_DEFAULT_RESOLUTION = 256.
                 fast_decoding_strategy (FAST_DBM_STRATEGIES, optional): The strategy to use for the generation of the DBM. Defaults to FAST_DBM_STRATEGIES.NONE
                 load_folder (str, optional): The folder path which contains a pre-trained neural network or in which it will be stored. Defaults to DEFAULT_MODEL_PATH.
-                
+                is_data_normalized (bool, optional): Determine the last layer activation function of the decoder, sigmoid or relu. Defaults to True (i.e. activation sigmoid).
+     
             Returns:
                 img (np.ndarray): The decision boundary map
                 img_confidence (np.ndarray): The confidence map
@@ -143,7 +146,9 @@ class SDBM(AbstractDBM):
                                            architecture=nn_architecture,
                                            load_folder=load_folder,
                                            epochs=nn_train_epochs,
-                                           batch_size=nn_train_batch_size)
+                                           batch_size=nn_train_batch_size,
+                                           is_data_normalized=is_data_normalized
+                                           )
 
         # encoder the train and test data and show the encoded data in 2D space
         self.console.log("Encoding the training data to 2D space")

@@ -42,19 +42,21 @@ class SSNP(AbstractNN):
         """
         super().__init__(folder_path=folder_path, logger=logger, nn_name=SSNP_NAME)
 
-    def __build__(self, input_shape: tuple = (28, 28), num_classes: int = 10, show_summary: bool = False):
+    def __build__(self, input_shape: tuple = (28, 28), num_classes: int = 10, show_summary: bool = False, is_data_normalized: bool = True):
         """
-            Assembles the autoencoder model and compiles it. 
+            Assembles the ssnp model and compiles it. 
 
             Args:
-                input_shape: The input and output shape of the autoencoder.
+                input_shape: The input and output shape of the ssnp.
                 show_summary: If True, the model summary will be printed.
+                is_data_normalized (bool, optional): Determine the last layer activation function, sigmoid or relu. Defaults to True (i.e. activation sigmoid).
         """
 
         output_size = 1
         for i in range(len(input_shape)):
             output_size *= input_shape[i]
 
+        last_decoder_layer_activation_function = 'sigmoid' if is_data_normalized else 'relu'
 
         encoder = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
@@ -79,7 +81,7 @@ class SSNP(AbstractNN):
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
             tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(output_size, activation='sigmoid', #TODO: make this relu in order to support feature extraction
+            tf.keras.layers.Dense(output_size, activation=last_decoder_layer_activation_function,
                                   kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED)),  # type: ignore
             tf.keras.layers.Reshape(input_shape)
         ], name=DECODER_NAME)
@@ -111,7 +113,8 @@ class SSNP(AbstractNN):
             self.neural_network.summary(print_fn=self.console.log)
 
     def fit(self, X: np.ndarray, Y: np.ndarray,
-            epochs: int = 100, batch_size: int = 128):
+            epochs: int = 100, batch_size: int = 128, 
+            is_data_normalized: bool = True):
         """ Fits the model to the specified data.
 
         Args:
@@ -119,6 +122,7 @@ class SSNP(AbstractNN):
             Y (np.ndarray): Train target values
             epochs (int, optional): The number of epochs. Defaults to 10.
             batch_size (int, optional): Data points used for one batch. Defaults to 128.
+            is_data_normalized (bool, optional): Determine the last layer activation function, sigmoid or relu. Defaults to True (i.e. activation sigmoid).
         """
         if self.neural_network is not None:
             self.console.log("Model already loaded. Skipping build.")
@@ -128,7 +132,7 @@ class SSNP(AbstractNN):
 
         self.console.log("Building model according to the data shape.")
         num_classes = len(np.unique(Y))
-        self.__build__(input_shape=X.shape[1:], num_classes=num_classes, show_summary=True)
+        self.__build__(input_shape=X.shape[1:], num_classes=num_classes, show_summary=True, is_data_normalized=is_data_normalized)
 
         stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=20, restore_best_weights=True)
         logger_callback = LoggerModel(name=SSNP_NAME, show_init=False, epochs=epochs, print_fn=self.console.log)

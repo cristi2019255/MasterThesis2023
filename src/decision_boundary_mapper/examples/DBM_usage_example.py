@@ -168,6 +168,7 @@ def DBM_usage_example_GUI_with_feature_extraction():
                                                                                                  resolution=256,
                                                                                                  load_folder=os.path.join("tmp", "MNIST", "DBM"),
                                                                                                  projection="t-SNE",
+                                                                                                 is_data_normalized=False,
                                                                                                  )
 
     dbm_plotter_gui = DBMPlotterGUI(dbm_model=dbm,

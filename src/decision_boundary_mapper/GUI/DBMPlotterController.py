@@ -470,6 +470,7 @@ class DBMPlotterController:
                 resolution=len(self.img),
                 fast_decoding_strategy=fast_decoding_strategy,
                 load_folder=self.save_folder,
+                is_data_normalized=self.helper_decoder is None
             )
         else:
             if self.X_train_2d is None or self.X_test_2d is None:
@@ -483,7 +484,8 @@ class DBMPlotterController:
                 resolution=len(self.img),
                 fast_decoding_strategy=fast_decoding_strategy,
                 load_folder=self.save_folder,
-                projection=self.projection_technique
+                projection=self.projection_technique,
+                is_data_normalized=self.helper_decoder is None
             )
         
         img, img_confidence, encoded_train, encoded_test = dbm_info

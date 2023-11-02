@@ -61,7 +61,8 @@ class DBM(AbstractDBM):
     def fit(self,
             X2d: np.ndarray, Xnd: np.ndarray,
             epochs: int = DEFAULT_TRAINING_EPOCHS, batch_size: int = DEFAULT_BATCH_SIZE,
-            load_folder: str = DEFAULT_MODEL_PATH):
+            load_folder: str = DEFAULT_MODEL_PATH,
+            is_data_normalized: bool = True):
         """ 
         Learns the inverse projection on the given data set.
 
@@ -70,7 +71,8 @@ class DBM(AbstractDBM):
             Xnd (np.ndarray): Training data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
             epochs (int, optional): The number of epochs for which the DBM is trained. Defaults to 300.
             batch_size (int, optional): Train batch size. Defaults to 32.
-
+            is_data_normalized (bool, optional): Determine the last layer activation function of the NNinv, sigmoid or relu. Defaults to True (i.e. activation sigmoid).
+     
         Returns:
             inverse_porjection_NN (NNInv): The trained inverse projection neural network.
         """
@@ -78,7 +80,8 @@ class DBM(AbstractDBM):
         inverse_projection_NN = NNInv(folder_path=load_folder, logger=self.console)
         inverse_projection_NN.fit(X2d, Xnd,
                                   epochs=epochs,
-                                  batch_size=batch_size)
+                                  batch_size=batch_size,
+                                  is_data_normalized=is_data_normalized)
         return inverse_projection_NN
 
     def generate_boundary_map(self,
@@ -91,7 +94,8 @@ class DBM(AbstractDBM):
                               resolution: int = DBM_DEFAULT_RESOLUTION,
                               fast_decoding_strategy: FAST_DBM_STRATEGIES = FAST_DBM_STRATEGIES.NONE,
                               load_folder: str = DEFAULT_MODEL_PATH,
-                              projection: str = 't-SNE'):
+                              projection: str = 't-SNE',
+                              is_data_normalized: bool = True):
         """ 
         Generates a 2D boundary map of the classifier's decision boundary.
 
@@ -106,7 +110,8 @@ class DBM(AbstractDBM):
             fast_decoding_strategy (FAST_DBM_STRATEGIES, optional): The strategy to use in generating the DBM. Defaults to FAST_DBM_STRATEGIES.NONE.
             load_folder (str, optional): The folder in which the model will be stored or if exists loaded from. Defaults to DEFAULT_MODEL_PATH
             projection (str, optional): The projection method to be used. Defaults to 't-SNE'.
-
+            is_data_normalized (bool, optional): Determine the last layer activation function of the NNinv, sigmoid or relu. Defaults to True (i.e. activation sigmoid).
+     
         Returns:
             img (np.array): A 2D numpy array with the decision boundary map, each element is an integer representing the class of the corresponding point.
             img_confidence (np.array): A 2D numpy array with the decision boundary map, each element is a float representing the confidence of the classifier for the corresponding point.
@@ -147,7 +152,8 @@ class DBM(AbstractDBM):
             self.neural_network = self.fit(X2d, Xnd,
                                            epochs = nn_train_epochs, 
                                            batch_size = nn_train_batch_size,
-                                           load_folder=load_folder)
+                                           load_folder=load_folder,
+                                           is_data_normalized=is_data_normalized)
 
         self.resolution = resolution
 
