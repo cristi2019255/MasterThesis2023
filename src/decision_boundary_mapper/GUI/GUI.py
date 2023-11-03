@@ -25,8 +25,8 @@ from .utils import Collapsible
 
 sg.theme('DarkBlue1')
 TITLE = "Classifiers visualization tool"
-WINDOW_SIZE = (1150, 700)
-APP_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "main_icon.png")
+WINDOW_SIZE = (1200, 750)
+APP_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "main_icon_b64.txt")
 class GUI:
     def __init__(self):
         self.window = self.build_window()
@@ -41,10 +41,15 @@ class GUI:
         window = sg.Window(TITLE,
                            layout=self._get_layout(),
                            size=WINDOW_SIZE,
-                           icon=APP_ICON_PATH,
                            resizable=False,
                            )
+        
+        with open(APP_ICON_PATH, "rb") as f:
+            iconb64 = f.read()
+
         window.finalize()
+        window.set_icon(pngbase64=iconb64)
+        
         return window
 
     def start(self):
@@ -74,7 +79,7 @@ class GUI:
             [
                 sg.Button("Upload CIFAR10 Data set", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD CIFAR10 DATA BTN-"),
             ],
-            [ sg.HSeparator()],
+            [ sg.HSeparator() ],
             [
                 Collapsible([
                     [
@@ -94,6 +99,12 @@ class GUI:
                     ],
                     [
                        sg.pin(sg.Column([
+                            [sg.Text(key="-DATA FOLDER TOUT-", font=APP_FONT, expand_x=True)],
+                           ], key="-DATA FOLDER TOUT PIN-", visible=False, expand_x=True), 
+                        shrink=True, expand_x=True), 
+                    ],
+                    [
+                       sg.pin(sg.Column([
                             [sg.Text(key="-DATA FILE TOUT-", font=APP_FONT, expand_x=True)],
                            ], key="-DATA FILE TOUT PIN-", visible=False, expand_x=True), 
                         shrink=True, expand_x=True), 
@@ -109,9 +120,13 @@ class GUI:
                         sg.Button("Upload train data for DBM", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD TRAIN DATA BTN-"),
                         sg.Button("Upload test data for DBM", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD TEST DATA BTN-"),
                     ],
+                    [
+                        sg.Button("Upload Data set as folder", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, key="-UPLOAD FOLDER DATASET BTN-"),
+                    ],
+            
                 ], "-UPLOAD DATA COLLAPSABLE-", "Upload the dataset from a folder", collapsed=True, visible=True), 
             ],
-            [ sg.HSeparator()],
+            [ sg.HSeparator() ],
             [
                 sg.Text("Training data file: ", font=APP_FONT, key="-TRAIN DATA FILE-",  expand_x=True),
             ],
@@ -156,7 +171,52 @@ class GUI:
             [
                 sg.Button("Upload classifier", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, visible=True, key="-UPLOAD CLASSIFIER-"),
             ],
-            [ sg.HSeparator()],
+            [ sg.HSeparator() ],
+            # ----------------------------------------------------------------
+            [
+                sg.pin(sg.Column([
+                [
+                    Collapsible([
+                                    [
+                                        sg.Text(text="Choose the feature extractor folder", font=APP_FONT),
+                                        sg.In(enable_events=True,
+                                            key="-FEATURE EXTRACTOR FOLDER-", visible=False),
+                                        sg.Button("Browse folder",
+                                                button_type=sg.BUTTON_TYPE_BROWSE_FOLDER,
+                                                target=(sg.ThisRow, -1),
+                                                button_color=(WHITE_COLOR, APP_PRIMARY_COLOR),
+                                                font=APP_FONT,
+                                                initial_folder=os.getcwd(),
+                                                expand_x=True,
+                                                ),
+                                    ],
+                                    [
+                                        sg.Text("Choose the feature extractor file(.h5) or folder from the list: ",
+                                                font=APP_FONT, expand_x=True),
+                                    ],
+                                    [
+                                        sg.pin(sg.Column([
+                                            [sg.Text(key="-FEATURE EXTRACTOR PATH TOUT-", font=APP_FONT, expand_x=True)],
+                                        ], key="-FEATURE EXTRACTOR PATH TOUT PIN-", visible=False, expand_x=True),
+                                            shrink=True, expand_x=True),
+                                    ],
+                                    [
+                                        sg.Listbox(
+                                            values=[], enable_events=True, key="-FEATURE EXTRACTOR FILE LIST-",
+                                            background_color=WHITE_COLOR, text_color=BLACK_COLOR, sbar_background_color=APP_PRIMARY_COLOR,
+                                            expand_x=True, expand_y=True, font=APP_FONT_BOLD, size=(10, 10)
+                                        )
+                                    ],
+                                    [
+                                        sg.Button("Upload encoder", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, visible=True, key="-UPLOAD FEATURE EXTRACTOR ENCODER-"),
+                                        sg.Button("Upload decoder", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR), font=APP_FONT, expand_x=True, visible=True, key="-UPLOAD FEATURE EXTRACTOR DECODER-"),
+                                    ],
+                        ],  "-FEATURE EXTRACTOR COLLAPSABLE-", "Select a feature extractor helper (optional).", collapsed=True, visible=True),
+                    ]
+                ], expand_x=True), expand_x=True),
+            ],
+            #----------------------------------------------------------------
+            [ sg.HSeparator() ],
             [
                 sg.Text("", expand_x=True)
             ],
@@ -291,12 +351,13 @@ class GUI:
             "-DATA FOLDER-": self.handle_select_data_folder_event,
             "-DATA 2D FOLDER-": self.handle_select_2d_data_folder_event,
             "-CLASSIFIER FOLDER-": self.handle_select_classifier_folder_event,
-        
+            "-FEATURE EXTRACTOR FOLDER-": self.handle_select_feature_extractor_folder_event,
             "-DATA FILE LIST-": self.controller.handle_file_list_event,
             "-DATA 2D FILE LIST-": self.handle_2d_file_list_event,
           
             
             "-CLASSIFIER FILE LIST-": self.controller.handle_classifier_file_list_event,
+            "-FEATURE EXTRACTOR FILE LIST-": self.controller.handle_feature_extractor_file_list_event,
             
             "-DBM TECHNIQUE-": self.handle_dbm_technique_event,
             "-DBM BTN-": self.handle_get_decision_boundary_mapping_event,
@@ -310,13 +371,19 @@ class GUI:
             "-UPLOAD MNIST DATA BTN-": self.controller.handle_upload_known_data_event,
             "-UPLOAD FASHION MNIST DATA BTN-": self.controller.handle_upload_known_data_event,
             "-UPLOAD CIFAR10 DATA BTN-": self.controller.handle_upload_known_data_event,
+            "-UPLOAD FOLDER DATASET BTN-": self.controller.handle_upload_folder_dataset_event,
+            
             "-UPLOAD CLASSIFIER-": self.controller.handle_upload_classifier_event,
+            "-UPLOAD FEATURE EXTRACTOR ENCODER-": self.controller.handle_upload_feature_extractor_event,
+            "-UPLOAD FEATURE EXTRACTOR DECODER-": self.controller.handle_upload_feature_extractor_event,
             
             # collapsable components
             "-DATA 2D COLLAPSABLE-/-BUTTON-": self.handle_collapse_event,
             "-DATA 2D COLLAPSABLE-/-TITLE-": self.handle_collapse_event,
             "-UPLOAD DATA COLLAPSABLE-/-BUTTON-": self.handle_collapse_event,
             "-UPLOAD DATA COLLAPSABLE-/-TITLE-": self.handle_collapse_event,
+            "-FEATURE EXTRACTOR COLLAPSABLE-/-BUTTON-": self.handle_collapse_event,
+            "-FEATURE EXTRACTOR COLLAPSABLE-/-TITLE-": self.handle_collapse_event,
         }
 
         EVENTS[event](event, values)
@@ -334,6 +401,8 @@ class GUI:
         
     def handle_select_data_folder_event(self, event, values):
         folder = values["-DATA FOLDER-"]
+        self.window["-DATA FOLDER TOUT-"].update(folder)
+        self.switch_visibility(["-DATA FOLDER TOUT PIN-"], True)
         files = self.controller.handle_select_data_folder(folder)
         self.window["-DATA FILE LIST-"].update(files)
         
@@ -344,8 +413,13 @@ class GUI:
         
     def handle_select_classifier_folder_event(self, event, values):
         folder = values["-CLASSIFIER FOLDER-"]
-        f = self.controller.handle_select_classifier_folder(folder)
+        f = self.controller.handle_select_neural_network_folder(folder)
         self.window["-CLASSIFIER FILE LIST-"].update(f)
+    
+    def handle_select_feature_extractor_folder_event(self, event, values):
+        folder = values["-FEATURE EXTRACTOR FOLDER-"]
+        f = self.controller.handle_select_neural_network_folder(folder)
+        self.window["-FEATURE EXTRACTOR FILE LIST-"].update(f)
     
     def handle_dbm_technique_event(self, event, values):
         dbm_technique = values["-DBM TECHNIQUE-"]
@@ -380,7 +454,6 @@ class GUI:
         self.switch_visibility(["-DBM IMAGE LOADING-"], False)
         
         self.switch_visibility(["-DBM IMAGE-"], True)
-        
 
     def show_dbm_history(self, training_history):
         # this is for plotting the training history
@@ -411,8 +484,7 @@ class GUI:
             self.gui_logger.error(e)
             # update loading state
             self.switch_visibility(["-DBM TEXT-", "-DBM IMAGE LOADING-","-DBM IMAGE-"], False)
-
-        
+     
     def handle_dbm_image_event(self, event, values):
         self.logger.log("Clicked on the dbm image")
         if self.dbm_plotter_gui is None:

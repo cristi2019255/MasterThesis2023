@@ -15,14 +15,18 @@
 import os
 import numpy as np
 import json
+import threading
+import tensorflow as tf
 from math import sqrt
 from datetime import datetime
 import shutil
+from sklearn.metrics import cohen_kappa_score
 from matplotlib.patches import Patch, Circle
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea
 
-from .. import Logger
-from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME, INVERSE_PROJECTION_ERRORS_FILE, PROJECTION_ERRORS_INTERPOLATED_FILE, PROJECTION_ERRORS_INVERSE_PROJECTION_FILE
+from .. import Logger, LoggerInterface
+from ..DBM import DBM, SDBM 
+from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME, INVERSE_PROJECTION_ERRORS_FILE, PROJECTION_ERRORS_INTERPOLATED_FILE, PROJECTION_ERRORS_INVERSE_PROJECTION_FILE, get_latest_created_file_from_folder, run_timer
 
 CLASSIFIER_PERFORMANCE_HISTORY_FILE = "classifier_performance.log"
 CLASSIFIER_REFIT_FOLDER = "refit_classifier"
@@ -32,28 +36,79 @@ CLASSIFIER_STACKED_LABELS_CHANGES_FILE = "classifier_old_labels_changes.npy"
 CLASSIFIER_STACKED_BOUNDARY_MAP_FILE = "classifier_old_boundary_map.npy"
 CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE = "classifier_old_boundary_map_confidence.npy"
 
-LABELS_CHANGES_FILE = "label_changes.json"
+PLOT_SNAPSHOTS_FOLDER = "plot_snapshots"
 
-EPOCHS_FOR_REFIT = 2
+LABELS_CHANGES_FILE = "label_changes.json"
+LABELS_RESULT_FILE = "labels_result.npy"
+
+USER_ALLOWED_INTERACTION_ITERATIONS = 5
+
+TIMER_SOUND_FILE_PATH = os.path.join(os.path.dirname(__file__), "assets", "warning-sound.mp3")
+TIMER_DURATION = int(3 * 60) # seconds
+TIMER_WARNING_INTERVAL = 30 # seconds
+
+EPOCHS_FOR_REFIT = 20
+EPOCHS_FOR_REFIT_RANGE = (1, 100)
 
 class DBMPlotterController:
     def __init__(self,
                 logger,
-                dbm_model,
-                img, img_confidence,
-                X_train, Y_train,
-                X_test, Y_test,
-                X_train_2d, X_test_2d,
-                encoded_train, encoded_test,
-                save_folder,
-                projection_technique,
+                dbm_model: DBM | SDBM,
+                img: np.ndarray, 
+                img_confidence: np.ndarray,
+                X_train: np.ndarray, 
+                Y_train: np.ndarray,
+                X_test: np.ndarray, 
+                Y_test: np.ndarray,
+                X_train_2d: np.ndarray | None, 
+                X_test_2d: np.ndarray | None, 
+                encoded_train: np.ndarray, 
+                encoded_test: np.ndarray,
+                save_folder: str,
+                projection_technique: str | None,
+                gui,
+                X_train_latent: np.ndarray | None = None,
+                X_test_latent: np.ndarray | None = None,
+                helper_decoder: tf.keras.Model | None = None
                 ):
+        """[summary] DBMPlotterController is the controller for the DBMPlotterGUI that will perform all the non GUI related computations.
+
+
+        Args:
+            dbm_model (DBM | SDBM): The DBM model that will be used to generate the decision boundary map.
+            img (np.ndarray): The decision boundary map image.
+            img_confidence (np.ndarray): The decision boundary map confidence image.
+            X_train (np.ndarray): The training data.
+            Y_train (np.ndarray): The training labels.
+            X_test (np.ndarray): The test data.
+            Y_test (np.ndarray): The test labels.
+            X_train_2d (np.ndarray | None): The 2D embedding space of the training data, if provided it will be used to faster load the 2D plot. Defaults to None 
+            X_test_2d (np.ndarray | None): The 2D embedding space of the testing data, if provided it will be used to faster load the 2D plot. Defaults to None
+            encoded_train (np.ndarray): Positions of the training data points in the 2D embedding space.
+            encoded_test (np.ndarray): Positions of the test data points in the 2D embedding space.
+            save_folder (string): The folder where all the DBM model related files will be saved.
+            projection_technique (string, optional): The projection technique the user wants to use if DBM is used as dbm_model. Defaults to None.
+            gui (GUI, optional): The GUI that started the DBMPlotterGUI if any. Defaults to None.
+            -------------------------------------------------------------------------------------------------------------------------------
+            helper_decoder (tf.keras.Model, optional): The feature extractor helper decoder. When provided together with helper_encoder it will be used to reduce the dimensionality of the data. Defaults to None.
+            X_train_latent (np.ndarray | None, optional) The features of the X_train when dimensionality reduction is needed for X_train. Defaults to None,
+            X_test_latent (np.ndarray | None, optional) The features of the X_test when dimensionality reduction is needed for X_test. Defaults to None,
+          """
         
         if logger is None:
             self.console = Logger(name="DBMPlotterController")
         else:
             self.console = logger
-            
+        
+       
+        if helper_decoder is not None and X_train_latent is not None and X_test_latent is not None:
+            self.console.log("Helper feature extractor was provided, data features will be used accordingly...")
+        
+        self.helper_decoder = helper_decoder
+        self.X_train_latent = X_train_latent
+        self.X_test_latent = X_test_latent
+        
+
         # folder where to save the changes made to the data by the user
         self.save_folder = save_folder
         # projection technique used to generate the DBM
@@ -76,6 +131,24 @@ class DBMPlotterController:
         self.X_test_2d = X_test_2d
         self.encoded_train = encoded_train
         self.encoded_test = encoded_test
+        self.gui = gui # reference to the gui that uses the controller
+        self.user_allowed_interaction_iterations = USER_ALLOWED_INTERACTION_ITERATIONS
+        self.show_tooltip_for_dataset_only = False
+        
+        # -------------- Create folder structure --------------------
+        folders_to_create = [
+            CLASSIFIER_REFIT_FOLDER,
+            CLASSIFIER_STACKED_FOLDER,
+            PLOT_SNAPSHOTS_FOLDER
+        ]
+        for folder in folders_to_create:
+            dir = os.path.join(self.save_folder, folder)
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+        
+        # ----------------------------------------------------------------
+        self.stop_timer_event = threading.Event()
+        
         self.initialize()
         
     def initialize(self):
@@ -92,6 +165,9 @@ class DBMPlotterController:
         self.update_labels_circle = None
     
     def clear_resources(self):
+        # stop the timer if there is any
+        self.stop_timer()
+        
         files_to_delete = [
             CLASSIFIER_PERFORMANCE_HISTORY_FILE,
             LABELS_CHANGES_FILE,
@@ -122,7 +198,7 @@ class DBMPlotterController:
             img (np.ndarray): Label image.
             img_confidence (np.ndarray): Confidence image.
             colors_mapper (dict): Mapper of labels to colors.
-            class_name_mapper (function, optional): Describes how to map the data labels. Defaults to lambdax:str(x).
+            class_name_mapper (function, optional): Describes how to map the data labels. Defaults to lambda x:str(x).
             
         Returns:
             np.ndarray: The combined image.
@@ -136,7 +212,7 @@ class DBMPlotterController:
         values = np.unique(img)
 
         patches = []
-        for value in values:
+        for value in colors_mapper.keys():
             color = colors_mapper[value]
             if value == TRAIN_DATA_POINT_MARKER:
                 label = "Original train data"
@@ -176,30 +252,40 @@ class DBMPlotterController:
         if not os.path.isfile(path):
             raise Exception("Classifier performance history file not found.")
 
-        times, accuracies, losses = [], [], []
+        times, accuracies, losses, kappas = [], [], [], []
         with open(path, "r") as f:
             for line in f.readlines():
-                line = line.strip()
+                line = line.rstrip()
                 if len(line) == 0:
                     continue
-                _, time, _, acc, _, _, loss = line.replace("\n", "").replace("%", "").split(" ")
+                
+                information = line.split(" || ")
+                info_dict = eval(information[1])
+                accuracy, loss, kappa_score = info_dict["Accuracy"], info_dict["Loss"], info_dict["Kappa"]
+                time = information[0].split(" ")[1]
                 times.append(time)
-                accuracies.append(float(acc))
+                accuracies.append(float(accuracy))
                 losses.append(float(loss))
-        return times, accuracies, losses
+                kappas.append(float(kappa_score))
+        return times, accuracies, losses, kappas
     
     def compute_classifier_metrics(self):
         self.console.log("Evaluating classifier...")
-        loss, accuracy = self.dbm_model.classifier.evaluate(self.X_test, self.Y_test, verbose=0)
-        self.console.log(f"Classifier Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.2f}")
+    
+        X_test = self.X_test if self.X_test_latent is None else self.X_test_latent
+       
+        loss, accuracy = self.dbm_model.classifier.evaluate(X_test, self.Y_test, verbose=0)
+        Y_pred = self.dbm_model.classifier.predict(X_test, verbose=0).argmax(axis=-1)
+        kappa_score = cohen_kappa_score(self.Y_test, Y_pred)
+        self.console.log(f"Classifier Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.4f} Kappa: {kappa_score:.4f}")
 
         path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
 
         with open(path, "a") as f:
             time = datetime.now().strftime("%D %H:%M:%S")
-            message = f"Accuracy: {(100 * accuracy):.2f}%  Loss: {loss:.2f}"
-            f.write(f"{time} {message}\n")
-        return accuracy, loss
+            message = "{" + f"'Accuracy': {(100 * accuracy):.2f}, 'Loss': {loss:.4f}, 'Kappa': {kappa_score:.4f}" + "}"
+            f.write(f"{time} || {message}\n")
+        return accuracy, loss, kappa_score
     
     def pop_classifier_evaluation(self):
         path = os.path.join(self.save_folder, CLASSIFIER_PERFORMANCE_HISTORY_FILE)
@@ -211,11 +297,12 @@ class DBMPlotterController:
             f.write("".join(lines))
 
         if len(lines) == 0:
-            return None, None
+            return None, None, None
 
-        last_line = lines[-1].replace("\n", "")
-        accuracy, loss = float(last_line.split("Accuracy: ")[1].split("%")[0]), float(last_line.split("Loss: ")[1])
-        return accuracy, loss
+        last_line = lines[-1].rstrip()
+        info_dict = eval(last_line.split(" || ")[1])
+        accuracy, loss, kappa_score = info_dict["Accuracy"], info_dict["Loss"], info_dict["Kappa"]
+        return accuracy, loss, kappa_score
     
     def load_2d_projection(self):
         if os.path.exists(os.path.join(self.save_folder, TRAIN_2D_FILE_NAME)) and os.path.exists(os.path.join(self.save_folder, TEST_2D_FILE_NAME)):
@@ -324,7 +411,22 @@ class DBMPlotterController:
             file = os.path.join(self.save_folder, file)
             if os.path.exists(file):
                 os.remove(file)
-
+                
+        # revoke the latest plot snapshot
+        if not os.path.exists(os.path.join(self.save_folder, PLOT_SNAPSHOTS_FOLDER)):
+            return
+        
+        plot_snapshots_folder = os.path.join(self.save_folder, PLOT_SNAPSHOTS_FOLDER)
+        try:
+            latest_plot_snapshot_file_path = get_latest_created_file_from_folder(plot_snapshots_folder)
+            os.rename(
+                      latest_plot_snapshot_file_path,
+                      latest_plot_snapshot_file_path.replace(".png", "_revoked.png")
+                      )
+        except FileExistsError:
+            self.console.error("Couldn't revoke the latest plot snapshot since it is already revoked.")
+        except Exception as e:
+            self.console.error(f"Error while revoking the latest plot snapshot: {str(e)}")
 
     def mix_image(self, show_color_map, show_confidence, show_inverse_projection_errors, show_projection_errors):
         color_img = np.zeros((self.img.shape[0], self.img.shape[1], 3))
@@ -349,32 +451,41 @@ class DBMPlotterController:
     def get_encoded_train_data(self):
         return self.encoded_train
     
+    def get_encoded_test_data(self):
+        return self.encoded_test
+    
     def get_positions_of_labels_changes(self):
         return self.positions_of_labels_changes
     
     def regenerate_boundary_map(self, Y_transformed, fast_decoding_strategy):
-        if self.projection_technique is None:
+        X_train = self.X_train if self.X_train_latent is None else self.X_train_latent
+        X_test = self.X_test if self.X_test_latent is None else self.X_test_latent
+        
+        if isinstance(self.dbm_model, SDBM):
             dbm_info = self.dbm_model.generate_boundary_map(
-                self.X_train,
-                Y_transformed,
-                self.X_test,
-                self.Y_test,
+                X_train = X_train,
+                Y_train = Y_transformed,
+                X_test = X_test,
+                Y_test = self.Y_test,
                 resolution=len(self.img),
                 fast_decoding_strategy=fast_decoding_strategy,
-                load_folder=self.save_folder
+                load_folder=self.save_folder,
+                is_data_normalized=self.helper_decoder is None
             )
         else:
             if self.X_train_2d is None or self.X_test_2d is None:
                 self.X_train_2d, self.X_test_2d = self.load_2d_projection()
+                
             dbm_info = self.dbm_model.generate_boundary_map(
-                Xnd_train=self.X_train,
-                Xnd_test=self.X_test,
+                Xnd_train=X_train,
+                Xnd_test=X_test,
                 X2d_train=self.X_train_2d,
                 X2d_test=self.X_test_2d,
                 resolution=len(self.img),
                 fast_decoding_strategy=fast_decoding_strategy,
                 load_folder=self.save_folder,
-                projection=self.projection_technique
+                projection=self.projection_technique,
+                is_data_normalized=self.helper_decoder is None
             )
         
         img, img_confidence, encoded_train, encoded_test = dbm_info
@@ -386,25 +497,44 @@ class DBMPlotterController:
         self.Y_train = Y_transformed
         self.initialize()
         
-    def apply_labels_changes(self, decoding_strategy):
+    def apply_labels_changes(self, decoding_strategy, epochs = None):
+        if self.user_allowed_interaction_iterations <= 0:
+            message = "Max number of iterations reached! Applying labels changes is not allowed anymore!"
+            self.console.error(message)
+            self.updates_logger.error(message)
+        
         num_changes = len(self.expert_updates_labels_mapper)
+        
         if num_changes == 0:
-            raise Exception("No changes to apply")
-        if num_changes < 10:
-            raise Exception("Less than 10 changes to apply, please apply more changes")
-
+            message = "No changes to apply!"
+            self.console.error(message)
+            self.updates_logger.error(message)
+            return
+        
         # store the changes done so far so we can restore them when needed
         with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_LABELS_CHANGES_FILE), "wb") as f:
             np.save(f, self.positions_of_labels_changes)
 
-        self.console.log("Transforming changes...")
         Y_transformed, label_changes, positions_of_labels_changes = self.transform_changes(self.Y_train, self.expert_updates_labels_mapper, self.positions_of_labels_changes)
+        
+        if len(label_changes) > 0.8 * len(self.Y_train):
+            message = "The amount of changes can not be more than 80% of the training set in one iteration"
+            self.console.error(message)
+            self.updates_logger.error(message)
+            return
+        
+        # stop the user timer
+        self.stop_timer()
+        
+        # block the user from applying changes
+        self.gui.window["-APPLY CHANGES SECTION-"].update(visible=False)
+        
         self.positions_of_labels_changes = positions_of_labels_changes
 
         self.console.log("Saving changes to a local folder...")
         self.save_labels_changes(self.save_folder, label_changes=label_changes)
 
-        self.updates_logger.log("Applying changes... This might take a couple of seconds, after this the window will be closed")
+        self.updates_logger.log("Applying changes... This might take some time...")
 
         save_folder = os.path.join(self.save_folder, CLASSIFIER_REFIT_FOLDER)
 
@@ -420,20 +550,86 @@ class DBMPlotterController:
         with open(os.path.join(self.save_folder, CLASSIFIER_STACKED_CONFIDENCE_MAP_FILE), "wb") as f:
             np.save(f, self.img_confidence)
 
-        self.dbm_model.refit_classifier(self.X_train, Y_transformed, save_folder=save_folder, epochs=EPOCHS_FOR_REFIT)
-        self.regenerate_boundary_map(Y_transformed, decoding_strategy)
+        # store the plot presented when the user applies the changes
+        current_time = datetime.now().strftime("%D %H:%M:%S").replace(" ", "_").replace("/", "_")
+        self.gui.fig.savefig(os.path.join(self.save_folder, PLOT_SNAPSHOTS_FOLDER, f"{current_time}.png"))
+
+        if epochs is None:
+            epochs = EPOCHS_FOR_REFIT
         
+        self.updates_logger.log(f"The classifier will be retrained for {epochs} epochs")
+
+        X_train = self.X_train if self.X_train_latent is None else self.X_train_latent
+        self.dbm_model.refit_classifier(X_train, Y_transformed, save_folder=save_folder, epochs=epochs)
+        self.regenerate_boundary_map(Y_transformed, decoding_strategy)
+
+        self.updates_logger.log("Changes applied successfully!")
+
+        # decrease the number of user allowed interactions
+        self.user_allowed_interaction_iterations -= 1
+        
+        # if user is not allowed interact block the buttons and show a informative message
+        if self.user_allowed_interaction_iterations <= 0:
+            # store the labels results after the usage
+            with open(os.path.join(self.save_folder, LABELS_RESULT_FILE), "wb") as f:
+                np.save(f, self.Y_train)
+            self.gui.window["-USAGE ITERATIONS LEFT TEXT-"].update("Max number of iterations reached!\nApplying labels changes is not allowed anymore!", text_color='red')
+            self.gui.window["-APPLY CHANGES-"].hide_row()
+            self.gui.window["-UNDO CHANGES-"].hide_row()
+            self.timer_ui.hide_row()
+            self.gui.window["-APPLY CHANGES SECTION-"].update(visible=True)
+            return
+        
+        # update the number of user allowed interactions in the gui
+        self.gui.window["-USAGE ITERATIONS LEFT TEXT-"].update(f"Usage iterations left: {self.user_allowed_interaction_iterations}")
+               
+        # restart the timer
+        self.start_timer(self.timer_ui)
+        
+        self.gui.window["-APPLY CHANGES SECTION-"].update(visible=True)
+        
+    def start_timer(self, ui_component):
+        # create a new timer that will update the ui_component
+        # set the stop_timer_event in order to stop the timer when needed
+        self.stop_timer_event = threading.Event()
+        self.timer_ui = ui_component
+        self.timer_ui.update(visible=True)
+        
+        def timer_update_callback(msg, is_time_up):
+            text_color = "red" if is_time_up else "green"
+            self.timer_ui.update(msg, text_color=text_color)
+            self.gui.window.refresh()
+            
+        threading.Thread(target=run_timer,
+                        args=(
+                            timer_update_callback,
+                            self.stop_timer_event,
+                            TIMER_DURATION,
+                            TIMER_WARNING_INTERVAL,
+                            TIMER_SOUND_FILE_PATH,
+                            True,
+                            )).start()
+       
+    def stop_timer(self):
+        self.stop_timer_event.set()
+    
     def set_dbm_model_logger(self, logger):
         self.dbm_model.console = logger
     
     def set_updates_logger(self, logger):
         self.updates_logger = logger
     
-    def build_annotation_mapper(self, fig, ax):
+    def set_show_tooltip_for_dataset_only(self, value):
+        self.show_tooltip_for_dataset_only = value
+    
+    def build_annotation_mapper(self, fig, ax, connect_click_event=True):
         """ Builds the annotation mapper.
             This is used to display the data point label when hovering over the decision boundary.
         """
-        image = OffsetImage(self.X_train[0], zoom=2, cmap="gray")
+        TOOLTIP_SIZE = 100.
+        zoom = TOOLTIP_SIZE / self.X_train[0].shape[0]
+        zoom = zoom if isinstance(zoom, float) else 1
+        image = OffsetImage(self.X_train[0], zoom=zoom)
         label = TextArea("Data point label: None")
 
         annImage = AnnotationBbox(image, (0, 0), xybox=(50., 50.), xycoords='data', boxcoords="offset points",  pad=0.1,  arrowprops=dict(arrowstyle="->"))
@@ -456,7 +652,7 @@ class DBMPlotterController:
             # change the annotation box position relative to mouse.
             ws = (event.x > fig_width/2.)*-1 + (event.x <= fig_width/2.)
             hs = (event.y > fig_height/2.)*-1 + (event.y <= fig_height/2.)
-            annImage.xybox = (50. * ws, 50. * hs)
+            annImage.xybox = (TOOLTIP_SIZE * ws, TOOLTIP_SIZE * hs)
             annLabels.xybox = (-50. * ws, 50. * hs)
             # make annotation box visible
             annImage.set_visible(True)
@@ -493,8 +689,16 @@ class DBMPlotterController:
                 k = self.test_mapper[f"{i} {j}"]
                 return self.X_test[k], f"Classifier label: {int(self.encoded_test[k][2])}"
 
+            if self.show_tooltip_for_dataset_only:
+                return None, None
+            
             # generate the nD data point on the fly using the inverse projection
-            point = self.dbm_model.neural_network.decode([(i/self.img.shape[0], j/self.img.shape[1])])[0]
+            if self.helper_decoder is not None:
+                point = self.helper_decoder.predict(self.dbm_model.neural_network.decode(
+                    [(i/self.img.shape[0], j/self.img.shape[1])]), verbose=0)[0]
+            else:
+                point = self.dbm_model.neural_network.decode([(i/self.img.shape[0], j/self.img.shape[1])])[0]
+            
             return point, None
 
         def onclick(event):
@@ -638,4 +842,5 @@ class DBMPlotterController:
             return positions
 
         self.motion_event_cid = fig.canvas.mpl_connect('motion_notify_event', display_annotation)
-        self.click_event_cid = fig.canvas.mpl_connect('button_press_event', onclick)
+        if connect_click_event:
+            self.click_event_cid = fig.canvas.mpl_connect('button_press_event', onclick)

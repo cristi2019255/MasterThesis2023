@@ -18,7 +18,7 @@ from tensorflow.keras.callbacks import Callback
 
 
 class LoggerModel(Callback):
-    def __init__(self, active: bool = True, name: str = "Neural Network", info_color: str = "magenta", show_init: bool = True, epochs: int = 100):
+    def __init__(self, active: bool = True, name: str = "Neural Network", info_color: str = "magenta", show_init: bool = True, epochs: int = 100, print_fn=None):
         """ Initialize the logger
 
         Args:
@@ -29,9 +29,10 @@ class LoggerModel(Callback):
         self.name = name
         self.info_color = info_color
         self.epochs = epochs
+        self.print_fn = print_fn
         if show_init:
             sep = "=" * 30
-            time = datetime.now().strftime("%H:%M:%S:%f")
+            time = datetime.now().strftime("%H:%M:%S")
             print(colored(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color))
             print(colored(f"[INFO] [{time}] [{self.name}] {self.name} initialized", self.info_color))
             print(colored(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color))
@@ -40,3 +41,5 @@ class LoggerModel(Callback):
         if self.active:
             logs = ", ".join([f"{key}: {value:.4f}" for key, value in logs.items()])
             print(colored(f"[INFO] [{self.name}] [Epoch {epoch}/{self.epochs}] {logs}", self.info_color))
+            if self.print_fn is not None:
+                self.print_fn(f"[Epoch {epoch}/{self.epochs}] {logs}")

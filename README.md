@@ -28,10 +28,10 @@ The first example `DBM_usage_example` uses `t-SNE` to project the data from the 
 The examples can be found in the `examples` folder.
 
 ```python
-from decision_boundary_mapper import DBM_usage_example, SDM_usage_example
+from decision_boundary_mapper import DBM_usage_example, SDBM_usage_example
 
 DBM_usage_example() # run the first example
-SDM_usage_example() # run the second example
+SDBM_usage_example() # run the second example
 ```
 
 1. The package main functionality comes in two classes `DBM` (i.e. learns inverse projection when a 2D projection is given) and `SDBM` (i.e. learns both the projection and the inverse projection).

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import os
 import numpy as np
 
@@ -20,7 +19,7 @@ from .NNInv import DEFAULT_MODEL_PATH, NNInv
 from .projections import PROJECTION_METHODS
 
 
-from ..AbstractDBM import AbstractDBM, DBM_DEFAULT_RESOLUTION, FAST_DBM_STRATEGIES
+from ..AbstractDBM import AbstractDBM, DBM_DEFAULT_RESOLUTION, DEFAULT_TRAINING_EPOCHS, DEFAULT_BATCH_SIZE, FAST_DBM_STRATEGIES
 
 from ...utils import track_time_wrapper, TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, TRAIN_2D_FILE_NAME, TEST_2D_FILE_NAME
 from ...Logger import LoggerInterface, Logger
@@ -61,8 +60,9 @@ class DBM(AbstractDBM):
     @track_time_wrapper(logger=time_tracker_console)
     def fit(self,
             X2d: np.ndarray, Xnd: np.ndarray,
-            epochs: int = 300, batch_size: int = 32,
-            load_folder: str = DEFAULT_MODEL_PATH):
+            epochs: int = DEFAULT_TRAINING_EPOCHS, batch_size: int = DEFAULT_BATCH_SIZE,
+            load_folder: str = DEFAULT_MODEL_PATH,
+            is_data_normalized: bool = True):
         """ 
         Learns the inverse projection on the given data set.
 
@@ -71,15 +71,17 @@ class DBM(AbstractDBM):
             Xnd (np.ndarray): Training data set nD data (e.g. MNIST, CIFAR10) (i.e. the original data)
             epochs (int, optional): The number of epochs for which the DBM is trained. Defaults to 300.
             batch_size (int, optional): Train batch size. Defaults to 32.
-
+            is_data_normalized (bool, optional): Determine the last layer activation function of the NNinv, sigmoid or relu. Defaults to True (i.e. activation sigmoid).
+     
         Returns:
             inverse_porjection_NN (NNInv): The trained inverse projection neural network.
         """
 
-        inverse_projection_NN = NNInv(folder_path=load_folder)
+        inverse_projection_NN = NNInv(folder_path=load_folder, logger=self.console)
         inverse_projection_NN.fit(X2d, Xnd,
                                   epochs=epochs,
-                                  batch_size=batch_size)
+                                  batch_size=batch_size,
+                                  is_data_normalized=is_data_normalized)
         return inverse_projection_NN
 
     def generate_boundary_map(self,
@@ -87,12 +89,13 @@ class DBM(AbstractDBM):
                               Xnd_test: np.ndarray,
                               X2d_train: np.ndarray | None = None,
                               X2d_test: np.ndarray | None = None,
-                              nn_train_epochs: int = 300,
-                              nn_train_batch_size: int = 32,
+                              nn_train_epochs: int = DEFAULT_TRAINING_EPOCHS,
+                              nn_train_batch_size: int = DEFAULT_BATCH_SIZE,
                               resolution: int = DBM_DEFAULT_RESOLUTION,
                               fast_decoding_strategy: FAST_DBM_STRATEGIES = FAST_DBM_STRATEGIES.NONE,
                               load_folder: str = DEFAULT_MODEL_PATH,
-                              projection: str = 't-SNE'):
+                              projection: str = 't-SNE',
+                              is_data_normalized: bool = True):
         """ 
         Generates a 2D boundary map of the classifier's decision boundary.
 
@@ -107,7 +110,8 @@ class DBM(AbstractDBM):
             fast_decoding_strategy (FAST_DBM_STRATEGIES, optional): The strategy to use in generating the DBM. Defaults to FAST_DBM_STRATEGIES.NONE.
             load_folder (str, optional): The folder in which the model will be stored or if exists loaded from. Defaults to DEFAULT_MODEL_PATH
             projection (str, optional): The projection method to be used. Defaults to 't-SNE'.
-
+            is_data_normalized (bool, optional): Determine the last layer activation function of the NNinv, sigmoid or relu. Defaults to True (i.e. activation sigmoid).
+     
         Returns:
             img (np.array): A 2D numpy array with the decision boundary map, each element is an integer representing the class of the corresponding point.
             img_confidence (np.array): A 2D numpy array with the decision boundary map, each element is a float representing the confidence of the classifier for the corresponding point.
@@ -123,6 +127,10 @@ class DBM(AbstractDBM):
             >>> plt.show()
         """
        
+        # adding projection method to the end of the load_folder path
+        if projection != load_folder.split(os.sep)[-1]:
+            load_folder = os.path.join(load_folder, projection)
+            
         if X2d_train is None or X2d_test is None:
             assert projection in PROJECTION_METHODS.keys()
             Xnd_train_flatten = Xnd_train.reshape((Xnd_train.shape[0], -1))
@@ -132,9 +140,6 @@ class DBM(AbstractDBM):
             # Normalize the data to be in the range of [0,1]
             X2d_train, X2d_test = self.__normalize_2d__(X2d_train, X2d_test)
             
-        # adding projection method to the end of the load_folder path
-        if projection != load_folder.split(os.sep)[-1]:
-            load_folder = os.path.join(load_folder, projection)
 
         # creating a folder for the model if not present
         if not os.path.exists(os.path.join(load_folder)):
@@ -147,7 +152,8 @@ class DBM(AbstractDBM):
             self.neural_network = self.fit(X2d, Xnd,
                                            epochs = nn_train_epochs, 
                                            batch_size = nn_train_batch_size,
-                                           load_folder=load_folder)
+                                           load_folder=load_folder,
+                                           is_data_normalized=is_data_normalized)
 
         self.resolution = resolution
 
@@ -160,8 +166,8 @@ class DBM(AbstractDBM):
         self.console.log("Map the 2D embedding of the data to the 2D image")
 
         # transform the encoded data to be in the range [0, resolution)
-        X2d_train *= (resolution - 1)
-        X2d_test *= (resolution - 1)
+        X2d_train *= (resolution - 1) # type: ignore
+        X2d_test *= (resolution - 1)  # type: ignore
         X2d_train = X2d_train.astype(int)
         X2d_test = X2d_test.astype(int)
 

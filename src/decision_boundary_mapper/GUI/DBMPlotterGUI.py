@@ -35,11 +35,15 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import PySimpleGUI as sg
 import matplotlib
+from matplotlib import cm
 
 from .. import Logger, LoggerGUI, FAST_DBM_STRATEGIES
+from ..DBM import DBM, SDBM
 from .DBMPlotterController import DBMPlotterController
+from .DBMPlotterController import EPOCHS_FOR_REFIT, EPOCHS_FOR_REFIT_RANGE, USER_ALLOWED_INTERACTION_ITERATIONS
 from ..utils import TRAIN_DATA_POINT_MARKER, TEST_DATA_POINT_MARKER, BLACK_COLOR, WHITE_COLOR, RED_COLOR, GREEN_COLOR, YELLOW_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2, APP_PRIMARY_COLOR, APP_FONT
 
+plt.switch_backend('agg')
 matplotlib.use("TkAgg")
 
 def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
@@ -68,57 +72,56 @@ def draw_figure_to_canvas(canvas, figure, canvas_toolbar=None):
     return figure_canvas_agg
 
 
-def generate_color_mapper():
+def generate_color_mapper(num_classes):
+   
+    colors = cm.tab10(np.linspace(0, 1, num_classes))
     colors_mapper = {
         # setting original test data to black
         TEST_DATA_POINT_MARKER: [0, 0, 0],
         # setting original train data to white
         TRAIN_DATA_POINT_MARKER: [1, 1, 1],
-        0: [1, 0, 0],
-        1: [0, 1, 0],
-        2: [0, 0, 1],
-        3: [1, 1, 0],
-        4: [0, 1, 1],
-        5: [1, 0, 1],
-        6: [0.5, 0.5, 0.5],
-        7: [0.5, 0, 0],
-        8: [0, 0.5, 0],
-        9: [0, 0, 0.5]
     }
     # setting the rest of the colors
-    for i in range(10, 100):
-        colors_mapper[i] = [i/200, i/200, i/200]
+    for i in range(num_classes):
+        colors_mapper[i] = colors[i][:3]
     return colors_mapper
 
 
-# Generating initial settings
-COLORS_MAPPER = generate_color_mapper()
 
 TITLE = "Decision Boundary Map & Errors"
 WINDOW_SIZE = (1650, 1000)
-INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point click on the data point,\n or select the data point by including them into a circle.\nPress any digit key to indicate the new label.\nPress 'Enter' to confirm the new label. Press 'Esc' to cancel the action.\nTo remove a change just click on the data point.\nPress 'Apply Changes' to update the model."
-DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon.png")
-
+INFORMATION_CONTROLS_MESSAGE = "To change label(s) of a data point(s) first click on the start usage button.\nThen click on the data point, or select the data point by including them into a circle.\nPress any digit key to indicate the new label. Press 'Enter' to confirm the new label. \nPress 'Esc' to cancel the action. To remove a change just click on the data point.\nPress 'Apply Changes' to update the model."
+DBM_WINDOW_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "dbm_plotter_icon_b64.txt")
 
 class DBMPlotterGUI:
     
     def __init__(self,
-                 dbm_model,
-                 img, img_confidence,
-                 X_train, Y_train,
-                 X_test, Y_test,
-                 encoded_train, encoded_test,
-                 save_folder,
-                 X_train_2d = None, X_test_2d = None,
-                 projection_technique=None,
+                 dbm_model: DBM | SDBM,
+                 img: np.ndarray,
+                 img_confidence: np.ndarray,
+                 X_train: np.ndarray, 
+                 Y_train: np.ndarray,
+                 X_test: np.ndarray, 
+                 Y_test: np.ndarray,
+                 encoded_train: np.ndarray, 
+                 encoded_test: np.ndarray,
+                 save_folder: str,
+                 X_train_2d: np.ndarray | None = None,
+                 X_test_2d: np.ndarray | None = None,
+                 projection_technique: str | None=None,
                  logger=None,
                  main_gui=None,
+                 class_name_mapper= lambda x: str(x),
+                 color_mapper=generate_color_mapper(10),
+                 helper_decoder=None,
+                 X_train_latent: np.ndarray | None = None,
+                 X_test_latent: np.ndarray | None = None,
                  ):
         """[summary] DBMPlotterGUI is a GUI that allows the user to visualize the decision boundary map and the errors of the DBM model.
         It also allows the user to change the labels of the data points and see the impact of the changes on the model.
 
         Args:
-            dbm_model (DBM or SDBM): The DBM model that will be used to generate the decision boundary map.
+            dbm_model (DBM | SDBM): The DBM model that will be used to generate the decision boundary map.
             img (np.ndarray): The decision boundary map image.
             img_confidence (np.ndarray): The decision boundary map confidence image.
             X_train (np.ndarray): The training data.
@@ -127,14 +130,22 @@ class DBMPlotterGUI:
             Y_test (np.ndarray): The test labels.
             encoded_train (np.ndarray): Positions of the training data points in the 2D embedding space.
             encoded_test (np.ndarray): Positions of the test data points in the 2D embedding space.
-            spaceNd (np.ndarray): This is a list of lists of size resolution*resolution. Each point in this list is an nd data point which can be a vector, a matrix or a multidimensional matrix.
             save_folder (string): The folder where all the DBM model related files will be saved.
+            X_train_2d (np.ndarray | None): The 2D embedding space of the training data, if provided it will be used to faster load the 2D plot. Defaults to None 
+            X_test_2d (np.ndarray | None): The 2D embedding space of the testing data, if provided it will be used to faster load the 2D plot. Defaults to None
             projection_technique (string, optional): The projection technique the user wants to use if DBM is used as dbm_model. Defaults to None.
             logger (Logger, optional): The logger which is meant for logging the info messages. Defaults to None.
             main_gui (GUI, optional): The GUI that started the DBMPlotterGUI if any. Defaults to None.
+            class_name_mapper (function, optional): The function which is meant for mapping class names to their corresponding values. Defaults to lambda x -> str(x).
+            color_mapper (dict, optional): The color mapper dictionary. Should include keys: TEST_DATA_POINT_MARKER = -2, TRAIN_DATA_POINT_MARKER = -1, 0, ..., num_classes. Each value should be an array of 3 numbers in range 0-1
+            -------------------------------------------------------------------------------------------------------------------------------
+            helper_decoder (tf.keras.Model, optional): The feature extractor helper decoder. When provided together with helper_encoder it will be used to reduce the dimensionality of the data. Defaults to None.
+            X_train_latent (np.ndarray | None, optional) The features of the X_train when dimensionality reduction is needed for X_train. Defaults to None,
+            X_test_latent (np.ndarray | None, optional) The features of the X_test when dimensionality reduction is needed for X_test. Defaults to None,
         """
         
         self.main_gui = main_gui  # reference to main window
+        self.class_name_mapper = class_name_mapper
         if logger is None:
             self.console = Logger(name="DBMPlotterGUI")
         else:
@@ -142,23 +153,46 @@ class DBMPlotterGUI:
         
         self.controller = DBMPlotterController(logger,
                                                 dbm_model,
-                                                img, img_confidence,
-                                                X_train, Y_train,
-                                                X_test, Y_test,
-                                                X_train_2d, X_test_2d,
-                                                encoded_train, encoded_test,
+                                                img, 
+                                                img_confidence,
+                                                X_train, 
+                                                Y_train,
+                                                X_test,
+                                                Y_test,
+                                                X_train_2d, 
+                                                X_test_2d,
+                                                encoded_train, 
+                                                encoded_test,
                                                 save_folder,
-                                                projection_technique)
-        self.initialize()
+                                                projection_technique,
+                                                gui=self,
+                                                X_train_latent=X_train_latent,
+                                                X_test_latent=X_test_latent,
+                                                helper_decoder=helper_decoder,
+                                                )
         
-
-    def initialize(self):
-        self.color_img, legend = self.controller.build_2D_image(colors_mapper=COLORS_MAPPER)
+        num_classes = len(np.unique(np.concatenate((Y_train, Y_test))))
+        try:
+            assert(color_mapper is dict)
+            assert(TEST_DATA_POINT_MARKER in color_mapper.keys())
+            assert(TRAIN_DATA_POINT_MARKER in color_mapper.keys())
+            assert(len(color_mapper) == num_classes + 2)
+            assert (all(len(color) == 3 and channel <= 1 and channel >=0 for channel in color for color in color_mapper.values()))
+            self.colors_mapper = color_mapper
+        except AssertionError:
+            if color_mapper is not None:
+                self.console.log("The provided color mapper does not match the requirements, falling back to the default color mapper...")
+            self.colors_mapper = generate_color_mapper(num_classes)
+            
+        self.initialize_plots(connect_click_event = False)
+        
+    def initialize_plots(self, connect_click_event = True):
+        self.color_img, self.legend = self.controller.build_2D_image(colors_mapper=self.colors_mapper, class_name_mapper=self.class_name_mapper)
         # --------------------- Plotter related ---------------------
         self.classifier_performance_fig, self.classifier_performance_ax = self._build_plot_()
         self.fig, self.ax = self._build_plot_()
-        self.controller.build_annotation_mapper(self.fig, self.ax)
-        self.fig.legend(handles=legend, borderaxespad=0.)
+        self.controller.build_annotation_mapper(self.fig, self.ax, connect_click_event)
+        self.fig.legend(handles=self.legend, borderaxespad=0.)
 
     def _initialize_gui_(self):
         # --------------------- GUI related ---------------------
@@ -204,6 +238,9 @@ class DBMPlotterGUI:
                     ],
                     [ sg.HSeparator() ],
                     [
+                        sg.Checkbox("Show tooltip for points outside of the dataset", default=True, key="-SHOW TOOLTIP OUTSIDE DATASET-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
+                    ],
+                    [
                         sg.Checkbox("Change labels by selecting with circle", default=True, key="-CIRCLE SELECTING LABELS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
                     ],
                     [
@@ -219,6 +256,9 @@ class DBMPlotterGUI:
                         sg.Checkbox("Show classifier predictions", default=False, key="-SHOW CLASSIFIER PREDICTIONS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0)),
                     ],
                     [
+                        sg.Checkbox("Show data labels", default=False, key="-SHOW DATA LABELS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0,0)),
+                    ],
+                    [
                         sg.Checkbox("Show inverse projection errors", default=False, key="-SHOW INVERSE PROJECTION ERRORS-", enable_events=True, font=APP_FONT, expand_x=True, pad=(0, 0), visible=computed_inverse_projection_errors),
                     ],
                     [
@@ -232,6 +272,7 @@ class DBMPlotterGUI:
                             default_value=FAST_DBM_STRATEGIES.NONE.value,
                             expand_x=True,
                             enable_events=True,
+                            font=APP_FONT,
                             key="-DBM FAST DECODING STRATEGY-",
                             background_color=WHITE_COLOR,
                             text_color=BLACK_COLOR,
@@ -239,16 +280,70 @@ class DBMPlotterGUI:
                             readonly=True,
                         ),
                     ],
-                    [
-                        sg.Button("Apply Changes", font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),
-                        sg.Button("Undo Changes", font=APP_FONT, expand_x=True, key="-UNDO CHANGES-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),
+                    [   
+                        sg.vbottom(sg.Text(f"Number of epochs:", font=APP_FONT, key="-DBM RELABELING CLASSIFIER EPOCHS TEXT-")),
+                        sg.Slider(range=EPOCHS_FOR_REFIT_RANGE, 
+                               default_value=EPOCHS_FOR_REFIT, 
+                               expand_x=True, 
+                               enable_events=False,
+                               orientation='horizontal',
+                               trough_color=WHITE_COLOR,
+                               font=APP_FONT,
+                               tooltip="Select the number of epochs for which \nthe classifier will be retrained.",
+                               key="-DBM RELABELING CLASSIFIER EPOCHS-")
                     ],
                     [
                         sg.HSeparator()
                     ],
-                    buttons_proj_errs[0],
-                    buttons_proj_errs[1],
-                    buttons_inv_proj_errs,
+                    [
+                        sg.Column([
+                            [sg.pin(
+                                sg.Column([
+                                    [
+                                        sg.Button("Start Usage", font=APP_FONT, expand_x=True, key="-START APPLY CHANGES BTN-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR))
+                                    ],
+                                    [
+                                        sg.HSeparator()
+                                    ],
+                                ], key="-START APPLY CHANGES SECTION-", visible=True, expand_x=True, expand_y=True),
+                                shrink=True, expand_x=True, expand_y=True)],
+                            ], pad=(0, 0), expand_x=True),  
+                    ],
+                    [
+                        sg.Column([
+                            [sg.pin(
+                            sg.Column([
+                                [
+                                    sg.Text(f"", font=APP_FONT, key="-APPLY CHANGES TIMER TEXT-", expand_x=True, justification='center'),
+                                ],
+                                [
+                                    sg.Text(f"Usage iterations left: {USER_ALLOWED_INTERACTION_ITERATIONS}", font=APP_FONT, key="-USAGE ITERATIONS LEFT TEXT-", expand_x=True, justification='center', text_color='green'),
+                                ],
+                                [
+                                    sg.Button("Apply Changes", font=APP_FONT, expand_x=True, key="-APPLY CHANGES-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),
+                                    sg.Button("Undo Changes", font=APP_FONT, expand_x=True, key="-UNDO CHANGES-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),
+                                ],
+                                [
+                                    sg.Button("Pause Usage", font=APP_FONT, expand_x=True, key="-PAUSE USAGE BTN-", button_color=(WHITE_COLOR, APP_PRIMARY_COLOR)),  
+                                ],
+                                [
+                                    sg.HSeparator()
+                                ],
+                            ], key="-APPLY CHANGES SECTION-", visible=False, expand_x=True, expand_y=True),
+                            shrink=True, expand_x=True, expand_y=True)],
+                        ], pad=(0, 0), expand_x=True),  
+                    ],
+                    [
+                        sg.Column([
+                            [sg.pin(
+                                sg.Column([
+                                    buttons_proj_errs[0],
+                                    buttons_proj_errs[1],
+                                    buttons_inv_proj_errs,
+                                ], key="-PROJECTION ERRORS SECTION-", visible=True, expand_x=True, expand_y=True),
+                                shrink=True, expand_x=True, expand_y=True)],
+                        ], pad=(0, 0), expand_x=True),
+                    ],
                     [sg.Multiline("", key="-LOGGER-", size=(40, 20),
                                           font=APP_FONT,
                                           background_color=WHITE_COLOR,
@@ -273,12 +368,17 @@ class DBMPlotterGUI:
                            layout=self._get_GUI_layout_(),
                            size=WINDOW_SIZE,
                            resizable=True,
-                           icon=DBM_WINDOW_ICON_PATH,
                            element_justification='center',
                            )
+        
+        with open(DBM_WINDOW_ICON_PATH, "rb") as f:
+            iconb64 = f.read()
 
         window.finalize()
         window.maximize()
+        
+        window.set_icon(pngbase64=iconb64)
+
         return window
 
     def start(self):
@@ -299,7 +399,7 @@ class DBMPlotterGUI:
         self.console.log("Closing the application...")
 
         self.controller.clear_resources()
-
+        
         self.window.close()
 
     def handle_event(self, event, values):
@@ -308,18 +408,25 @@ class DBMPlotterGUI:
             "-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-": self.handle_compute_projection_errors_event,
             "-COMPUTE INVERSE PROJECTION ERRORS-": self.handle_compute_inverse_projection_errors_event,
             "-APPLY CHANGES-": self.handle_apply_changes_event,
+            "-SHOW TOOLTIP OUTSIDE DATASET-": self.handle_tooltip_checkbox_change_event,
             "-SHOW DBM COLOR MAP-": self.handle_checkbox_change_event,
             "-SHOW DBM CONFIDENCE-": self.handle_checkbox_change_event,
             "-SHOW INVERSE PROJECTION ERRORS-": self.handle_checkbox_change_event,
             "-SHOW PROJECTION ERRORS-": self.handle_checkbox_change_event,
             "-SHOW LABELS CHANGES-": self.handle_checkbox_change_event,
             "-SHOW CLASSIFIER PREDICTIONS-": self.handle_checkbox_change_event,
+            "-SHOW DATA LABELS-": self.handle_checkbox_change_event,
             "-CIRCLE SELECTING LABELS-": self.handle_circle_selecting_labels_change_event,
             "-UNDO CHANGES-": self.handle_undo_changes_event,
             "-DBM FAST DECODING STRATEGY-": self.handle_decoding_strategy_change_event,
+            "-START APPLY CHANGES BTN-": self.handle_start_apply_changes_usage_event,
+            "-PAUSE USAGE BTN-": self.handle_pause_apply_changes_usage_event,
         }
 
         EVENTS[event](event, values)
+
+    def handle_tooltip_checkbox_change_event(self, event, value):
+        self.controller.set_show_tooltip_for_dataset_only(not value["-SHOW TOOLTIP OUTSIDE DATASET-"])
 
     def handle_decoding_strategy_change_event(self, event, values):
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
@@ -368,45 +475,55 @@ class DBMPlotterGUI:
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
        
     def compute_classifier_metrics(self):
-        accuracy, loss = self.controller.compute_classifier_metrics()
-        self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(100 * accuracy):.2f} %  Loss: {loss:.2f}")
+        accuracy, loss, kappa_score = self.controller.compute_classifier_metrics()
+        self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(100 * accuracy):.2f} %  Loss: {loss:.4f} Kappa score: {kappa_score:.4f}")
         self.update_classifier_performance_canvas()
 
     def pop_classifier_evaluation(self):
-        accuracy, loss = self.controller.pop_classifier_evaluation()
-        if accuracy is None or loss is None:
+        accuracy, loss, kappa_score = self.controller.pop_classifier_evaluation()
+        if accuracy is None and loss is None and kappa_score is None:
             return
         
-        self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(accuracy):.2f} %  Loss: {loss:.2f}")
+        self.window["-CLASSIFIER ACCURACY-"].update(f"Classifier Accuracy: {(accuracy):.2f} %  Loss: {loss:.4f} Kappa score: {kappa_score:.4f}")
         self.update_classifier_performance_canvas()
 
     def handle_compute_inverse_projection_errors_event(self, event, values):
-        self.window['-COMPUTE INVERSE PROJECTION ERRORS-'].hide_row()
         self.updates_logger.log("Computing inverse projection errors, please wait...")
+
+        self.window['-COMPUTE INVERSE PROJECTION ERRORS-'].hide_row()
+        self.window['-PROJECTION ERRORS SECTION-'].update(visible=False)
+
         self.controller.compute_inverse_projection_errors()
-        self.updates_logger.log("Inverse projection errors computed!")
-        self.window['-SHOW INVERSE PROJECTION ERRORS-'].update(visible=True)
         
         # redraw the figure to the canvas because the layout has changed, otherwise the axes of the figure will not work properly
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
 
-    def _set_loading_proj_errs_state_(self):
-        self.window['-COMPUTE PROJECTION ERRORS INTERPOLATION-'].hide_row()
-        self.window['-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-'].hide_row()
-        self.updates_logger.log("Computing projection errors, please wait...")
+        self.window['-SHOW INVERSE PROJECTION ERRORS-'].update(visible=True)
+        if self.controller.projection_errors is None:
+            self.window['-PROJECTION ERRORS SECTION-'].update(visible=True)
+
+        self.updates_logger.log("Inverse projection errors computed!")
 
     def handle_compute_projection_errors_event(self, event, values):
-        self._set_loading_proj_errs_state_()
+        self.updates_logger.log("Computing projection errors, please wait...")
+
+        self.window['-COMPUTE PROJECTION ERRORS INTERPOLATION-'].hide_row()
+        self.window['-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-'].hide_row()
+        self.window['-PROJECTION ERRORS SECTION-'].update(visible=False)
+        
         if event == "-COMPUTE PROJECTION ERRORS INTERPOLATION-":
             self.controller.compute_projection_errors(type="interpolated")    
         elif event == "-COMPUTE PROJECTION ERRORS INVERSE PROJECTION-":
             self.controller.compute_projection_errors(type="non_interpolated")    
-    
-        self.updates_logger.log("Finished computing projection errors.")
-        self.window['-SHOW PROJECTION ERRORS-'].update(visible=True)
-        
+       
         # redraw the figure to the canvas because the layout has changed, otherwise the axes of the figure will not work properly
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
+
+        self.window['-SHOW PROJECTION ERRORS-'].update(visible=True)
+        if self.controller.inverse_projection_errors is None:
+            self.window['-PROJECTION ERRORS SECTION-'].update(visible=True)
+
+        self.updates_logger.log("Finished computing projection errors.")
 
     def handle_checkbox_change_event(self, event, values):
         img = self.controller.mix_image(values["-SHOW DBM COLOR MAP-"], values["-SHOW DBM CONFIDENCE-"], values["-SHOW INVERSE PROJECTION ERRORS-"], values["-SHOW PROJECTION ERRORS-"])
@@ -414,19 +531,27 @@ class DBMPlotterGUI:
         if hasattr(self, "axes_image"):
             self.axes_image.remove()
 
-        if hasattr(self, "axes_classifier_scatter") and self.axes_classifier_scatter is not None:
-            self.axes_classifier_scatter.set_visible(False)
-            self.axes_classifier_scatter = None
+        if hasattr(self, "axes_labels_scatters") and self.axes_labels_scatter is not None:
+            self.axes_labels_scatter.remove()
+            self.axes_labels_scatter = None
 
         self.axes_image = self.ax.imshow(img)
 
-        if values["-SHOW CLASSIFIER PREDICTIONS-"]:
+        # allow only one of 2 options either show the data labels or the classifier predictions
+        show_data_labels, show_classifier_predictions = values["-SHOW DATA LABELS-"], values["-SHOW CLASSIFIER PREDICTIONS-"]
+        if show_data_labels:
+            values["-SHOW CLASSIFIER PREDICTIONS-"] = False
+        if show_classifier_predictions:
+            values["-SHOW DATA LABELS-"] = False
+            
+        if values["-SHOW CLASSIFIER PREDICTIONS-"] or values["-SHOW DATA LABELS-"]:
             encoded_train = self.controller.get_encoded_train_data()
-            colors = [COLORS_MAPPER[label] for label in encoded_train[:, 2]]
-            self.axes_classifier_scatter = self.ax.scatter(encoded_train[:, 1], encoded_train[:, 0], s=10, c=colors)
-
+            labels_train = encoded_train[:, 2] if show_classifier_predictions else self.controller.Y_train
+            colors_train = [self.colors_mapper[label] for label in labels_train]
+            self.axes_labels_scatter = self.ax.scatter(encoded_train[:, 1], encoded_train[:, 0], s=10, c=colors_train)
+            
         if hasattr(self, "ax_labels_changes") and self.ax_labels_changes is not None:
-            self.ax_labels_changes.set_visible(False)
+            self.ax_labels_changes.remove()
             self.ax_labels_changes = None
 
         positions_x, positions_y, alphas = self.controller.get_positions_of_labels_changes()
@@ -434,63 +559,102 @@ class DBMPlotterGUI:
             self.ax_labels_changes = self.ax.scatter(positions_x, positions_y, s=10, c='green', marker='^', alpha=alphas)
 
         self.fig.canvas.draw_idle()
+        self.window["-SHOW DATA LABELS-"].update(values["-SHOW DATA LABELS-"])
+        self.window["-SHOW CLASSIFIER PREDICTIONS-"].update(values["-SHOW CLASSIFIER PREDICTIONS-"])
         
-
     def handle_circle_selecting_labels_change_event(self, event, values):
         self.update_labels_by_circle_select = values["-CIRCLE SELECTING LABELS-"]
 
     def handle_apply_changes_event(self, event, values):
-        self.controller.apply_labels_changes(decoding_strategy=FAST_DBM_STRATEGIES(values["-DBM FAST DECODING STRATEGY-"]))
-        self.initialize()
+        self.controller.apply_labels_changes(decoding_strategy=FAST_DBM_STRATEGIES(values["-DBM FAST DECODING STRATEGY-"]), epochs=int(values["-DBM RELABELING CLASSIFIER EPOCHS-"]))
+        self.initialize_plots()
         self.compute_classifier_metrics()
         self.handle_checkbox_change_event(event, values)
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
        
-
-        self.updates_logger.log("Changes applied successfully!")
-
         if self.main_gui is not None and hasattr(self.main_gui, "handle_changes_in_dbm_plotter"):
             self.main_gui.handle_changes_in_dbm_plotter()
 
     def handle_undo_changes_event(self, event, values):
+        self.controller.stop_timer()
         try:
             self.controller.undo_changes()
             self.pop_classifier_evaluation()
-
+            self.controller.user_allowed_interaction_iterations += 1
+            self.window["-USAGE ITERATIONS LEFT TEXT-"].update(f"Usage iterations left: {self.controller.user_allowed_interaction_iterations}")
             self.updates_logger.log("Undone changes successfully")
         except Exception as e:
             self.updates_logger.error("Failed to undo changes: " + str(e))
             
-        self.initialize()
+        self.initialize_plots()
         self.handle_checkbox_change_event(event, values)
         self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
-       
+        # start a timer
+        self.controller.start_timer(self.window["-APPLY CHANGES TIMER TEXT-"])
 
     def handle_show_classifier_performance_history_event(self, event=None, values=None):
         try:
-            times, accuracies, losses = self.controller.get_classifier_performance_history()
-            _, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+            times, accuracies, losses, kappas = self.controller.get_classifier_performance_history()
+            _, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 8))
 
-            for tick in ax1.get_xticklabels():
-                tick.set_rotation(45)
-            for tick in ax2.get_xticklabels():
-                tick.set_rotation(45)
+            for ax in [ax1, ax2, ax3]:
+                for tick in ax.get_xticklabels():
+                    tick.set_rotation(45)
 
             ax1.set_title("Classifier accuracy history")
-            ax2.set_title("Classifier loss history")
             ax1.set_xlabel("Time")
-            ax2.set_xlabel("Time")
             ax1.set_ylabel("Accuracy (%)")
-            ax2.set_ylabel("Loss")
+
+            ax2.set_title("Kappa score history")
+            ax2.set_xlabel("Time")
+            ax2.set_ylabel("Kappa score")
+
+            ax3.set_title("Classifier loss history")
+            ax3.set_xlabel("Time")
+            ax3.set_ylabel("Loss")
+
 
             ax1.plot(times, accuracies, marker="o")
-            ax2.plot(times, losses, marker="o")
+            ax2.plot(times, kappas, marker="o")
+            ax3.plot(times, losses, marker="o")
+
             plt.show()
         except Exception as e:
             self.updates_logger.error("Failed to show classifier performance history: " + str(e))
 
+    def handle_start_apply_changes_usage_event(self, event, values):
+        # hide the start usage btn
+        self.window["-START APPLY CHANGES SECTION-"].update(visible=False)
+        
+        # allow user to interact with the dbm plot by clicking
+        self.initialize_plots()
+        self.handle_checkbox_change_event(event, values)
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
+        
+        # start a timer
+        self.controller.start_timer(self.window["-APPLY CHANGES TIMER TEXT-"])
+        # reveal the apply changes section to the ui
+        self.window["-APPLY CHANGES SECTION-"].update(visible=True)   
+        self.window["-PROJECTION ERRORS SECTION-"].update(visible=False)
+        
+    def handle_pause_apply_changes_usage_event(self, event, values):
+        # stop timer if any
+        self.controller.stop_timer()
+        # hide the apply changes section
+        self.window["-APPLY CHANGES SECTION-"].update(visible=False)
+        # reveal the start apply changes usage section
+        self.window["-START APPLY CHANGES SECTION-"].update(visible=True)
+        # reveal the compute errors buttons section
+        errors_computed = self.controller.projection_errors is not None and self.controller.inverse_projection_errors is not None
+        self.window["-PROJECTION ERRORS SECTION-"].update(visible=not errors_computed)
+
+        # disable user to interact with the dbm plot by clicking
+        self.initialize_plots(connect_click_event=False)
+        self.handle_checkbox_change_event(event, values)
+        self.fig_agg = draw_figure_to_canvas(self.canvas, self.fig, self.canvas_controls)
+
     def update_classifier_performance_canvas(self):
-        times, accuracies, _ = self.controller.get_classifier_performance_history()
+        times, accuracies, _, _ = self.controller.get_classifier_performance_history()
         self.classifier_performance_fig, self.classifier_performance_ax = self._build_plot_()
         self.classifier_performance_ax.set_axis_on()
         self.classifier_performance_ax.set_title("Classifier performance history")

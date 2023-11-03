@@ -28,7 +28,7 @@ from .AbstractNN import AbstractNN
 from ..utils import track_time_wrapper, INVERSE_PROJECTION_ERRORS_FILE, PROJECTION_ERRORS_INTERPOLATED_FILE, PROJECTION_ERRORS_INVERSE_PROJECTION_FILE
 from ..Logger import Logger, LoggerInterface
 
-DBM_DEFAULT_CHUNK_SIZE = 30000
+DBM_DEFAULT_CHUNK_SIZE = 10000
 DBM_DEFAULT_RESOLUTION = 256
 DEFAULT_WINDOW_SIZE = 8
 DBM_IMAGE_NAME = "boundary_map"
@@ -36,13 +36,16 @@ DBM_CONFIDENCE_IMAGE_NAME = "boundary_map_confidence"
 
 PROJECTION_ERRORS_NEIGHBORS_NUMBER = 10
 
+DEFAULT_TRAINING_EPOCHS = 300
+DEFAULT_BATCH_SIZE = 128
+
 time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
 
 class FAST_DBM_STRATEGIES(Enum):
     NONE = "none"
     BINARY = "binary_split"
     CONFIDENCE_BASED = "confidence_split"
-    HYBRID = "hybrid_split"
+    CONFIDENCE_INTERPOLATION = "confidence_interpolation"
 
     @classmethod
     def list(cls):
@@ -88,8 +91,10 @@ class AbstractDBM:
         self.X2d: np.ndarray
         self.Xnd: np.ndarray
         self.resolution: int
-
-    def refit_classifier(self, Xnd: np.ndarray, Y: np.ndarray, save_folder: str, epochs: int = 2, batch_size: int = 32):
+        # a dictionary that maps the resolution to the best block resolution for the confidence interpolation strategy in fast decoding
+        self.resolution_to_blocks_resolution_map = {} 
+        
+    def refit_classifier(self, Xnd: np.ndarray, Y: np.ndarray, save_folder: str, epochs: int = 20, batch_size: int = 32):
         """ 
         Refits the classifier on the given data set.
 
@@ -97,12 +102,21 @@ class AbstractDBM:
             Xnd (np.ndarray): The data set
             Y (np.ndarray): The new labels
             save_folder (str): Saving folder of the classifier
-            epochs (int, optional): Number of epochs. Defaults to 2.
+            epochs (int, optional): Number of epochs. Defaults to 20.
             batch_size (int): Number of training samples to be taken in a single batch. Defaults to 32.
         """
-        self.console.log(f"Refiting classifier for {epochs} epochs and batch size {batch_size}, please wait...")
-        self.classifier.fit(Xnd, Y, epochs=epochs, batch_size=batch_size, verbose=0)  # type: ignore
-        self.console.log("Finished refitting classifier")
+        
+        # copy the configuration of the current classifier
+        optimizer = self.classifier.optimizer.get_config()["name"] if self.classifier and self.classifier.optimizer else "adam"
+        loss = self.classifier.loss if self.classifier and self.classifier.loss else "sparse_categorical_crossentropy"
+        # create a clone of the current classifier but with no weights, so that the weights are reinitialized
+        self.classifier = tf.keras.models.clone_model(self.classifier)
+        self.classifier.compile(optimizer=optimizer, loss=loss, metrics=["accuracy"])
+        self.classifier.build(input_shape=Xnd.shape)
+        
+        self.console.log(f"Fitting classifier for {epochs} epochs and batch size {batch_size}, please wait...")
+        self.classifier.fit(Xnd, Y, epochs=epochs, batch_size=batch_size, verbose=0, shuffle=True) #type: ignore
+        self.console.log("Finished fitting classifier")
         self.save_classifier(save_folder=save_folder)
 
     def save_classifier(self, save_folder: str):
@@ -124,7 +138,7 @@ class AbstractDBM:
             load_folder (str): The folder where the classifier is saved
         """
         self.classifier = tf.keras.models.load_model(load_folder)
-
+       
     def _predict2dspace_(self, X2d: np.ndarray | list[tuple[float, float]]) -> tuple:
         """ 
         Predicts the labels for the given 2D data set.
@@ -153,24 +167,24 @@ class AbstractDBM:
             img (np.ndarray): The DBM image
             img_confidence (np.ndarray): The DBM confidence image
         """
-        save_img_path = os.path.join(load_folder, DBM_IMAGE_NAME)
+        save_img_path = os.path.join(load_folder, DBM_IMAGE_NAME) # type: ignore
         save_img_confidence_path = os.path.join(load_folder, DBM_CONFIDENCE_IMAGE_NAME)
 
         match fast_decoding_strategy:
             case FAST_DBM_STRATEGIES.NONE:
-                img, img_confidence = self._get_img_dbm_(resolution)
+                img, img_confidence, _ = self._get_img_dbm_(resolution)
             case FAST_DBM_STRATEGIES.BINARY:
                 save_img_path += f"_fast_{FAST_DBM_STRATEGIES.BINARY.value}"
                 save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.BINARY.value}"
-                img, img_confidence = self._get_img_dbm_fast_(resolution)
+                img, img_confidence, _ = self._get_img_dbm_fast_(resolution)
             case FAST_DBM_STRATEGIES.CONFIDENCE_BASED:
                 save_img_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
                 save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
-                img, img_confidence = self._get_img_dbm_fast_confidences_strategy(resolution)
-            case FAST_DBM_STRATEGIES.HYBRID:
-                save_img_path += f"_fast_{FAST_DBM_STRATEGIES.HYBRID.value}"
-                save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.HYBRID.value}"
-                img, img_confidence = self._get_img_dbm_fast_hybrid_strategy(resolution)
+                img, img_confidence, _ = self._get_img_dbm_fast_confidences_strategy(resolution)
+            case FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION:
+                save_img_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION.value}"
+                save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION.value}"
+                img, img_confidence, _ = self._get_img_dbm_fast_confidence_interpolation_strategy(resolution)
 
         with open(f"{save_img_path}.npy", 'wb') as f:
             np.save(f, img)  # type: ignore
@@ -183,6 +197,7 @@ class AbstractDBM:
     def _get_img_dbm_(self, resolution: int):
         """ 
         This function generates the 2D image of the boundary map using the trained neural network and the classifier.
+        Also known as dummy dbm algorithm
 
         Args:
             resolution (int): The resolution of the 2D image to be generated 
@@ -214,33 +229,37 @@ class AbstractDBM:
         img = img.reshape((resolution, resolution))
         img_confidence = img_confidence.reshape((resolution, resolution))
 
-        return (img, img_confidence)
+        return img, img_confidence, None
 
     @track_time_wrapper(logger=time_tracker_console)
-    def _get_img_dbm_fast_(self, resolution: int, computational_budget=None, interpolation_method: str = "linear", window_size: int = DEFAULT_WINDOW_SIZE):
+    def _get_img_dbm_fast_(self, resolution: int, computational_budget=None, interpolation_method: str = "linear", initial_resolution: int | None = None):
         """
         This function generates the 2D image of the boundary map. It uses a fast algorithm to generate the image.
+        Also known as the binary split algorithm
 
         Args:
             resolution (int): the resolution of the 2D image to be generated
             computational_budget (int, optional): The computational budget to be used. Defaults to None.
             interpolation_method (str, optional): The interpolation method to be used for the interpolation of sparse data generated by the fast algorithm.
                                                   Defaults to "linear". The options are: "nearest", "linear", "cubic"
-            window_size (int, optional): The window size to be used. Defaults to 8.
+            initial_resolution (int, optional): The initial number of blocks. Defaults to None, meaning that the initial resolution is taken as resolution // DEFAULT_WINDOW_SIZE
 
         Returns:
             img, img_confidence: The 2D image of the boundary map and a image with the confidence for each pixel
-            spaceNd: The nD space points
+            confidence_map: The confidence map that  constructs the confidence image
         Example:
-            >>> img, img_confidence = self._get_img_dbm_fast_(resolution=32, computational_budget=1000)
+            >>> img, img_confidence, confidence_map = self._get_img_dbm_fast_(resolution=32, computational_budget=1000)
         """
-        assert(window_size < resolution)
-        assert(window_size > 0)
-        assert(int(window_size) == window_size)
+        if initial_resolution is None:
+            initial_resolution = resolution // DEFAULT_WINDOW_SIZE
+            
+        assert(initial_resolution > 0)
+        assert(int(initial_resolution) == initial_resolution)    
+        assert(initial_resolution < resolution)
         # ------------------------------------------------------------
         INITIAL_COMPUTATIONAL_BUDGET = computational_budget = resolution * resolution if computational_budget is None else computational_budget
 
-        indexes, sizes, labels, computational_budget, img, confidence_map = self._fill_initial_windows_(window_size=window_size, 
+        indexes, sizes, labels, computational_budget, img, confidence_map = self._fill_initial_windows_(initial_resolution=initial_resolution, 
                                                                                                         resolution=resolution, 
                                                                                                         computational_budget=computational_budget,
                                                                                                         confidence_interpolation_method=interpolation_method)
@@ -316,41 +335,45 @@ class AbstractDBM:
                                                             resolution=resolution,
                                                             method=interpolation_method).T
 
-        return img, img_confidence
+        return img, img_confidence, confidence_map
 
     @track_time_wrapper(logger=time_tracker_console)
-    def _get_img_dbm_fast_confidences_strategy(self, resolution: int, computational_budget=None, interpolation_method: str = "linear", window_size: int = DEFAULT_WINDOW_SIZE):
+    def _get_img_dbm_fast_confidences_strategy(self, resolution: int, computational_budget=None, interpolation_method: str = "linear", initial_resolution : int | None = None):
         """
         This function generates the 2D image of the boundary map. It uses a fast algorithm that uses a confidence based strategy to generate the image.
+        Also known as the confidence_split algorithm
 
         Args:
             resolution (int): the resolution of the 2D image to be generated
             computational_budget (int, optional): The computational budget to be used. Defaults to None.
             interpolation_method (str, optional): The interpolation method to be used for the interpolation of sparse data generated by the fast algorithm.
                                                   Defaults to "linear". The options are: "nearest", "linear", "cubic"
-            window_size (int, optional): The window size to be used. Defaults to 8.
+            initial_resolution (int, optional): The initial number of blocks. Defaults to None, meaning that the initial resolution is taken as resolution // DEFAULT_WINDOW_SIZE
 
         Returns:
             img, img_confidence: The 2D image of the boundary map and a image with the confidence for each pixel
-            spaceNd: The nD space points
+            confidence_map: The confidence map that  constructs the confidence image
         Example:
-            >>> img, img_confidence = self._get_img_dbm_fast_confidences_strategy(resolution=32, computational_budget=1000)
+            >>> img, img_confidence, confidence_map = self._get_img_dbm_fast_confidences_strategy(resolution=32, computational_budget=1000)
         """
-        assert(window_size < resolution)
-        assert(window_size > 0)
-        assert(int(window_size) == window_size)
+        if initial_resolution is None:
+            initial_resolution = resolution // DEFAULT_WINDOW_SIZE
+        
+        assert(initial_resolution > 0)
+        assert(int(initial_resolution) == initial_resolution)    
+        assert(initial_resolution < resolution)
         # ------------------------------------------------------------
         # Setting the initial parameters
         INITIAL_COMPUTATIONAL_BUDGET = computational_budget = resolution * resolution if computational_budget is None else computational_budget
 
-        initial_resolution = resolution // window_size
         img = np.zeros((resolution, resolution), dtype=np.int16)
         img_indexes = np.zeros((resolution, resolution, 2), dtype=np.int16)
         # ------------------------------------------------------------
 
+        window_size = resolution // initial_resolution
         # ------------------------------------------------------------
         # generate the initial points
-        indexes, sizes, initial_resolution = generate_windows(window_size, initial_resolution=initial_resolution, resolution=resolution)
+        indexes, sizes, border_indexes = generate_windows(window_size, initial_resolution=initial_resolution, resolution=resolution)
         space2d = np.array(indexes) / resolution  
         predicted_labels, predicted_confidence, predicted_confidences = self._predict2dspace_(space2d)
         pseudo_conf_img = np.zeros((resolution, resolution, len(predicted_confidences[0])))
@@ -358,7 +381,7 @@ class AbstractDBM:
         computational_budget -= len(indexes)
 
         # creating an artificial border for the 2D confidence image
-        confidence_map = self._generate_confidence_border_(window_size=window_size, initial_resolution=initial_resolution, resolution=resolution) if interpolation_method != "nearest" else []
+        confidence_map = self._generate_confidence_border_(resolution=resolution, border_indexes=border_indexes) if interpolation_method != "nearest" else []
         computational_budget -= len(confidence_map)
 
         # fill the initial points in the 2D image
@@ -382,7 +405,7 @@ class AbstractDBM:
         iteration = 0
         while computational_budget > 0 and not priority_queue.empty():
             iteration += 1
-            print("Priority queue size: ", priority_queue.qsize())
+            # print("Priority queue size: ", priority_queue.qsize())
             # take the highest priority tasks
             items = get_tasks_with_same_priority(priority_queue)
 
@@ -451,10 +474,10 @@ class AbstractDBM:
                                                             resolution=resolution,
                                                             method=interpolation_method).T
 
-        return img, img_confidence
+        return img, img_confidence, confidence_map
 
     @track_time_wrapper(logger=time_tracker_console)
-    def _get_img_dbm_fast_hybrid_strategy(self, resolution: int, computational_budget=None, interpolation_method: str = "linear", window_size: int = DEFAULT_WINDOW_SIZE):
+    def _get_img_dbm_fast_hybrid_strategy(self, resolution: int, computational_budget=None, interpolation_method: str = "linear", initial_resolution: int | None = None):
         """
         This function generates the 2D image of the boundary map. It uses a fast algorithm that uses a binary split based strategy to generate the image.
 
@@ -463,21 +486,26 @@ class AbstractDBM:
             computational_budget (int, optional): The computational budget to be used. Defaults to None.
             interpolation_method (str, optional): The interpolation method to be used for the interpolation of sparse data generated by the fast algorithm.
                                                   Defaults to "linear". The options are: "nearest", "linear", "cubic"
-            window_size (int, optional): The window size to be used. Defaults to 8.
+            initial_resolution (int, optional): The initial number of blocks. Defaults to None, meaning that the initial resolution is taken as resolution // DEFAULT_WINDOW_SIZE
+
         Returns:
             img, img_confidence: The 2D image of the boundary map and a image with the confidence for each pixel
-            spaceNd: The nD space points
+            confidence_map: The confidence map that  constructs the confidence image
         Example:
-            >>> img, img_confidence = self._get_img_dbm_fast_hybrid_strategy(resolution=32, computational_budget=1000)
+            >>> img, img_confidence, confidence_map = self._get_img_dbm_fast_hybrid_strategy(resolution=32, computational_budget=1000)
         """
-        assert(window_size < resolution)
-        assert(window_size > 0)
-        assert(int(window_size) == window_size)
+        if initial_resolution is None:
+            initial_resolution = resolution // DEFAULT_WINDOW_SIZE
+        
+        assert(initial_resolution > 0)
+        assert(int(initial_resolution) == initial_resolution)    
+        assert(initial_resolution < resolution)
+
         # ------------------------------------------------------------
         # Setting the initial parameters
         INITIAL_COMPUTATIONAL_BUDGET = computational_budget = resolution * resolution if computational_budget is None else computational_budget
 
-        indexes, sizes, labels, computational_budget, img, confidence_map = self._fill_initial_windows_(window_size=window_size, 
+        indexes, sizes, labels, computational_budget, img, confidence_map = self._fill_initial_windows_(initial_resolution=initial_resolution, 
                                                                                                         resolution=resolution, 
                                                                                                         computational_budget=computational_budget,
                                                                                                         confidence_interpolation_method=interpolation_method)
@@ -527,19 +555,147 @@ class AbstractDBM:
                                                             resolution=resolution,
                                                             method=interpolation_method).T
 
-        return img, img_confidence
-
-    def _fill_initial_windows_(self, window_size: int, resolution: int, computational_budget: int, confidence_interpolation_method: str = "linear"):
+        return img, img_confidence, confidence_map
+    
+    @track_time_wrapper(logger=time_tracker_console)
+    def _get_img_dbm_fast_confidence_interpolation_strategy(self, resolution: int, interpolation_method: str = "cubic", initial_resolution: int | None = None):
+        """
+        This function generates the 2D image of the boundary map. It uses a fast algorithm that uses a confidence interpolation strategy.
+        Also known as the confidence_interpolation algorithm
         
-        initial_resolution = resolution // window_size
+        Args:
+            resolution (int): the resolution of the 2D image to be generated
+            interpolation_method (str, optional): The interpolation method to be used for the interpolation of sparse data generated by the fast algorithm.
+                                                  Defaults to "cubic". The options are: "nearest", "linear", "cubic"
+            initial_resolution (int, optional): The initial number of blocks. Defaults to None, meaning that the best initial resolution is searched before computing the dbm.
+        Returns:
+            img, img_confidence , _: The 2D image of the boundary map and a image with the confidence for each pixel
+        Example:
+            >>> img, img_confidence, _ = self._get_img_dbm_fast_confidence_interpolation_strategy(resolution=32)
+        """
+        
+        img_confidence = np.zeros((resolution, resolution, 1))
+        
+        # check if the block resolution is provided by the user
+        if initial_resolution is not None:
+            assert(initial_resolution < resolution)
+            assert(initial_resolution > 0)
+            assert(int(initial_resolution) == initial_resolution)
+            img_confidence = self.__compute_confidence_interpolation__(initial_resolution, resolution, interpolation_method)
+        # check if the block resolution for this resolution was already computed
+        elif resolution in self.resolution_to_blocks_resolution_map:
+            initial_resolution = self.resolution_to_blocks_resolution_map[resolution]
+            img_confidence = self.__compute_confidence_interpolation__(initial_resolution, resolution, interpolation_method)
+        # get the best block resolution for this resolution otherwise
+        else:    
+            self.console.log("Finding the necessary number of initial blocks for interpolation")
+            initial_resolution = 2
+            CONFIDENCE_EPSILON = 0.01
+            old_img_confidence = None
+            
+            while initial_resolution < resolution:
+                self.console.log(f"Computing confidence map for blocks resolution: {initial_resolution}x{initial_resolution}")
+                img_confidence = self.__compute_confidence_interpolation__(initial_resolution, resolution, interpolation_method)
+            
+                if old_img_confidence is None:
+                    old_img_confidence = np.copy(img_confidence)
+                    initial_resolution *= 2
+                    continue
+                
+                if np.mean(np.abs(img_confidence - old_img_confidence)) < CONFIDENCE_EPSILON:
+                    self.resolution_to_blocks_resolution_map[resolution] = initial_resolution
+                    self.console.log(f"Using blocks resolution: {initial_resolution}x{initial_resolution}")                  
+                    break 
+                
+                initial_resolution *= 2
+                old_img_confidence = np.copy(img_confidence)
+            
+            
+        img = np.zeros((resolution, resolution))
+        confidence_img = np.zeros((resolution, resolution))
+        self.console.log(f"Filling the decision boundary map using the interpolated confidence map")
+        for (i, j) in np.ndindex(img.shape):
+            confidences = img_confidence[i, j]
+            label = np.argmax(confidences)
+            confidence_img[i, j] =  np.max(confidences)
+            img[i, j] = int(label)
+        
+        # apply brute force at the boundaries to get less errors
+        """
+        pseudo_decision_boundary_indexes = []
+        self.console.log("Finding the pseudo boundaries")
+        for (i, j) in np.ndindex(img.shape):
+            label = img[i, j]
+            if i - 1 >= 0 and img[i - 1, j] != label:
+                pseudo_decision_boundary_indexes.append((i, j))
+                continue
+            if i + 1 < resolution and img[i + 1, j] != label:
+                pseudo_decision_boundary_indexes.append((i, j))
+                continue
+            if j - 1 >= 0 and img[i, j - 1] != label:
+                pseudo_decision_boundary_indexes.append((i, j))
+                continue
+            if j + 1 < resolution and img[i, j + 1] != label:
+                pseudo_decision_boundary_indexes.append((i, j))
+                continue
+        
+        
+        self.console.log(f"Computing the pseudo-decision boundary, {len(pseudo_decision_boundary_indexes)} points.")
+        if len(pseudo_decision_boundary_indexes) == 0:
+            return img, confidence_img, None   
+        space2d = np.array(pseudo_decision_boundary_indexes) / resolution
+        predicted_labels, predicted_confidence, _ = self._predict2dspace_(space2d)
+        # fill the actual predicted labels and confidences
+        for (i, j), label, conf in zip(pseudo_decision_boundary_indexes, predicted_labels, predicted_confidence):
+            img[i, j] = int(label)
+            confidence_img[i, j] = conf
+        """
+
+        return img, confidence_img, None
+
+    def __compute_confidence_interpolation__(self, blocks_resolution, resolution, interpolation_method):
+        window_size = resolution // blocks_resolution
+        
+        # generate the initial points
+        indexes, _, border_indexes = generate_windows(window_size, initial_resolution=blocks_resolution, resolution=resolution)
+        
+        # creating an artificial border for the 2D confidence image
+        confidence_map = []
+        
+        if interpolation_method != "nearest":
+            space2d_border = np.array(border_indexes) / resolution
+            _, _, confidences = self._predict2dspace_(space2d_border)
+            confidence_map = [(i, j, confs) for (i, j), confs in zip(border_indexes, confidences)]
+            
+        space2d = np.array(indexes) / resolution  
+        _, _, predicted_confidences = self._predict2dspace_(space2d)
+        
+        for (i,j), confs in zip(indexes, predicted_confidences):
+            confidence_map.append((i, j, confs)) # type: ignore
+
+        num_classes = len(predicted_confidences[0])
+
+        # interpolate the confidence map for each class
+        img_confidence = np.zeros((resolution, resolution, num_classes))
+        for k in range(num_classes):
+            confidence_map_class = [(i, j, confs[k]) for (i, j, confs) in confidence_map]
+            img_confidence[:, :, k] = self._generate_interpolated_image_(sparse_map=confidence_map_class,
+                                                                                resolution=resolution,
+                                                                                method=interpolation_method).T
+        
+        return img_confidence
+
+    def _fill_initial_windows_(self, initial_resolution: int, resolution: int, computational_budget: int, confidence_interpolation_method: str = "linear"):
+        
+        window_size = resolution // initial_resolution
         img = np.zeros((resolution, resolution), dtype=np.int16)
         # ------------------------------------------------------------
 
         # ------------------------------------------------------------
         # generate the initial points
-        indexes, sizes, initial_resolution = generate_windows(window_size, initial_resolution=initial_resolution, resolution=resolution)
+        indexes, sizes, border_indexes = generate_windows(window_size, initial_resolution=initial_resolution, resolution=resolution)
         # creating an artificial border for the 2D confidence image
-        confidence_map = self._generate_confidence_border_(window_size=window_size, initial_resolution=initial_resolution, resolution=resolution) if confidence_interpolation_method != "nearest" else []
+        confidence_map = self._generate_confidence_border_(resolution=resolution, border_indexes=border_indexes) if confidence_interpolation_method != "nearest" else []
         computational_budget -= len(confidence_map)
 
         # ------------------------------------------------------------   
@@ -556,15 +712,10 @@ class AbstractDBM:
         
         return indexes, sizes, predicted_labels, computational_budget, img, confidence_map
 
-    def _generate_confidence_border_(self, window_size: int, initial_resolution: int, resolution: int):
-        border_indices = [(i * window_size + window_size / 2 - 0.5, 0) for i in range(initial_resolution)] + \
-                [(i * window_size + window_size / 2 - 0.5, resolution - 1) for i in range(initial_resolution)] + \
-                [(0, i * window_size + window_size / 2 - 0.5) for i in range(-1, initial_resolution + 1)] + \
-                [(resolution - 1, i * window_size + window_size / 2 - 0.5) for i in range(-1, initial_resolution + 1)]
-
-        space2d_border = np.array(border_indices) / resolution
+    def _generate_confidence_border_(self, resolution: int, border_indexes):
+        space2d_border = np.array(border_indexes) / resolution
         _, confidences_border, _ = self._predict2dspace_(space2d_border)
-        confidence_map = [(i, j, conf) for (i, j), conf in zip(border_indices, confidences_border)]
+        confidence_map = [(i, j, conf) for (i, j), conf in zip(border_indexes, confidences_border)]
         return confidence_map
 
     def _update_priority_queue_(self, priority_queue, img, indexes, sizes, labels):
@@ -661,7 +812,7 @@ class AbstractDBM:
         return interpolate.griddata((X, Y), Z, (xi[None, :], yi[:, None]), method=method)
 
     @track_time_wrapper(logger=time_tracker_console)
-    def _generate_interpolation_rbf_(self, sparse_map, resolution, function='linear'):
+    def _generate_interpolation_rbf_(self, sparse_map, resolution:int, method:str='linear'):
         """A private method that uses interpolation to generate the values for the 2D space image
            The sparse map is a list of tuples (x, y, data) where x, y and data are in the range [0, 1]
 
@@ -678,7 +829,7 @@ class AbstractDBM:
             Y.append(y)
             Z.append(z)
 
-        rbf = interpolate.Rbf(X, Y, Z, function=function)
+        rbf = interpolate.Rbf(X, Y, Z, function=method)
         ti = np.linspace(0, 1, resolution)
         xx, yy = np.meshgrid(ti, ti)
         
@@ -795,7 +946,7 @@ class AbstractDBM:
             x, y = X2d[k]
             sparse_map.append((x, y, get_proj_error_parallel(indices_source[k], indices_embedded[k], k=K)))
 
-        errors = self._generate_interpolation_rbf_(sparse_map, resolution, function='linear').T
+        errors = self._generate_interpolation_rbf_(sparse_map, resolution, method='linear').T
 
         # resize the errors in range [0,1]
         errors = (errors - errors.min()) / (errors.max() - errors.min())

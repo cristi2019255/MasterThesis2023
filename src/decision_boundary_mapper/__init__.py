@@ -14,5 +14,5 @@
 
 from .Logger import Logger, LoggerGUI, LoggerInterface
 from .DBM import DBM, SDBM, NNArchitecture, FAST_DBM_STRATEGIES
-from .GUI import GUI
-from .examples import DBM_usage_example, SDBM_usage_example, DBM_usage_example_GUI, SDBM_usage_example_GUI
+from .GUI import GUI, DBMPlotterGUI
+from .examples import DBM_usage_example, SDBM_usage_example, DBM_usage_example_GUI, SDBM_usage_example_GUI, DBM_usage_example_GUI_with_feature_extraction, SDBM_usage_example_GUI_with_feature_extraction

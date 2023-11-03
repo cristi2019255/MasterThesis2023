@@ -218,21 +218,30 @@ def get_projection_errors_using_inverse_projection(Xnd: np.ndarray, X2d: np.ndar
 def generate_windows(window_size: int, initial_resolution: int, resolution: int = 1024):
 
     indexes = [((i * window_size + window_size / 2 - 0.5), (j * window_size + window_size / 2 - 0.5)) for i in range(initial_resolution) for j in range(initial_resolution)]
+    
+    border_indexes = [(-1,-1), (-1, resolution), (resolution, -1), (resolution, resolution)]
+    for i in range(initial_resolution):
+        p = (i * window_size + window_size / 2 - 0.5)
+        border_indexes += [(-1, p), (p, -1), (p, resolution), (resolution, p)]
+    
     sizes = [(window_size, window_size)] * len(indexes)
     if initial_resolution * window_size == resolution:
-        return indexes, sizes, initial_resolution
+        return indexes, sizes, border_indexes
     
     slack = (resolution - initial_resolution * window_size) / 2
-        
-    indexes += [(i * window_size + window_size / 2 - 0.5, resolution - slack - 0.5) for i in range(initial_resolution)]
-    sizes += [(window_size, (resolution - initial_resolution * window_size))] * initial_resolution
-    indexes += [(resolution - slack - 0.5, i * window_size + window_size / 2 - 0.5) for i in range(initial_resolution)]
+    p = resolution - slack - 0.5
+       
+    indexes += [(i * window_size + window_size / 2 - 0.5, p) for i in range(initial_resolution)]
+    sizes += [(window_size, (resolution - initial_resolution * window_size))] * initial_resolution 
+    indexes += [(p, i * window_size + window_size / 2 - 0.5) for i in range(initial_resolution)]
     sizes += [((resolution - initial_resolution * window_size), window_size)] * initial_resolution
-    indexes += [(resolution - slack - 0.5, resolution - slack - 0.5)]
+    
+    indexes += [(p, p)]
     sizes += [((resolution - initial_resolution * window_size), (resolution - initial_resolution * window_size))]
-    initial_resolution += 1
-        
-    return indexes, sizes, initial_resolution
+    
+    border_indexes += [(-1, p), (p, -1), (p, resolution), (resolution, p)]
+    
+    return indexes, sizes, border_indexes
 
 @njit
 def get_window_borders(x, y, w, h):
@@ -282,22 +291,6 @@ def get_split_position(x1: float, x2:float, bound: float, c11: float, c12: float
     
     return None
 
-@njit
-def get_split_position_v1(x1: float, x2: float, bound: float, c1, c2):
-    assert(x1 != x2)
-    c2 = -c2
-
-    a, b = (c1 - c2) / (x1 - x2), c1 - x1 * ((c1 - c2) / (x1 - x2)) 
-    
-    boundary = round( - b / a)
-
-    if (bound < x1) and (bound < boundary < x1):
-        return boundary
-    if (bound > x1) and (x1 < boundary < bound - 1):
-        return boundary
-    
-    return None
-
 def get_confidence_splits(img, conf_img, img_indexes, c_y, c_x, top, bottom, left, right):
     resolution = img.shape[0]
     i, j = int(c_y), int(c_x)
@@ -315,8 +308,7 @@ def get_confidence_splits(img, conf_img, img_indexes, c_y, c_x, top, bottom, lef
         new_label = img[k, j]
         (x, y) = img_indexes[k, j]
         if new_label != label:
-            #split = get_split_position(c_y, y, k, c11, conf_img[y, j][label], conf_img[i, j][new_label], conf_img[y, j][new_label])
-            split = get_split_position_v1(c_y, y, k, c11, conf_img[y, j][label])
+            split = get_split_position(c_y, y, k, c11, conf_img[y, j][label], conf_img[i, j][new_label], conf_img[y, j][new_label])
             if split is not None:
                 splits_y.append(split)
 
@@ -324,8 +316,7 @@ def get_confidence_splits(img, conf_img, img_indexes, c_y, c_x, top, bottom, lef
         new_label = img[i, k]
         (x, y) = img_indexes[i, k]
         if new_label != label:
-            #split = get_split_position(c_x, x, k, c11, conf_img[i, x][label], conf_img[i, j][new_label], conf_img[i, x][new_label])
-            split = get_split_position_v1(c_x, x, k, c11, conf_img[i, x][label])
+            split = get_split_position(c_x, x, k, c11, conf_img[i, x][label], conf_img[i, j][new_label], conf_img[i, x][new_label])
             if split is not None:
                 splits_x.append(split)
                 

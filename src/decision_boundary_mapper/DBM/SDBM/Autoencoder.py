@@ -15,7 +15,7 @@
 import tensorflow as tf
 import numpy as np
 
-from ..AbstractNN import AbstractNN
+from ..AbstractNN import AbstractNN, SEED
 from ...Logger import LoggerInterface, LoggerModel
 
 DECODER_NAME = "decoder"
@@ -40,43 +40,47 @@ class Autoencoder(AbstractNN):
         """
         super().__init__(folder_path=folder_path, logger=logger, nn_name=AUTOENCODER_NAME)
 
-    def __build__(self, input_shape: tuple = (28, 28), show_summary: bool = False):
+    def __build__(self, input_shape: tuple = (28, 28), show_summary: bool = False, is_data_normalized: bool = True):
         """
             Assembles the autoencoder model and compiles it. 
 
             Args:
                 input_shape: The input and output shape of the autoencoder.
                 show_summary: If True, the model summary will be printed.
+                is_data_normalized (bool, optional): Determine the last layer activation function, sigmoid or relu. Defaults to True (i.e. activation sigmoid).
         """
 
         output_size = 1
         for i in range(len(input_shape)):
             output_size *= input_shape[i]
 
+        last_decoder_layer_activation_function = 'sigmoid' if is_data_normalized else 'relu'
+
         encoder = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
-            tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(128, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),       # type: ignore
-            tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(64, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),   # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),       # type: ignore
-            tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(32, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),   # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),       # type: ignore
-            tf.keras.layers.Dense(
-                2, activation='sigmoid', bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
+            tf.keras.layers.Dense(2, activation='sigmoid', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
+                                  bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
         ], name=ENCODER_NAME)
 
         decoder = tf.keras.models.Sequential([
-            tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(32, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),   # type: ignore
                                   kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
-            tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(64, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),   # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(128, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(output_size, activation='sigmoid'),
+            tf.keras.layers.Dense(output_size, activation=last_decoder_layer_activation_function,
+                                  kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED)),  # type: ignore
             tf.keras.layers.Reshape(input_shape)
         ], name=DECODER_NAME)
 
@@ -94,11 +98,13 @@ class Autoencoder(AbstractNN):
                                     metrics=["accuracy"])
 
         if show_summary:
-            self.neural_network.summary()
+            self.neural_network.summary(print_fn=self.console.log)
 
     def fit(self, X: np.ndarray,
             epochs: int = 10,
-            batch_size: int = 128):
+            batch_size: int = 128,
+            is_data_normalized: bool = True
+            ):
         """ 
         Fits the model to the specified data.
 
@@ -106,6 +112,7 @@ class Autoencoder(AbstractNN):
             X (np.ndarray): Train input values
             epochs (int, optional): The number of epochs. Defaults to 10.
             batch_size (int, optional): Data points used for one batch. Defaults to 128.
+            is_data_normalized (bool, optional): Determine the last layer activation function, sigmoid or relu. Defaults to True (i.e. activation sigmoid).
         """
         if self.neural_network is not None:
             self.console.log("Model already loaded. Skipping build.")
@@ -114,10 +121,10 @@ class Autoencoder(AbstractNN):
             return
 
         self.console.log("Building model according to the data shape.")
-        self.__build__(input_shape=X.shape[1:], show_summary=True)
+        self.__build__(input_shape=X.shape[1:], show_summary=True, is_data_normalized=is_data_normalized)
 
         stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=20, restore_best_weights=True)
-        logger_callback = LoggerModel(name=AUTOENCODER_NAME, show_init=False, epochs=epochs)
+        logger_callback = LoggerModel(name=AUTOENCODER_NAME, show_init=False, epochs=epochs, print_fn=self.console.log)
 
         self.console.log("Fitting model...")
 

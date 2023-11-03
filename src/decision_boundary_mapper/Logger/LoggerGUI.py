@@ -46,11 +46,11 @@ class LoggerGUI(LoggerInterface):
 
         if show_init and self.active:
             sep = "=" * 30
-            time = datetime.now().strftime("%H:%M:%S:%f")
+            time = datetime.now().strftime("%H:%M:%S")
 
-            self.print(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color)
-            self.print(f"[INFO] [{time}] [{self.name}] {self.name} initialized", self.info_color)
-            self.print(f"[INFO] [{time}] [{self.name}] {sep}", self.info_color)
+            self.print(f"[INFO] [{time}] {sep}", self.info_color)
+            self.print(f"[INFO] [{time}] {self.name} initialized", self.info_color)
+            self.print(f"[INFO] [{time}] {sep}", self.info_color)
 
     def print(self, message: str, color: str = 'magenta'):
         if self.active:
@@ -58,21 +58,21 @@ class LoggerGUI(LoggerInterface):
             self.update_callback()
 
     def log(self, message: str):
-        time = datetime.now().strftime("%H:%M:%S:%f")
-        self.print(f"[INFO] [{time}] [{self.name}] {message}", self.info_color)
+        time = datetime.now().strftime("%H:%M:%S")
+        self.print(f"[INFO] [{time}] {message}", self.info_color)
 
     def warn(self, message: str):
-        time = datetime.now().strftime("%H:%M:%S:%f")
-        self.print(f"[WARNING] [{time}] [{self.name}] {message}", "yellow")
+        time = datetime.now().strftime("%H:%M:%S")
+        self.print(f"[WARNING] [{time}] {message}", "orange")
 
     def error(self, message: str):
-        time = datetime.now().strftime("%H:%M:%S:%f")
-        self.print(f"[ERROR] [{time}] [{self.name}] {message}", "red")
+        time = datetime.now().strftime("%H:%M:%S")
+        self.print(f"[ERROR] [{time}] {message}", "red")
 
     def debug(self, message: str):
-        time = datetime.now().strftime("%H:%M:%S:%f")
-        self.print(f"[DEBUG] [{time}] [{self.name}] {message}", "blue")
+        time = datetime.now().strftime("%H:%M:%S")
+        self.print(f"[DEBUG] [{time}] {message}", "blue")
 
     def success(self, message: str):
-        time = datetime.now().strftime("%H:%M:%S:%f")
-        self.print(f"[SUCCESS] [{time}] [{self.name}] {message}", "green")
+        time = datetime.now().strftime("%H:%M:%S")
+        self.print(f"[SUCCESS] [{time}] {message}", "green")

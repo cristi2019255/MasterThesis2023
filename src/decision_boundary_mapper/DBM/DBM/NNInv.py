@@ -16,13 +16,14 @@ import tensorflow as tf
 import numpy as np
 import os
 
-from ..AbstractNN import AbstractNN
+from ..AbstractNN import AbstractNN, SEED
 from ...Logger import LoggerInterface, LoggerModel
 
 DEFAULT_MODEL_PATH = os.path.join("tmp", "DBM")
 NNINV_NAME = "NNInv"
 DECODER_NAME = "decoder"
 DECODER_LOSS = "mean_squared_error"
+
 
 class NNInv(AbstractNN):
     """
@@ -39,7 +40,7 @@ class NNInv(AbstractNN):
         """
         super().__init__(folder_path=folder_path, nn_name=NNINV_NAME, logger=logger)
 
-    def __build__(self, output_shape: tuple = (2, 2), show_summary: bool = False):
+    def __build__(self, output_shape: tuple = (2, 2), show_summary: bool = False, is_data_normalized: bool = True):
         """
         Builds an NNInv model
         (Sequential 2D -> 32 -> 64 -> 128 -> 512 -> nD)
@@ -47,6 +48,7 @@ class NNInv(AbstractNN):
         Args:
             output_shape (tuple, optional): The output shape of the Nd data. Defaults to (2,2).
             show_summary (bool, optional): If True, the model summary will be printed. Defaults to False.
+            is_data_normalized (bool, optional): Determine the last layer activation function, sigmoid or relu. Defaults to True (i.e. activation sigmoid).
         """
 
         # computing the output size
@@ -54,16 +56,19 @@ class NNInv(AbstractNN):
         for i in range(len(output_shape)):
             output_size *= output_shape[i]
 
+        last_layer_activation_function = 'sigmoid' if is_data_normalized else 'relu'
+
         self.decoder = tf.keras.Sequential([
-            tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(32, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   kernel_regularizer=tf.keras.regularizers.l2(0.0002)),
-            tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(64, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(128, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(512, activation='relu', kernel_initializer='he_uniform',
+            tf.keras.layers.Dense(512, activation='relu', kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED),  # type: ignore
                                   bias_initializer=tf.keras.initializers.Constant(0.01)),  # type: ignore
-            tf.keras.layers.Dense(output_size, activation='sigmoid', kernel_initializer='he_uniform'),
+            tf.keras.layers.Dense(output_size, activation=last_layer_activation_function,
+                                  kernel_initializer=tf.keras.initializers.HeUniform(seed=SEED)),  # type: ignore
             tf.keras.layers.Reshape(output_shape)
         ], name=DECODER_NAME)
 
@@ -78,11 +83,13 @@ class NNInv(AbstractNN):
                                     metrics=["accuracy"])
 
         if show_summary:
-            self.neural_network.summary()
+            self.neural_network.summary(print_fn=self.console.log)
 
     def fit(self,
             x2d: np.ndarray, xNd: np.ndarray,
-            epochs: int = 300, batch_size: int = 32):
+            epochs: int = 300, batch_size: int = 32,
+            is_data_normalized: bool = True,
+            ):
         """ 
         Fits the model to the specified data.
 
@@ -91,16 +98,17 @@ class NNInv(AbstractNN):
             xNd (np.ndarray): Train input values (nD)
             epochs (int, optional): The number of epochs. Defaults to 300.
             batch_size (int, optional): Data points used for one batch. Defaults to 32.
+            is_data_normalized (bool, optional): Determine the last layer activation function, sigmoid or relu. Defaults to True (i.e. activation sigmoid).
         """
         if self.neural_network is not None:
             self.console.log("Model already loaded. Skipping build.")
             return
 
         self.console.log("Building model according to the data shape.")
-        self.__build__(output_shape=xNd.shape[1:], show_summary=True)
+        self.__build__(output_shape=xNd.shape[1:], show_summary=True, is_data_normalized=is_data_normalized)
 
         stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=20, restore_best_weights=True)
-        logger_callback = LoggerModel(name=NNINV_NAME, show_init=False, epochs=epochs)
+        logger_callback = LoggerModel(name=NNINV_NAME, show_init=False, epochs=epochs, print_fn=self.console.log)
         self.console.log("Fitting model...")
 
         hist = self.neural_network.fit(x2d, xNd,

@@ -16,7 +16,7 @@ import tensorflow as tf
 import os
 import numpy as np
 import random
-from src import DBM_usage_example, SDBM_usage_example, DBM_usage_example_GUI, SDBM_usage_example_GUI
+from src import DBM_usage_example, SDBM_usage_example, DBM_usage_example_GUI, SDBM_usage_example_GUI, DBM_usage_example_GUI_with_feature_extraction, SDBM_usage_example_GUI_with_feature_extraction
 from tests.DBM.test import test_dbm, test_projection_errors
 
 
@@ -47,8 +47,10 @@ set_global_determinism(seed=SEED)
 def main():
     # DBM_usage_example()
     DBM_usage_example_GUI()
-    # SDBM_usage_example()
-    # SDBM_usage_example_GUI()
+    #DBM_usage_example_GUI_with_feature_extraction()
+    #SDBM_usage_example()
+    #SDBM_usage_example_GUI()
+    #SDBM_usage_example_GUI_with_feature_extraction()
     # test_projection_errors()
     # test_dbm()
 
