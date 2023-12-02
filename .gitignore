@@ -145,3 +145,4 @@ AuNN/
 
 # experiments results folder
 experiments/results/
+experiments/results_hyperparam/

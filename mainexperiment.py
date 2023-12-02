@@ -15,6 +15,7 @@
 import os
 from experiments import resolutions_run_times, compute_errors, resolutions_experiment_plot, errors_plot, compute_confidence_errors, compute_confidence_images, confidence_errors_plot
 from experiments.scripts.compute_errors import compute_confidence_errors_for_confidence_interpolation
+from experiments.scripts.experiment_hyperparameters import hyperparam_run_times, plot_hyperparameter_label_errors, plot_hyperparameter_runtimes
 from experiments.scripts.plotter import confidence_errors_plot_for_confidence_interpolation
 
 # ---------------------------------------------------
@@ -79,6 +80,8 @@ from experiments.scripts.plotter import confidence_errors_plot_for_confidence_in
 #
 # EXPERIMENT 11: Repeat EXPERIMENT 8-10 for all the fast decoding strategies, for all the projections, for all the dbm strategies, for all the datasets
 #
+# EXPERIMENT 12: (Get the best value of the parameter B)
+#
 # ETA (resolutions run times i.e. EXPERIMENT 7): 1h (strategy) * 4 (strategies) * (3 + 1) (3 projections + SDBM) * 4 (datasets) = 64h = 2.6 days
 # ETA (errors): 1h
 # ETA (plots): 1h
@@ -101,7 +104,7 @@ if __name__ == "__main__":
     # ---------------------------------------------------
     #                 EXPERIMENT 1-4-5-6-7
     # ---------------------------------------------------
-    #resolutions_run_times()
+    resolutions_run_times()
     #resolutions_experiment_plot(folder=FOLDER)
     #compute_errors(folder=FOLDER)
     #errors_plot(folder=FOLDER)
@@ -124,3 +127,10 @@ if __name__ == "__main__":
 
     # compute_confidence_errors_for_confidence_interpolation(folder=FOLDER)
     # confidence_errors_plot_for_confidence_interpolation(folder=FOLDER)
+
+    # ---------------------------------------------------
+    #                 EXPERIMENT 12
+    # ---------------------------------------------------
+    #hyperparam_run_times()
+    #plot_hyperparameter_runtimes()
+    #plot_hyperparameter_label_errors()

@@ -24,7 +24,7 @@ from ..utils import BLACK_COLOR, WHITE_COLOR, RIGHTS_MESSAGE_1, RIGHTS_MESSAGE_2
 from .utils import Collapsible
 
 sg.theme('DarkBlue1')
-TITLE = "Classifiers visualization tool"
+TITLE = "Visualization tool configuration window"
 WINDOW_SIZE = (1200, 750)
 APP_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "main_icon_b64.txt")
 class GUI:
