@@ -59,7 +59,6 @@ def compute_confidence_images(folder=FOLDER, interpolation_method=INTERPOLATION_
             confidence_map = np.load(f)
         print("Confidence map uploaded successfully")
         
-        #TODO: check if interpolation is correct
         interpolated_confidence_img = generate_interpolated_image(confidence_map, resolution, interpolation_method).T
 
         save_path = os.path.join(save_folder, str(resolution) + ".npy")

@@ -127,7 +127,7 @@ def run_timer(update_callback = lambda msg, time_up: print(msg),
 
     def play_sound(filename: str, amount=1):
         return
-        # NB: playsound lib doesn't work so this function is doing nothing
+        # NB: playsound lib doesn't work on some machines so this function is doing nothing
         #for _ in range(amount):
         #    continue 
         #    playsound(filename)
@@ -157,5 +157,4 @@ def run_timer(update_callback = lambda msg, time_up: print(msg),
         
     if sound_thread is not None:
         sound_thread.join()
-
-    
+   

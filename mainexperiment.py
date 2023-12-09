@@ -21,8 +21,9 @@ from experiments.scripts.plotter import confidence_errors_plot_for_confidence_in
 # ---------------------------------------------------
 # INSTRUCTIONS:
 #
-# WARNING: The experiments need to be run in the following order: 1, 2, 3, 4, ...
+# WARNING: The experiments need to be run in the following order: 0, 1, 2, 3, 4, ...
 #
+# EXPERIMENT 0: Get the best value of the parameter B
 #
 # EXPERIMENT 1: (Run the experiments for resolutions with a specific fast decoding strategy)
 #     1. Set the FAST_DECODING_STRATEGY in the experiments/scripts/experiment_resolutions.py file
@@ -80,14 +81,6 @@ from experiments.scripts.plotter import confidence_errors_plot_for_confidence_in
 #
 # EXPERIMENT 11: Repeat EXPERIMENT 8-10 for all the fast decoding strategies, for all the projections, for all the dbm strategies, for all the datasets
 #
-# EXPERIMENT 12: (Get the best value of the parameter B)
-#
-# ETA (resolutions run times i.e. EXPERIMENT 7): 1h (strategy) * 4 (strategies) * (3 + 1) (3 projections + SDBM) * 4 (datasets) = 64h = 2.6 days
-# ETA (errors): 1h
-# ETA (plots): 1h
-# ETA (confidence maps, different interpolation methods i.e. EXPERIMENT 11): 1h (strategy) * 3 (interpolation methods) * 3 (strategies) * (3 + 1) (3 projections + SDBM) * 4 (datasets) = 108h = 4.5 days
-#
-# TOTAL ETA: 8.1 days (with 3 days of buffer) = 11.1 days = 2 weeks of continuous work = 1 month of part time work (according to the schedule)
 # ---------------------------------------------------
 
 
@@ -101,6 +94,14 @@ from experiments.scripts.plotter import confidence_errors_plot_for_confidence_in
 #                 RUN THE EXPERIMENT(S)
 # ---------------------------------------------------
 if __name__ == "__main__":
+    
+    # ---------------------------------------------------
+    #                 EXPERIMENT 0
+    # ---------------------------------------------------
+    # hyperparam_run_times()
+    # plot_hyperparameter_runtimes()
+    # plot_hyperparameter_label_errors()
+    
     # ---------------------------------------------------
     #                 EXPERIMENT 1-4-5-6-7
     # ---------------------------------------------------
@@ -127,10 +128,3 @@ if __name__ == "__main__":
 
     # compute_confidence_errors_for_confidence_interpolation(folder=FOLDER)
     # confidence_errors_plot_for_confidence_interpolation(folder=FOLDER)
-
-    # ---------------------------------------------------
-    #                 EXPERIMENT 12
-    # ---------------------------------------------------
-    #hyperparam_run_times()
-    #plot_hyperparameter_runtimes()
-    #plot_hyperparameter_label_errors()

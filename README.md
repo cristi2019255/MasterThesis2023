@@ -4,7 +4,7 @@ This is the package provides functionality for visualizing the classifiers decis
 
 It is based on the work of Cristian Grosu for the master thesis project for 2023 at Utrecht University.
 If you use this package, please cite the following paper:
-`[PLACEHOLDER FOR THE PAPER](http://google.com/)`
+`[Decision Boundary Maps for Supporting User-Driven Pseudo-labeling](https://drive.google.com/file/d/12PlvWEYmDpdhF0HefwSeEEbx4VUFtDGA/view?usp=sharing)`
 
 The package is available on PyPI and can be installed using pip: `pip install decision-boundary-mapper`
 

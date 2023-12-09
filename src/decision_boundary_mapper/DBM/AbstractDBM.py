@@ -819,7 +819,7 @@ class AbstractDBM:
         Args:
             sparse_map (np.ndarray): a list of tuples (x, y, data) where x and y are the coordinates of the pixel and data is the data value
             resolution (int): the resolution of the image we want to generate (the image will be a square image)
-            function (str, optional): Defaults to 'euclidean'.
+            method (str, optional): Defaults to 'linear'.
         """
         self.console.log(
             "Computing the interpolated image using RBF interpolation...")

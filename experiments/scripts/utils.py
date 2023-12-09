@@ -91,9 +91,6 @@ def compute_error(img1, img2):
     return errors, round(errors_rate, 3)
 
 def compute_confidence_error(approximated_signal, original_signal):
-    # sum ((x_i - x^_i)^2) / sum (x^_i)^2
-    #return np.sum((original_signal - approximated_signal) ** 2) / np.sum(approximated_signal ** 2)
-    
     # sum ((x_i - x^_i)^2) / sum (x_i)^2
     return np.sum((original_signal - approximated_signal) ** 2) / np.sum(original_signal ** 2)
 
