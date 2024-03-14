@@ -36,7 +36,7 @@ DBM_CONFIDENCE_IMAGE_NAME = "boundary_map_confidence"
 
 PROJECTION_ERRORS_NEIGHBORS_NUMBER = 10
 
-DEFAULT_TRAINING_EPOCHS = 300
+DEFAULT_TRAINING_EPOCHS = 200
 DEFAULT_BATCH_SIZE = 128
 
 time_tracker_console = Logger(name="Decision Boundary Mapper - DBM", info_color="cyan", show_init=False)
@@ -72,7 +72,7 @@ class AbstractDBM:
                 # To be implemented
     """
 
-    def __init__(self, classifier, logger: LoggerInterface | None = None):
+    def __init__(self, classifier=None, logger: LoggerInterface | None = None):
         """
         Initializes the classifier and the logger
 
@@ -154,7 +154,7 @@ class AbstractDBM:
         """
         return None, None, None
 
-    def get_dbm(self, fast_decoding_strategy: FAST_DBM_STRATEGIES, resolution: int, load_folder: str) -> tuple:
+    def get_dbm(self, fast_decoding_strategy: FAST_DBM_STRATEGIES, resolution: int, load_folder: str, initial_resolution:int=32) -> tuple:
         """
         Delegates the generation of the DBM to the according functionality based on the fast_decoding_strategy
 
@@ -176,15 +176,15 @@ class AbstractDBM:
             case FAST_DBM_STRATEGIES.BINARY:
                 save_img_path += f"_fast_{FAST_DBM_STRATEGIES.BINARY.value}"
                 save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.BINARY.value}"
-                img, img_confidence, _ = self._get_img_dbm_fast_(resolution)
+                img, img_confidence, _ = self._get_img_dbm_fast_(resolution, initial_resolution=initial_resolution)
             case FAST_DBM_STRATEGIES.CONFIDENCE_BASED:
                 save_img_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
                 save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_BASED.value}"
-                img, img_confidence, _ = self._get_img_dbm_fast_confidences_strategy(resolution)
+                img, img_confidence, _ = self._get_img_dbm_fast_confidences_strategy(resolution, initial_resolution=initial_resolution)
             case FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION:
                 save_img_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION.value}"
                 save_img_confidence_path += f"_fast_{FAST_DBM_STRATEGIES.CONFIDENCE_INTERPOLATION.value}"
-                img, img_confidence, _ = self._get_img_dbm_fast_confidence_interpolation_strategy(resolution)
+                img, img_confidence, _ = self._get_img_dbm_fast_confidence_interpolation_strategy(resolution, initial_resolution=initial_resolution)
 
         with open(f"{save_img_path}.npy", 'wb') as f:
             np.save(f, img)  # type: ignore
@@ -263,7 +263,7 @@ class AbstractDBM:
                                                                                                         resolution=resolution, 
                                                                                                         computational_budget=computational_budget,
                                                                                                         confidence_interpolation_method=interpolation_method)
-           
+
         # analyze the initial points and generate the priority queue
         priority_queue = PriorityQueue()
         priority_queue = self._update_priority_queue_(priority_queue, img, indexes, sizes, labels)
@@ -283,8 +283,8 @@ class AbstractDBM:
             for (w, h, i, j) in items:
                 
                 if w == 1 and h == 1:
-                    single_points_space.append((j / resolution, i / resolution))
-                    single_points_indices.append((int(j), int(i)))
+                    single_points_space.append((i / resolution, j / resolution))
+                    single_points_indices.append((int(i), int(j)))
                     continue
                 
                 neighbors, sizes = binary_split(i, j, w, h)
@@ -388,7 +388,7 @@ class AbstractDBM:
         for (w, h), (x, y), label, conf, confidences in zip(sizes, indexes, predicted_labels, predicted_confidence, predicted_confidences):
             x0, x1, y0, y1 = get_window_borders(x, y, w, h)
             img[x0:x1 + 1, y0:y1 + 1] = label
-            confidence_map.append((y, x, conf))
+            confidence_map.append((x, y, conf))
       
             img_indexes[x0:x1 + 1, y0:y1 + 1] = (y, x)
             pseudo_conf_img[x0:x1 + 1, y0:y1 + 1, :] = confidences
@@ -414,8 +414,8 @@ class AbstractDBM:
 
             for (w, h, i, j) in items:
                 if w == 1 and h == 1:
-                    single_points_space.append((j / resolution, i / resolution))
-                    single_points_indices.append((int(j), int(i)))
+                    single_points_space.append((i / resolution, j / resolution))
+                    single_points_indices.append((int(i), int(j)))
                     continue
                 
                 neighbors, sizes = get_confidence_based_split(img, pseudo_conf_img, img_indexes, i, j, w, h)
@@ -708,7 +708,7 @@ class AbstractDBM:
         for (w, h), (x, y), label, conf in zip(sizes, indexes, predicted_labels, predicted_confidence):
             x0, x1, y0, y1 = get_window_borders(x, y, w, h)
             img[x0:x1 + 1, y0:y1 + 1] = label
-            confidence_map.append((y, x, conf))
+            confidence_map.append((x, y, conf))
         
         return indexes, sizes, predicted_labels, computational_budget, img, confidence_map
 
